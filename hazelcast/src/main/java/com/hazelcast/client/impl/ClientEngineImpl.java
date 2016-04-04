@@ -16,6 +16,7 @@
 
 package com.hazelcast.client.impl;
 
+import com.hazelcast.cache.impl.JCacheDetector;
 import com.hazelcast.client.AuthenticationException;
 import com.hazelcast.client.ClientEndpoint;
 import com.hazelcast.client.ClientEndpointManager;
@@ -45,7 +46,6 @@ import com.hazelcast.instance.Node;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
-import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.ConnectionListener;
 import com.hazelcast.nio.Packet;
@@ -91,6 +91,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+import static com.hazelcast.cache.impl.JCacheDetector.JCacheDetectionResult.V1_0_0;
 import static com.hazelcast.spi.impl.OperationResponseHandlerFactory.createEmptyResponseHandler;
 
 /**
@@ -139,8 +140,7 @@ public class ClientEngineImpl implements ClientEngine, CoreService, PostJoinAwar
     }
 
     private ClientExceptionFactory initClientExceptionFactory() {
-        ClassLoader classLoader = nodeEngine.getConfigClassLoader();
-        boolean jcacheAvailable = ClassLoaderUtil.isClassAvailable(classLoader, "javax.cache.Caching");
+        boolean jcacheAvailable = (JCacheDetector.checkJcacheVersion(nodeEngine.getConfigClassLoader(), null) == V1_0_0);
         return new ClientExceptionFactory(jcacheAvailable);
     }
 

@@ -16,6 +16,7 @@
 
 package com.hazelcast.client.spi.impl;
 
+import com.hazelcast.cache.impl.JCacheDetector;
 import com.hazelcast.client.HazelcastClientNotActiveException;
 import com.hazelcast.client.connection.ClientConnectionManager;
 import com.hazelcast.client.connection.nio.ClientConnection;
@@ -30,7 +31,6 @@ import com.hazelcast.client.spi.EventHandler;
 import com.hazelcast.client.spi.impl.listener.ClientListenerServiceImpl;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
-import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.ConnectionListener;
 import com.hazelcast.spi.exception.TargetDisconnectedException;
@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 
+import static com.hazelcast.cache.impl.JCacheDetector.JCacheDetectionResult.V1_0_0;
 import static com.hazelcast.client.config.ClientProperty.MAX_CONCURRENT_INVOCATIONS;
 import static com.hazelcast.instance.OutOfMemoryErrorDispatcher.onOutOfMemory;
 
@@ -92,8 +93,7 @@ abstract class ClientInvocationServiceSupport implements ClientInvocationService
 
 
     private ClientExceptionFactory initClientExceptionFactory() {
-        ClassLoader classLoader = client.getClientConfig().getClassLoader();
-        boolean jcacheAvailable = ClassLoaderUtil.isClassAvailable(classLoader, "javax.cache.Caching");
+        boolean jcacheAvailable = (JCacheDetector.checkJcacheVersion(client.getClientConfig().getClassLoader(), null) == V1_0_0);
         return new ClientExceptionFactory(jcacheAvailable);
     }
 
