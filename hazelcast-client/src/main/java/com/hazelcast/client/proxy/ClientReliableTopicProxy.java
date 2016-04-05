@@ -46,6 +46,7 @@ import com.hazelcast.util.UuidUtil;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
 import static com.hazelcast.ringbuffer.impl.RingbufferService.TOPIC_RB_PREFIX;
@@ -263,8 +264,8 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
                 return;
             }
 
-            if (t instanceof StaleSequenceException) {
-                StaleSequenceException staleSequenceException = (StaleSequenceException) t;
+            if (t instanceof ExecutionException && t.getCause() instanceof StaleSequenceException) {
+                StaleSequenceException staleSequenceException = (StaleSequenceException) t.getCause();
 
                 if (listener.isLossTolerant()) {
                     if (logger.isFinestEnabled()) {

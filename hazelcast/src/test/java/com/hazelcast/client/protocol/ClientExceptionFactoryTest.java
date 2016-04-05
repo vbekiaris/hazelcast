@@ -194,6 +194,10 @@ public class ClientExceptionFactoryTest extends HazelcastTestSupport {
         ClientMessage responseMessage = ClientMessage.createForDecode(exceptionMessage.buffer(), 0);
         Throwable resurrectedThrowable = exceptionFactory.createException(responseMessage);
         assertEquals(throwable.getClass(), resurrectedThrowable.getClass());
+        if (throwable instanceof StaleSequenceException) {
+            assertEquals(((StaleSequenceException)throwable).getHeadSeq(),
+                         ((StaleSequenceException)resurrectedThrowable).getHeadSeq());
+        }
         assertStackTraceArrayEquals(throwable.getStackTrace(), resurrectedThrowable.getStackTrace());
         Throwable cause = throwable.getCause();
         if (cause == null) {
