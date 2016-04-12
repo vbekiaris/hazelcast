@@ -1,0 +1,33 @@
+<hazelcast xsi:schemaLocation="http://www.hazelcast.com/schema/config hazelcast-config-3.5.xsd"
+           xmlns="http://www.hazelcast.com/schema/config"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <properties>
+        <!-- do not allow listening socket to bind to any IP address,
+             instead we explicitly set the IP address for each member
+             in code -->
+        <property name="hazelcast.socket.bind.any">false</property>
+        <!-- disallow phone home to avoid lsof pollution -->
+        <property name="hazelcast.phone.home.enabled">false</property>
+        <property name="hazelcast.logging.type">none</property>
+    </properties>
+    <network>
+        <!-- stick to a single listen port -->
+        <port auto-increment="false">5701</port>
+        <outbound-ports>
+            <!-- allow exactly 4 outbound ports per IP address -->
+            <ports>10000-10003</ports>
+        </outbound-ports>
+        <join>
+            <multicast enabled="false"/>
+            <tcp-ip enabled="true">
+                <member-list>
+                    <!-- each instance will pick up one of the following IPs -->
+                    <member>127.0.0.1</member>
+                    <member>127.0.0.2</member>
+                    <member>127.0.0.3</member>
+                    <member>127.0.0.4</member>
+                </member-list>
+            </tcp-ip>
+        </join>
+    </network>
+</hazelcast>
