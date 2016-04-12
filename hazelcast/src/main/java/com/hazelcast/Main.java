@@ -2,7 +2,6 @@ package com.hazelcast;
 
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.Config;
-import com.hazelcast.config.FileSystemXmlConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.util.Natives;
@@ -13,6 +12,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,19 +29,47 @@ public class Main {
 
     static List<Integer> allowedClientPorts = Arrays.asList(new Integer[] {5701, 10000, 10001, 10002, 10003, 10004});
 
+    static final int CLUSTER_SIZE = 4;
+
+    static HazelcastInstance[] HZS = new HazelcastInstance[CLUSTER_SIZE];
+
+    static final CyclicBarrier BARRIER = new CyclicBarrier(CLUSTER_SIZE+1);
+
+    static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(CLUSTER_SIZE);
+
+    static class StartHazelcastTask implements Callable<Void> {
+        final int sequence;
+
+        StartHazelcastTask(int sequence) {
+            this.sequence = sequence;
+        }
+
+        @Override
+        public Void call()
+                throws InterruptedException, BrokenBarrierException {
+            BARRIER.await();
+            Config config = new ClasspathXmlConfig("hazelcast-outboundports.xml");
+            config.getNetworkConfig().getInterfaces().setEnabled(true);
+            config.getNetworkConfig().getInterfaces().addInterface("127.0.0." + (sequence + 1));
+            HZS[sequence] = Hazelcast.newHazelcastInstance(config);
+            BARRIER.await();
+            return null;
+        }
+    }
+
     public static void main(String[] args)
-            throws IOException, InterruptedException {
+            throws IOException, InterruptedException, BrokenBarrierException {
 
         int pid = Natives.INSTANCE.getpid();
         System.setProperty("hazelcast.socket.bind.any", "false");
-        HazelcastInstance[] hzs = new HazelcastInstance[4];
-        for (int i = 0; i < hzs.length; i++) {
-            Config config = new ClasspathXmlConfig("hazelcast-outboundports.xml");
-            config.getNetworkConfig().getInterfaces().setEnabled(true);
-            config.getNetworkConfig().getInterfaces().addInterface("127.0.0." + (i + 1));
-            hzs[i] = Hazelcast.newHazelcastInstance(config);
+
+        for (int i = 0; i < CLUSTER_SIZE; i++) {
+            EXECUTOR_SERVICE.submit(new StartHazelcastTask(i));
         }
         try {
+            BARRIER.await();
+            BARRIER.await();
+
             Process p = Runtime.getRuntime().exec(new String[]{"/usr/sbin/lsof", "-F", "n", "-a",
                                                    "-n", "-P", "-i", "-p", "" + pid});
             p.waitFor();
@@ -53,9 +85,10 @@ public class Main {
             }
         }
         finally {
-            for (HazelcastInstance hz : hzs) {
+            for (HazelcastInstance hz : HZS) {
                 hz.shutdown();
             }
+            EXECUTOR_SERVICE.shutdown();
         }
     }
 
