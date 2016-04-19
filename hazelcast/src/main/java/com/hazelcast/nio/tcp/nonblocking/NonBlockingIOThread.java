@@ -23,13 +23,17 @@ import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static com.hazelcast.nio.tcp.nonblocking.SelectorOptimizer.optimize;
@@ -41,6 +45,10 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     // WARNING: This value has significant effect on idle CPU usage!
     private static final int SELECT_WAIT_TIME_MILLIS = 5000;
     private static final int SELECT_FAILURE_PAUSE_MILLIS = 1000;
+    // When we detect Selector.select returning prematurely
+    // for more than SELECT_IMMEDIATE_RETURNS_THRESHOLD then we discard the
+    // old selector and create a new one
+    private static final int SELECT_IMMEDIATE_RETURNS_THRESHOLD = 10;
 
     @SuppressWarnings("checkstyle:visibilitymodifier")
     // this field is set during construction and is meant for the probes so that the read/write handler can
@@ -56,14 +64,26 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     private final SwCounter selectorIOExceptionCount = newSwCounter();
     @Probe
     private final SwCounter completedTaskCount = newSwCounter();
+    @Probe
+    private final SwCounter selectorRecreateCount = newSwCounter();
 
     private final ILogger logger;
 
-    private final Selector selector;
+    private final Object selectorMonitor = new Object();
+
+    @GuardedBy("selectorMonitor")
+    private Selector selector;
 
     private final NonBlockingIOThreadOutOfMemoryHandler oomeHandler;
 
     private final boolean selectNow;
+
+    private final AtomicBoolean wokenUp = new AtomicBoolean(false);
+
+    // Workaround for SelectorImpl.select returning immediately
+    // with no channels selected, resulting in 100% CPU usage
+    // Related github issue: https://github.com/hazelcast/hazelcast/issues/7943
+    private final boolean selectWorkaround = Boolean.getBoolean("hazelcast.io.selectorWorkaround");
 
     private volatile long lastSelectTimeMs;
 
@@ -155,7 +175,10 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     public void addTaskAndWakeup(Runnable task) {
         taskQueue.add(task);
         if (!selectNow) {
-            selector.wakeup();
+            synchronized (selectorMonitor) {
+                wokenUp.compareAndSet(false, true);
+                selector.wakeup();
+            }
         }
     }
 
@@ -211,13 +234,30 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     }
 
     private void runSelectLoop() throws IOException {
+        int consecutiveImmediateReturns = 0;
         while (!isInterrupted()) {
             processTaskQueue();
 
+            long start = System.currentTimeMillis();
             int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
             if (selectedKeys > 0) {
                 lastSelectTimeMs = currentTimeMillis();
                 handleSelectionKeys();
+            }
+            else if (selectWorkaround) {
+                // no keys were selected, therefore either selector.wakeUp was invoked or we hit an issue with JDK/network stack
+                if (!wokenUp.compareAndSet(true, false)) {
+                    // wokenUp was false, so handle the case in which selector.select returns prematurely
+                    long selectTimeTaken = currentTimeMillis() - start;
+                    if (selectTimeTaken < SELECT_WAIT_TIME_MILLIS) {
+                        ++consecutiveImmediateReturns;
+                    }
+                }
+                if (consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {
+                    selectorRecreateCount.inc();
+                    discardAndRecreateSelector();
+                    consecutiveImmediateReturns = 0;
+                }
             }
         }
     }
@@ -296,7 +336,9 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         }
 
         try {
-            selector.close();
+            synchronized (selectorMonitor) {
+                selector.close();
+            }
         } catch (Exception e) {
             logger.finest("Failed to close selector", e);
         }
@@ -305,6 +347,38 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     public final void shutdown() {
         taskQueue.clear();
         interrupt();
+    }
+
+    private void discardAndRecreateSelector() {
+        synchronized (selectorMonitor) {
+            Selector newSelector = NonBlockingIOThread.newSelector(logger);
+            Selector selector = this.selector;
+            this.selector = newSelector;
+
+            // loop over all the keys that are registered with the old Selector
+            // and register them with the new one
+            for (SelectionKey key: selector.keys()) {
+                SelectableChannel ch = key.channel();
+                int ops = key.interestOps();
+                Object att = key.attachment();
+
+                // register the channel with the new selector now
+                try {
+                    ch.register(newSelector, ops, att);
+                } catch (ClosedChannelException ignore) {
+
+                }
+                // cancel the old key
+                key.cancel();
+            }
+            try {
+                // close the old selector
+                selector.close();
+            } catch (Throwable t) {
+                logger.warning("Failed to close selector.", t);
+            }
+            logger.fine("Recreated Selector because of possible jdk bug");
+        }
     }
 
     @Override
