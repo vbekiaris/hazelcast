@@ -23,7 +23,6 @@ import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
@@ -64,15 +63,14 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     private final SwCounter selectorIOExceptionCount = newSwCounter();
     @Probe
     private final SwCounter completedTaskCount = newSwCounter();
+    // count number of times the selector was recreated (if selectWorkaround is enabled)
+    // do we want to keep this probe?
     @Probe
     private final SwCounter selectorRecreateCount = newSwCounter();
 
     private final ILogger logger;
 
-    private final Object selectorMonitor = new Object();
-
-    @GuardedBy("selectorMonitor")
-    private Selector selector;
+    private volatile Selector selector;
 
     private final NonBlockingIOThreadOutOfMemoryHandler oomeHandler;
 
@@ -175,10 +173,12 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     public void addTaskAndWakeup(Runnable task) {
         taskQueue.add(task);
         if (!selectNow) {
-            synchronized (selectorMonitor) {
-                wokenUp.compareAndSet(false, true);
-                selector.wakeup();
-            }
+            // if we are swapping this.selector in discardAndRecreateSelector
+            // concurrently, it could be the case that wakeup is triggered on
+            // the stale selector. This could lead to the wakeup being ignored and the task
+            // being delayed for up to #SELECT_WAIT_TIME_MILLIS.
+            wokenUp.set(true);
+            selector.wakeup();
         }
     }
 
@@ -336,9 +336,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         }
 
         try {
-            synchronized (selectorMonitor) {
-                selector.close();
-            }
+            selector.close();
         } catch (Exception e) {
             logger.finest("Failed to close selector", e);
         }
@@ -349,36 +347,40 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         interrupt();
     }
 
+    // this method is always invoked in this thread
+    // after we have blocked for selector.select in runSelectLoop
     private void discardAndRecreateSelector() {
-        synchronized (selectorMonitor) {
-            Selector newSelector = NonBlockingIOThread.newSelector(logger);
-            Selector selector = this.selector;
-            this.selector = newSelector;
+        Selector newSelector = NonBlockingIOThread.newSelector(logger);
+        Selector selector = this.selector;
 
-            // loop over all the keys that are registered with the old Selector
-            // and register them with the new one
-            for (SelectionKey key: selector.keys()) {
-                SelectableChannel ch = key.channel();
-                int ops = key.interestOps();
-                Object att = key.attachment();
+        // loop over all the keys that are registered with the old Selector
+        // and register them with the new one
+        for (SelectionKey key: selector.keys()) {
+            SelectableChannel ch = key.channel();
+            int ops = key.interestOps();
+            Object att = key.attachment();
 
-                // register the channel with the new selector now
-                try {
-                    ch.register(newSelector, ops, att);
-                } catch (ClosedChannelException ignore) {
-
-                }
-                // cancel the old key
-                key.cancel();
-            }
+            // register the channel with the new selector now
             try {
-                // close the old selector
-                selector.close();
-            } catch (Throwable t) {
-                logger.warning("Failed to close selector.", t);
+                SelectionKey sk = ch.register(newSelector, ops, att);
+                if (att != null) {
+                    SelectionHandler handler = (SelectionHandler) att;
+                    handler.setSelectionKey(sk);
+                }
+            } catch (ClosedChannelException ignore) {
+
             }
-            logger.fine("Recreated Selector because of possible jdk bug");
+            // cancel the old key
+            key.cancel();
         }
+        try {
+            // close the old selector
+            selector.close();
+
+        } catch (Throwable t) {
+            logger.warning("Failed to close selector.", t);
+        }
+        logger.fine("Recreated Selector because of possible jdk bug");
     }
 
     @Override

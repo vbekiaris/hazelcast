@@ -39,9 +39,9 @@ public abstract class AbstractHandler implements MigratableHandler {
     protected final TcpIpConnection connection;
     protected final TcpIpConnectionManager connectionManager;
     protected final IOService ioService;
-    protected Selector selector;
     protected NonBlockingIOThread ioThread;
-    protected SelectionKey selectionKey;
+    // is a Handler shared among threads?
+    protected volatile SelectionKey selectionKey;
     private final int initialOps;
 
     // shows the id of the ioThread that is currently owning the handler
@@ -56,7 +56,6 @@ public abstract class AbstractHandler implements MigratableHandler {
         this.connection = connection;
         this.ioThread = ioThread;
         this.ioThreadId = ioThread.id;
-        this.selector = ioThread.getSelector();
         this.socketChannel = connection.getSocketChannelWrapper();
         this.connectionManager = connection.getConnectionManager();
         this.ioService = connectionManager.getIoService();
@@ -83,7 +82,7 @@ public abstract class AbstractHandler implements MigratableHandler {
 
     protected SelectionKey getSelectionKey() throws IOException {
         if (selectionKey == null) {
-            selectionKey = socketChannel.register(selector, initialOps, this);
+            selectionKey = socketChannel.register(ioThread.getSelector(), initialOps, this);
         }
         return selectionKey;
     }
@@ -142,7 +141,6 @@ public abstract class AbstractHandler implements MigratableHandler {
         ioThreadId = ioThread.id;
         selectionKey.cancel();
         selectionKey = null;
-        selector = null;
 
         newOwner.addTaskAndWakeup(new Runnable() {
             @Override
@@ -167,8 +165,12 @@ public abstract class AbstractHandler implements MigratableHandler {
             return;
         }
 
-        selector = newOwner.getSelector();
         selectionKey = getSelectionKey();
         registerOp(initialOps);
+    }
+
+    @Override
+    public void setSelectionKey(SelectionKey selectionKey) {
+        this.selectionKey = selectionKey;
     }
 }
