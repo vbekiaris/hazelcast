@@ -42,9 +42,8 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     private static final int SELECT_WAIT_TIME_MILLIS = 5000;
     private static final int SELECT_FAILURE_PAUSE_MILLIS = 1000;
     // When we detect Selector.select returning prematurely
-    // for more than SELECT_IMMEDIATE_RETURNS_THRESHOLD then we discard the
-    // old selector and create a new one
-    private static final int SELECT_IMMEDIATE_RETURNS_THRESHOLD = 10;
+    // for more than SELECT_IDLE_COUNT_THRESHOLD then we rebuild the selector
+    private static final int SELECT_IDLE_COUNT_THRESHOLD = 10;
 
     @SuppressWarnings("checkstyle:visibilitymodifier")
     // this field is set during construction and is meant for the probes so that the read/write handler can
@@ -60,9 +59,9 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     private final SwCounter selectorIOExceptionCount = newSwCounter();
     @Probe
     private final SwCounter completedTaskCount = newSwCounter();
-    // count number of times the selector was recreated (if selectWorkaround is enabled)
+    // count number of times the selector was rebuilt (if selectWorkaround is enabled)
     @Probe
-    private final SwCounter selectorRecreateCount = newSwCounter();
+    private final SwCounter selectorRebuildCount = newSwCounter();
 
     private final ILogger logger;
 
@@ -75,13 +74,10 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     // When true, enables workaround for bug occuring when SelectorImpl.select returns immediately
     // with no channels selected, resulting in 100% CPU usage while doing no progress.
     // See issue: https://github.com/hazelcast/hazelcast/issues/7943
-    private final boolean selectorWorkaround = Boolean.getBoolean("hazelcast.io.selectorWorkaround");
+    private final boolean selectorWorkaround;
 
-    // last time select was invoked
+    // last time select unblocked with some keys selected
     private volatile long lastSelectTimeMs;
-
-    // last time select returned selected keys
-    private volatile long lastEventTimeMs;
 
     public NonBlockingIOThread(ThreadGroup threadGroup,
                                String threadName,
@@ -95,7 +91,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
                                ILogger logger,
                                NonBlockingIOThreadOutOfMemoryHandler oomeHandler,
                                boolean selectNow) {
-        this(threadGroup, threadName, logger, oomeHandler, selectNow, newSelector(logger));
+        this(threadGroup, threadName, logger, oomeHandler, selectNow, false, newSelector(logger));
     }
 
     public NonBlockingIOThread(ThreadGroup threadGroup,
@@ -103,11 +99,22 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
                                ILogger logger,
                                NonBlockingIOThreadOutOfMemoryHandler oomeHandler,
                                boolean selectNow,
+                               boolean selectorWorkaround) {
+        this(threadGroup, threadName, logger, oomeHandler, selectNow, selectorWorkaround, newSelector(logger));
+    }
+
+    public NonBlockingIOThread(ThreadGroup threadGroup,
+                               String threadName,
+                               ILogger logger,
+                               NonBlockingIOThreadOutOfMemoryHandler oomeHandler,
+                               boolean selectNow,
+                               boolean selectorWorkaround,
                                Selector selector) {
         super(threadGroup, threadName);
         this.logger = logger;
         this.selectNow = selectNow;
         this.oomeHandler = oomeHandler;
+        this.selectorWorkaround = selectorWorkaround;
         this.selector = selector;
     }
 
@@ -148,7 +155,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
      */
     @Probe
     private long idleTimeMs() {
-        return max(currentTimeMillis() - lastEventTimeMs, 0);
+        return max(currentTimeMillis() - lastSelectTimeMs, 0);
     }
 
     /**
@@ -232,42 +239,34 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         while (!isInterrupted()) {
             processTaskQueue();
 
-            lastSelectTimeMs = currentTimeMillis();
             int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
             if (selectedKeys > 0) {
-                lastEventTimeMs = currentTimeMillis();
                 handleSelectionKeys();
             }
         }
     }
 
     private void runSelectLoopWithSelectorFix() throws IOException {
-        int consecutiveImmediateReturns = 0;
+        int idleCount = 0;
         while (!isInterrupted()) {
             processTaskQueue();
 
-            lastSelectTimeMs = currentTimeMillis();
+            long before = currentTimeMillis();
             int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
             if (selectedKeys > 0) {
-                lastEventTimeMs = currentTimeMillis();
+                idleCount = 0;
                 handleSelectionKeys();
+            } else if (!taskQueue.isEmpty()) {
+                idleCount = 0;
             } else {
                 // no keys were selected, therefore either selector.wakeUp was invoked or we hit an issue with JDK/network stack
-                if (taskQueue.isEmpty()) {
-                    // we were not interrupted by wakeup, so handle the case in which selector.select returns prematurely
-                    long selectTimeTaken = currentTimeMillis() - lastSelectTimeMs;
-                    if (selectTimeTaken < SELECT_WAIT_TIME_MILLIS) {
-                        ++consecutiveImmediateReturns;
-                    } else {
-                        consecutiveImmediateReturns = 0;
-                    }
-                } else {
-                    consecutiveImmediateReturns = 0;
-                }
-                if (consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {
-                    selectorRecreateCount.inc();
-                    discardAndRecreateSelector();
-                    consecutiveImmediateReturns = 0;
+                // we were not interrupted by wakeup, so handle the case in which selector.select returns prematurely
+                long selectTimeTaken = currentTimeMillis() - before;
+                idleCount = selectTimeTaken < SELECT_WAIT_TIME_MILLIS ? idleCount + 1 : 0;
+
+                if (idleCount > SELECT_IDLE_COUNT_THRESHOLD) {
+                    rebuildSelector();
+                    idleCount = 0;
                 }
             }
         }
@@ -277,10 +276,8 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         while (!isInterrupted()) {
             processTaskQueue();
 
-            lastSelectTimeMs = currentTimeMillis();
             int selectedKeys = selector.selectNow();
             if (selectedKeys > 0) {
-                lastEventTimeMs = currentTimeMillis();
                 handleSelectionKeys();
             }
         }
@@ -316,6 +313,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     }
 
     private void handleSelectionKeys() {
+        lastSelectTimeMs = currentTimeMillis();
         Iterator<SelectionKey> it = selector.selectedKeys().iterator();
         while (it.hasNext()) {
             SelectionKey sk = it.next();
@@ -361,7 +359,8 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
 
     // this method is always invoked in this thread
     // after we have blocked for selector.select in #runSelectLoopWithSelectorFix
-    private void discardAndRecreateSelector() {
+    private void rebuildSelector() {
+        selectorRebuildCount.inc();
         Selector newSelector = NonBlockingIOThread.newSelector(logger);
         Selector selector = this.selector;
         this.selector = newSelector;

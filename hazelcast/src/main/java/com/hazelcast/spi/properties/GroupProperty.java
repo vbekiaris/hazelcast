@@ -629,6 +629,38 @@ public final class GroupProperty {
             = new HazelcastProperty("hazelcast.serialization.version",
             BuildInfoProvider.getBuildInfo().getSerializationVersion());
 
+    /**
+     * <p>Enables the experimental spinning IO threading model.</p>
+     * <p>The default value of this property is <b>false</b>, which means the non-blocking threading model will be used.</p>
+     */
+    public static final HazelcastProperty IO_SPINNING_THREADING_MODEL
+            = new HazelcastProperty("hazelcast.io.spinning", false);
+
+    /**
+     * <p>Enables usage of <code>Selector.selectNow</code> in input threads' select loop.</p>
+     * <p>This feature is experimental and is <b>disabled</b> by default.</p>
+     */
+    public static final HazelcastProperty IO_INPUT_THREAD_SELECT_NOW
+            = new HazelcastProperty("hazelcast.io.input.thread.selectNow", false);
+
+
+    /**
+     * <p>Enables usage of <code>Selector.selectNow</code> in output threads' select loop.</p>
+     * <p>This feature is experimental and is <b>disabled</b> by default.</p>
+     */
+    public static final HazelcastProperty IO_OUTPUT_THREAD_SELECT_NOW
+            = new HazelcastProperty("hazelcast.io.output.thread.selectNow", false);
+
+    /**
+     * <p>Enables detection and workaround of a condition under which <code>Selector.select</code>
+     * does not block even though none of the conditions required to unblock is present, resulting
+     * in excess CPU usage.
+     * Only enable this switch if you observe maximum CPU usage by Hazelcast IO threads while idle.</p>
+     * <p>The default value of this switch is <code>false</code>.</p>
+     */
+    public static final HazelcastProperty IO_SELECTOR_WORKAROUND
+            = new HazelcastProperty("hazelcast.io.selectorWorkaround", false);
+
     private GroupProperty() {
     }
 }

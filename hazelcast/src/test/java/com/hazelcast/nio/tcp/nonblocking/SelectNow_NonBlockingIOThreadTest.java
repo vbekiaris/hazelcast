@@ -14,4 +14,9 @@ public class SelectNow_NonBlockingIOThreadTest extends NonBlockingIOThreadAbstra
     protected boolean selectNow() {
         return true;
     }
+
+    @Override
+    protected boolean selectWorkaround() {
+        return false;
+    }
 }

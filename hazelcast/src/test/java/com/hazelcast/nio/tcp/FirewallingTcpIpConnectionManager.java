@@ -22,6 +22,7 @@ import com.hazelcast.logging.LoggingService;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.NodeIOService;
+import com.hazelcast.spi.properties.HazelcastProperties;
 
 import java.nio.channels.ServerSocketChannel;
 import java.util.Collections;
@@ -37,8 +38,9 @@ public class FirewallingTcpIpConnectionManager extends TcpIpConnectionManager {
             HazelcastThreadGroup threadGroup,
             NodeIOService ioService,
             MetricsRegistry metricsRegistry,
-            ServerSocketChannel serverSocketChannel) {
-        super(ioService, serverSocketChannel, metricsRegistry, threadGroup, loggingService);
+            ServerSocketChannel serverSocketChannel,
+            HazelcastProperties properties) {
+        super(ioService, serverSocketChannel, metricsRegistry, threadGroup, loggingService, properties);
     }
 
     @Override

@@ -34,6 +34,7 @@ import com.hazelcast.nio.Packet;
 import com.hazelcast.nio.tcp.nonblocking.NonBlockingIOThreadingModel;
 import com.hazelcast.nio.tcp.nonblocking.iobalancer.IOBalancer;
 import com.hazelcast.spi.impl.PacketHandler;
+import com.hazelcast.spi.properties.HazelcastProperties;
 import com.hazelcast.util.ConcurrencyUtil;
 import com.hazelcast.util.ConstructorFunction;
 import com.hazelcast.util.executor.StripedRunnable;
@@ -133,9 +134,10 @@ public class TcpIpConnectionManager implements ConnectionManager, PacketHandler 
                                   ServerSocketChannel serverSocketChannel,
                                   MetricsRegistry metricsRegistry,
                                   HazelcastThreadGroup threadGroup,
-                                  LoggingService loggingService) {
+                                  LoggingService loggingService,
+                                  HazelcastProperties properties) {
         this(ioService, serverSocketChannel, loggingService, metricsRegistry,
-                new NonBlockingIOThreadingModel(ioService, loggingService, metricsRegistry, threadGroup));
+                new NonBlockingIOThreadingModel(ioService, loggingService, metricsRegistry, threadGroup, properties));
     }
 
     public TcpIpConnectionManager(IOService ioService,

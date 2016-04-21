@@ -58,8 +58,10 @@ public abstract class NonBlockingIOThreadAbstractTest extends HazelcastTestSuppo
 
     protected abstract boolean selectNow();
 
+    protected abstract boolean selectWorkaround();
+
     private void startThread() {
-        thread = new NonBlockingIOThread(null, "foo", logger, oomeHandler, selectNow(), selector);
+        thread = new NonBlockingIOThread(null, "foo", logger, oomeHandler, selectNow(), selectWorkaround(), selector);
         thread.start();
     }
 

@@ -39,7 +39,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class SocketAcceptorThread extends Thread {
     private static final long SHUTDOWN_TIMEOUT_MILLIS = SECONDS.toMillis(10);
     private static final long SELECT_TIMEOUT_MILLIS = SECONDS.toMillis(60);
-    private static final int SELECT_IMMEDIATE_RETURNS_THRESHOLD = 10;
+    private static final int SELECT_IDLE_COUNT_THRESHOLD = 10;
 
     private final ServerSocketChannel serverSocketChannel;
     private final TcpIpConnectionManager connectionManager;
@@ -54,8 +54,6 @@ public class SocketAcceptorThread extends Thread {
     private final SwCounter selectorRecreateCount = newSwCounter();
     // last time select returned
     private volatile long lastSelectTimeMs;
-    // last time select returned with selected keys
-    private volatile long lastEventTimeMs;
 
     // When true, enables workaround for bug occuring when SelectorImpl.select returns immediately
     // with no channels selected, resulting in 100% CPU usage while doing no progress.
@@ -84,7 +82,7 @@ public class SocketAcceptorThread extends Thread {
      */
     @Probe
     private long idleTimeMs() {
-        return max(currentTimeMillis() - lastEventTimeMs, 0);
+        return max(currentTimeMillis() - lastSelectTimeMs, 0);
     }
 
     @Override
@@ -115,7 +113,6 @@ public class SocketAcceptorThread extends Thread {
         while (connectionManager.isLive()) {
             // block until new connection or interruption.
             int keyCount = selector.select();
-            lastSelectTimeMs = System.currentTimeMillis();
             if (isInterrupted()) {
                 break;
             }
@@ -128,42 +125,43 @@ public class SocketAcceptorThread extends Thread {
     }
 
     private void acceptLoopWithSelectorFix() throws IOException {
-        int consecutiveImmediateReturns = 0;
+        int idleCount = 0;
         while (connectionManager.isLive()) {
             // block with a timeout until new connection or interruption.
-            lastSelectTimeMs = currentTimeMillis();
+            long before = currentTimeMillis();
             int keyCount = selector.select(SELECT_TIMEOUT_MILLIS);
             if (isInterrupted()) {
                 break;
             }
             if (keyCount == 0) {
-                if (currentTimeMillis() - lastSelectTimeMs < SELECT_TIMEOUT_MILLIS) {
-                    // select unblocked before timing out with no keys selected --> bug detected
-                    if (++consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {
-                        // recreate the selector
-                        selectorRecreateCount.inc();
-                        // cancel existing selection key, register new one on the new selector
-                        selectionKey.cancel();
-                        closeSelector();
-                        Selector newSelector = Selector.open();
-                        selector = newSelector;
-                        selectionKey = serverSocketChannel.register(newSelector, SelectionKey.OP_ACCEPT);
-                        consecutiveImmediateReturns = 0;
-                    }
-                } else {
-                    // just reset number of consecutive immediate returns
-                    consecutiveImmediateReturns = 0;
+                long selectTimeTaken = currentTimeMillis() - before;
+                idleCount = selectTimeTaken < SELECT_TIMEOUT_MILLIS ? idleCount + 1 : 0;
+                // select unblocked before timing out with no keys selected --> bug detected
+                if (idleCount > SELECT_IDLE_COUNT_THRESHOLD) {
+                    // rebuild the selector
+                    rebuildSelector();
+                    idleCount = 0;
                 }
                 continue;
             }
-            consecutiveImmediateReturns = 0;
-            lastEventTimeMs = currentTimeMillis();
+            idleCount = 0;
             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
             handleSelectionKeys(it);
         }
     }
 
+    private void rebuildSelector() throws IOException {
+        selectorRecreateCount.inc();
+        // cancel existing selection key, register new one on the new selector
+        selectionKey.cancel();
+        closeSelector();
+        Selector newSelector = Selector.open();
+        selector = newSelector;
+        selectionKey = serverSocketChannel.register(newSelector, SelectionKey.OP_ACCEPT);
+    }
+
     private void handleSelectionKeys(Iterator<SelectionKey> it) {
+        lastSelectTimeMs = currentTimeMillis();
         while (it.hasNext()) {
             SelectionKey sk = it.next();
             it.remove();

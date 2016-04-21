@@ -26,12 +26,13 @@ import com.hazelcast.nio.tcp.SocketReader;
 import com.hazelcast.nio.tcp.SocketWriter;
 import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.nio.tcp.nonblocking.iobalancer.IOBalancer;
+import com.hazelcast.spi.properties.GroupProperty;
+import com.hazelcast.spi.properties.HazelcastProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hazelcast.util.HashUtil.hashToIndex;
-import static java.lang.Boolean.getBoolean;
 import static java.util.logging.Level.FINE;
 import static java.util.logging.Level.INFO;
 
@@ -55,15 +56,17 @@ public class NonBlockingIOThreadingModel implements IOThreadingModel {
     private final LoggingService loggingService;
     private final HazelcastThreadGroup hazelcastThreadGroup;
     // experimental settings; will be disabled by default.
-    private boolean inputSelectNow = getBoolean("hazelcast.io.input.thread.selectNow");
-    private boolean outputSelectNow = getBoolean("hazelcast.io.output.thread.selectNow");
+    private final boolean inputSelectNow;
+    private final boolean outputSelectNow;
+    private final boolean selectorWorkaround;
     private volatile IOBalancer ioBalancer;
 
     public NonBlockingIOThreadingModel(
             IOService ioService,
             LoggingService loggingService,
             MetricsRegistry metricsRegistry,
-            HazelcastThreadGroup hazelcastThreadGroup) {
+            HazelcastThreadGroup hazelcastThreadGroup,
+            HazelcastProperties properties) {
         this.ioService = ioService;
         this.hazelcastThreadGroup = hazelcastThreadGroup;
         this.metricsRegistry = metricsRegistry;
@@ -71,14 +74,9 @@ public class NonBlockingIOThreadingModel implements IOThreadingModel {
         this.logger = loggingService.getLogger(NonBlockingIOThreadingModel.class);
         this.inputThreads = new NonBlockingIOThread[ioService.getInputSelectorThreadCount()];
         this.outputThreads = new NonBlockingIOThread[ioService.getOutputSelectorThreadCount()];
-    }
-
-    public void setInputSelectNow(boolean enabled) {
-        this.inputSelectNow = enabled;
-    }
-
-    public void setOutputSelectNow(boolean enabled) {
-        this.outputSelectNow = enabled;
+        this.inputSelectNow = properties.getBoolean(GroupProperty.IO_INPUT_THREAD_SELECT_NOW);
+        this.outputSelectNow = properties.getBoolean(GroupProperty.IO_OUTPUT_THREAD_SELECT_NOW);
+        this.selectorWorkaround = properties.getBoolean(GroupProperty.IO_SELECTOR_WORKAROUND);
     }
 
     @Override
@@ -108,6 +106,7 @@ public class NonBlockingIOThreadingModel implements IOThreadingModel {
 
         logger.log(inputSelectNow ? INFO : FINE, "InputThreads selectNow enabled=" + inputSelectNow);
         logger.log(outputSelectNow ? INFO : FINE, "OutputThreads selectNow enabled=" + outputSelectNow);
+        logger.log(selectorWorkaround ? INFO : FINE, "IOThreads selectorWorkaround enabled=" + selectorWorkaround);
 
         NonBlockingIOThreadOutOfMemoryHandler oomeHandler = new NonBlockingIOThreadOutOfMemoryHandler() {
             @Override
@@ -122,7 +121,8 @@ public class NonBlockingIOThreadingModel implements IOThreadingModel {
                     ioService.getThreadPrefix() + "in-" + i,
                     ioService.getLogger(NonBlockingIOThread.class.getName()),
                     oomeHandler,
-                    inputSelectNow
+                    inputSelectNow,
+                    selectorWorkaround
             );
             thread.id = i;
             inputThreads[i] = thread;
@@ -136,7 +136,9 @@ public class NonBlockingIOThreadingModel implements IOThreadingModel {
                     ioService.getThreadPrefix() + "out-" + i,
                     ioService.getLogger(NonBlockingIOThread.class.getName()),
                     oomeHandler,
-                    outputSelectNow);
+                    outputSelectNow,
+                    selectorWorkaround
+            );
             thread.id = i;
             outputThreads[i] = thread;
             metricsRegistry.scanAndRegister(thread, "tcp." + thread.getName());

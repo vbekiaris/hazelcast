@@ -69,7 +69,8 @@ public class DefaultNodeContext implements NodeContext {
                     ioService,
                     node.loggingService,
                     node.nodeEngine.getMetricsRegistry(),
-                    node.getHazelcastThreadGroup());
+                    node.getHazelcastThreadGroup(),
+                    node.getProperties());
         }
     }
 }
