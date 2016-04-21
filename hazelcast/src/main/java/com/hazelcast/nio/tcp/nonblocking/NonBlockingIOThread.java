@@ -281,9 +281,10 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         while (!isInterrupted()) {
             processTaskQueue();
 
+            lastSelectTimeMs = currentTimeMillis();
             int selectedKeys = selector.selectNow();
             if (selectedKeys > 0) {
-                lastSelectTimeMs = currentTimeMillis();
+                lastEventTimeMs = currentTimeMillis();
                 handleSelectionKeys();
             }
         }
