@@ -13,7 +13,7 @@ public class SelectNow_TcpIpConnectionManager_ConnectMemberTest extends TcpIpCon
 
     @Before
     public void setup() throws Exception {
-        threadingModelFactory = new Select_NonBlockingIOThreadingModelFactory();
+        threadingModelFactory = new SelectNow_NonBlockingIOThreadingModelFactory();
         super.setup();
     }
 }
