@@ -16,9 +16,6 @@
 
 package com.hazelcast.nio.tcp.nonblocking;
 
-import java.io.IOException;
-import java.nio.channels.SelectionKey;
-
 /**
  * The SelectionHandler is a callback interface that gets called by an IO-thread when there data available to read, or space
  * available to write.
@@ -51,10 +48,4 @@ public interface SelectionHandler {
      * @param throwable
      */
     void onFailure(Throwable throwable);
-
-    /**
-     * A hook to refresh the selection key whenever selector is updated in the {@link NonBlockingIOThread} due to
-     * detection of a bug in Java/OS network stack that causes it to utilize 100% cpu while not doing any progress at all.
-     */
-    void setSelectionKey(SelectionKey sk);
 }

@@ -16,6 +16,7 @@
 
 package com.hazelcast.nio.tcp.nonblocking;
 
+import com.hazelcast.executor.impl.RunnableAdapter;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
@@ -26,8 +27,10 @@ import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.nio.tcp.TcpIpConnectionManager;
 
 import java.io.IOException;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.util.logging.Level;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.DEBUG;
@@ -102,6 +105,32 @@ public abstract class AbstractHandler implements MigratableHandler {
         if (e instanceof OutOfMemoryError) {
             ioService.onOutOfMemory((OutOfMemoryError) e);
         }
+
+        if (e instanceof CancelledKeyException) {
+            // was it cancelled due to replacement of the selector? (see NonBlockingIOThread#selectWorkaround)
+            if (selectionKey != null && selectionKey.selector() != ioThread.getSelector()) {
+                // the selector was replaced, so obtain a new key for the new selector
+                // todo should obtaining a selectionKey happen on the IO thread via addTaskAndWakeup?
+                SelectableChannel ch = selectionKey.channel();
+                int ops = selectionKey.interestOps();
+                Object att = selectionKey.attachment();
+
+                // register the channel with the new selector now
+                try {
+                    SelectionKey sk = ch.register(ioThread.getSelector(), ops, att);
+                    this.selectionKey = sk;
+                } catch (ClosedChannelException ignore) {
+
+                }
+                // todo reschedule for execution
+                if (this instanceof Runnable) {
+                    ioThread.addTaskAndWakeup((Runnable)this);
+                }
+
+                return;
+            }
+        }
+
         if (selectionKey != null) {
             selectionKey.cancel();
         }
@@ -169,8 +198,4 @@ public abstract class AbstractHandler implements MigratableHandler {
         registerOp(initialOps);
     }
 
-    @Override
-    public void setSelectionKey(SelectionKey selectionKey) {
-        this.selectionKey = selectionKey;
-    }
 }

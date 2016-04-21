@@ -25,14 +25,11 @@ import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
 
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static com.hazelcast.nio.tcp.nonblocking.SelectorOptimizer.optimize;
@@ -64,7 +61,6 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     @Probe
     private final SwCounter completedTaskCount = newSwCounter();
     // count number of times the selector was recreated (if selectWorkaround is enabled)
-    // do we want to keep this probe?
     @Probe
     private final SwCounter selectorRecreateCount = newSwCounter();
 
@@ -76,14 +72,16 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
 
     private final boolean selectNow;
 
-    private final AtomicBoolean wokenUp = new AtomicBoolean(false);
+    // When true, enables workaround for bug occuring when SelectorImpl.select returns immediately
+    // with no channels selected, resulting in 100% CPU usage while doing no progress.
+    // See issue: https://github.com/hazelcast/hazelcast/issues/7943
+    private final boolean selectorWorkaround = Boolean.getBoolean("hazelcast.io.selectorWorkaround");
 
-    // Workaround for SelectorImpl.select returning immediately
-    // with no channels selected, resulting in 100% CPU usage
-    // Related github issue: https://github.com/hazelcast/hazelcast/issues/7943
-    private final boolean selectWorkaround = Boolean.getBoolean("hazelcast.io.selectorWorkaround");
-
+    // last time select was invoked
     private volatile long lastSelectTimeMs;
+
+    // last time select returned selected keys
+    private volatile long lastEventTimeMs;
 
     public NonBlockingIOThread(ThreadGroup threadGroup,
                                String threadName,
@@ -150,7 +148,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
      */
     @Probe
     private long idleTimeMs() {
-        return max(currentTimeMillis() - lastSelectTimeMs, 0);
+        return max(currentTimeMillis() - lastEventTimeMs, 0);
     }
 
     /**
@@ -173,11 +171,6 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     public void addTaskAndWakeup(Runnable task) {
         taskQueue.add(task);
         if (!selectNow) {
-            // if we are swapping this.selector in discardAndRecreateSelector
-            // concurrently, it could be the case that wakeup is triggered on
-            // the stale selector. This could lead to the wakeup being ignored and the task
-            // being delayed for up to #SELECT_WAIT_TIME_MILLIS.
-            wokenUp.set(true);
             selector.wakeup();
         }
     }
@@ -194,7 +187,10 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         try {
             for (; ; ) {
                 try {
-                    if (selectNow) {
+                    if (selectorWorkaround) {
+                        runSelectLoopWithSelectorFix();
+                    }
+                    else if (selectNow) {
                         runSelectNowLoop();
                     } else {
                         runSelectLoop();
@@ -234,24 +230,43 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     }
 
     private void runSelectLoop() throws IOException {
+        while (!isInterrupted()) {
+            processTaskQueue();
+
+            lastSelectTimeMs = currentTimeMillis();
+            int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
+            if (selectedKeys > 0) {
+                lastEventTimeMs = currentTimeMillis();
+                handleSelectionKeys();
+            }
+        }
+    }
+
+    private void runSelectLoopWithSelectorFix() throws IOException {
         int consecutiveImmediateReturns = 0;
         while (!isInterrupted()) {
             processTaskQueue();
 
-            long start = System.currentTimeMillis();
+            lastSelectTimeMs = currentTimeMillis();
             int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
             if (selectedKeys > 0) {
-                lastSelectTimeMs = currentTimeMillis();
+                lastEventTimeMs = currentTimeMillis();
                 handleSelectionKeys();
             }
-            else if (selectWorkaround) {
+            else {
                 // no keys were selected, therefore either selector.wakeUp was invoked or we hit an issue with JDK/network stack
-                if (!wokenUp.compareAndSet(true, false)) {
-                    // wokenUp was false, so handle the case in which selector.select returns prematurely
-                    long selectTimeTaken = currentTimeMillis() - start;
+                if (taskQueue.isEmpty()) {
+                    // we were not interrupted by wakeup, so handle the case in which selector.select returns prematurely
+                    long selectTimeTaken = currentTimeMillis() - lastSelectTimeMs;
                     if (selectTimeTaken < SELECT_WAIT_TIME_MILLIS) {
                         ++consecutiveImmediateReturns;
                     }
+                    else {
+                        consecutiveImmediateReturns = 0;
+                    }
+                }
+                else {
+                    consecutiveImmediateReturns = 0;
                 }
                 if (consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {
                     selectorRecreateCount.inc();
@@ -348,31 +363,17 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
     }
 
     // this method is always invoked in this thread
-    // after we have blocked for selector.select in runSelectLoop
+    // after we have blocked for selector.select in #runSelectLoopWithSelectorFix
     private void discardAndRecreateSelector() {
         Selector newSelector = NonBlockingIOThread.newSelector(logger);
         Selector selector = this.selector;
+        this.selector = newSelector;
 
-        // loop over all the keys that are registered with the old Selector
-        // and register them with the new one
+        // cancel the old keys
         for (SelectionKey key: selector.keys()) {
-            SelectableChannel ch = key.channel();
-            int ops = key.interestOps();
-            Object att = key.attachment();
-
-            // register the channel with the new selector now
-            try {
-                SelectionKey sk = ch.register(newSelector, ops, att);
-                if (att != null) {
-                    SelectionHandler handler = (SelectionHandler) att;
-                    handler.setSelectionKey(sk);
-                }
-            } catch (ClosedChannelException ignore) {
-
-            }
-            // cancel the old key
             key.cancel();
         }
+
         try {
             // close the old selector
             selector.close();
@@ -380,7 +381,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
         } catch (Throwable t) {
             logger.warning("Failed to close selector.", t);
         }
-        logger.fine("Recreated Selector because of possible jdk bug");
+        logger.fine("Recreated Selector because of possible java/network stack bug.");
     }
 
     @Override
