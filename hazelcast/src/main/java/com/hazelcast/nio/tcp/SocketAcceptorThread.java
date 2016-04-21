@@ -38,6 +38,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SocketAcceptorThread extends Thread {
     private static final long SHUTDOWN_TIMEOUT_MILLIS = SECONDS.toMillis(10);
+    private static final long SELECT_TIMEOUT_MILLIS = SECONDS.toMillis(60);
+    private static final int SELECT_IMMEDIATE_RETURNS_THRESHOLD = 10;
 
     private final ServerSocketChannel serverSocketChannel;
     private final TcpIpConnectionManager connectionManager;
@@ -47,7 +49,21 @@ public class SocketAcceptorThread extends Thread {
     private final SwCounter eventCount = newSwCounter();
     @Probe
     private final SwCounter exceptionCount = newSwCounter();
+    // count number of times the selector was recreated (if selectWorkaround is enabled)
+    @Probe
+    private final SwCounter selectorRecreateCount = newSwCounter();
+    // last time select returned
     private volatile long lastSelectTimeMs;
+    // last time select returned with selected keys
+    private volatile long lastEventTimeMs;
+
+    // When true, enables workaround for bug occuring when SelectorImpl.select returns immediately
+    // with no channels selected, resulting in 100% CPU usage while doing no progress.
+    // See issue: https://github.com/hazelcast/hazelcast/issues/7943
+    private final boolean selectorWorkaround = Boolean.getBoolean("hazelcast.io.selectorWorkaround");
+
+    private Selector selector;
+    private SelectionKey selectionKey;
 
     public SocketAcceptorThread(
             ThreadGroup threadGroup,
@@ -68,7 +84,7 @@ public class SocketAcceptorThread extends Thread {
      */
     @Probe
     private long idleTimeMs() {
-        return max(currentTimeMillis() - lastSelectTimeMs, 0);
+        return max(currentTimeMillis() - lastEventTimeMs, 0);
     }
 
     @Override
@@ -77,22 +93,26 @@ public class SocketAcceptorThread extends Thread {
             logger.finest("Starting SocketAcceptor on " + serverSocketChannel);
         }
 
-        Selector selector = null;
         try {
             selector = Selector.open();
             serverSocketChannel.configureBlocking(false);
-            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-            acceptLoop(selector);
+            selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+            if (selectorWorkaround) {
+                acceptLoopWithSelectorFix();
+            }
+            else {
+                acceptLoop();
+            }
         } catch (OutOfMemoryError e) {
             OutOfMemoryErrorDispatcher.onOutOfMemory(e);
         } catch (IOException e) {
             logger.severe(e.getClass().getName() + ": " + e.getMessage(), e);
         } finally {
-            closeSelector(selector);
+            closeSelector();
         }
     }
 
-    private void acceptLoop(Selector selector) throws IOException {
+    private void acceptLoop() throws IOException {
         while (connectionManager.isLive()) {
             // block until new connection or interruption.
             int keyCount = selector.select();
@@ -104,19 +124,60 @@ public class SocketAcceptorThread extends Thread {
                 continue;
             }
             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-            while (it.hasNext()) {
-                SelectionKey sk = it.next();
-                it.remove();
-                // of course it is acceptable!
-                if (sk.isValid() && sk.isAcceptable()) {
-                    eventCount.inc();
-                    acceptSocket();
+            handleSelectionKeys(it);
+        }
+    }
+
+    private void acceptLoopWithSelectorFix() throws IOException {
+        int consecutiveImmediateReturns = 0;
+        while (connectionManager.isLive()) {
+            // block with a timeout until new connection or interruption.
+            lastSelectTimeMs = currentTimeMillis();
+            int keyCount = selector.select(SELECT_TIMEOUT_MILLIS);
+            if (isInterrupted()) {
+                break;
+            }
+            if (keyCount == 0) {
+                if (currentTimeMillis() - lastSelectTimeMs < SELECT_TIMEOUT_MILLIS) {
+                    // select unblocked before timing out with no keys selected --> bug detected
+                    if (++consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {
+                        // recreate the selector
+                        selectorRecreateCount.inc();
+                        // cancel existing selection key, register new one on the new selector
+                        selectionKey.cancel();
+                        closeSelector();
+                        Selector newSelector = Selector.open();
+                        selector = newSelector;
+                        selectionKey = serverSocketChannel.register(newSelector, SelectionKey.OP_ACCEPT);
+                        consecutiveImmediateReturns = 0;
+                    }
                 }
+                else {
+                    // just reset number of consecutive immediate returns
+                    consecutiveImmediateReturns = 0;
+                }
+                continue;
+            }
+            consecutiveImmediateReturns = 0;
+            lastEventTimeMs = currentTimeMillis();
+            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+            handleSelectionKeys(it);
+        }
+    }
+
+    private void handleSelectionKeys(Iterator<SelectionKey> it) {
+        while (it.hasNext()) {
+            SelectionKey sk = it.next();
+            it.remove();
+            // of course it is acceptable!
+            if (sk.isValid() && sk.isAcceptable()) {
+                eventCount.inc();
+                acceptSocket();
             }
         }
     }
 
-    private void closeSelector(Selector selector) {
+    private void closeSelector() {
         if (selector == null) {
             return;
         }
