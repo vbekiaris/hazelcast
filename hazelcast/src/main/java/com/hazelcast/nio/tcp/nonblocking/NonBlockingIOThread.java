@@ -189,8 +189,7 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
                 try {
                     if (selectorWorkaround) {
                         runSelectLoopWithSelectorFix();
-                    }
-                    else if (selectNow) {
+                    } else if (selectNow) {
                         runSelectNowLoop();
                     } else {
                         runSelectLoop();
@@ -252,20 +251,17 @@ public class NonBlockingIOThread extends Thread implements OperationHostileThrea
             if (selectedKeys > 0) {
                 lastEventTimeMs = currentTimeMillis();
                 handleSelectionKeys();
-            }
-            else {
+            } else {
                 // no keys were selected, therefore either selector.wakeUp was invoked or we hit an issue with JDK/network stack
                 if (taskQueue.isEmpty()) {
                     // we were not interrupted by wakeup, so handle the case in which selector.select returns prematurely
                     long selectTimeTaken = currentTimeMillis() - lastSelectTimeMs;
                     if (selectTimeTaken < SELECT_WAIT_TIME_MILLIS) {
                         ++consecutiveImmediateReturns;
-                    }
-                    else {
+                    } else {
                         consecutiveImmediateReturns = 0;
                     }
-                }
-                else {
+                } else {
                     consecutiveImmediateReturns = 0;
                 }
                 if (consecutiveImmediateReturns > SELECT_IMMEDIATE_RETURNS_THRESHOLD) {

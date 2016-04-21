@@ -99,8 +99,7 @@ public class SocketAcceptorThread extends Thread {
             selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
             if (selectorWorkaround) {
                 acceptLoopWithSelectorFix();
-            }
-            else {
+            } else {
                 acceptLoop();
             }
         } catch (OutOfMemoryError e) {
@@ -151,8 +150,7 @@ public class SocketAcceptorThread extends Thread {
                         selectionKey = serverSocketChannel.register(newSelector, SelectionKey.OP_ACCEPT);
                         consecutiveImmediateReturns = 0;
                     }
-                }
-                else {
+                } else {
                     // just reset number of consecutive immediate returns
                     consecutiveImmediateReturns = 0;
                 }

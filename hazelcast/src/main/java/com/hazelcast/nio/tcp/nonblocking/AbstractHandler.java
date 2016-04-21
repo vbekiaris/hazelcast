@@ -16,7 +16,6 @@
 
 package com.hazelcast.nio.tcp.nonblocking;
 
-import com.hazelcast.executor.impl.RunnableAdapter;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
@@ -124,7 +123,7 @@ public abstract class AbstractHandler implements MigratableHandler {
                 }
                 // todo reschedule for execution
                 if (this instanceof Runnable) {
-                    ioThread.addTaskAndWakeup((Runnable)this);
+                    ioThread.addTaskAndWakeup((Runnable) this);
                 }
 
                 return;
