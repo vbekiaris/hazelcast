@@ -24,6 +24,7 @@ import com.hazelcast.nio.IOService;
 import com.hazelcast.nio.tcp.SocketChannelWrapper;
 import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.nio.tcp.TcpIpConnectionManager;
+import com.hazelcast.util.EmptyStatement;
 
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
@@ -65,6 +66,8 @@ public abstract class AbstractHandler implements MigratableHandler {
         this.initialOps = initialOps;
     }
 
+    protected abstract void reschedule();
+
     @Probe(level = DEBUG)
     private long opsInterested() {
         SelectionKey selectionKey = this.selectionKey;
@@ -99,35 +102,31 @@ public abstract class AbstractHandler implements MigratableHandler {
         selectionKey.interestOps(selectionKey.interestOps() & ~operation);
     }
 
+    @SuppressWarnings({"checkstyle:npathcomplexity"})
     @Override
     public void onFailure(Throwable e) {
         if (e instanceof OutOfMemoryError) {
             ioService.onOutOfMemory((OutOfMemoryError) e);
         }
 
-        if (e instanceof CancelledKeyException) {
-            // was it cancelled due to replacement of the selector? (see NonBlockingIOThread#selectWorkaround)
-            if (selectionKey != null && selectionKey.selector() != ioThread.getSelector()) {
-                // the selector was replaced, so obtain a new key for the new selector
-                // todo should obtaining a selectionKey happen on the IO thread via addTaskAndWakeup?
-                SelectableChannel ch = selectionKey.channel();
-                int ops = selectionKey.interestOps();
-                Object att = selectionKey.attachment();
+        // if our selection key was cancelled due to replacement of the selector
+        // (see NonBlockingIOThread#selectWorkaround), then reschedule this handler for execution
+        if (e instanceof CancelledKeyException && selectionKey != null
+                && selectionKey.selector() != ioThread.getSelector()) {
+            // the selector was replaced, so obtain a new key for the new selector
+            SelectableChannel ch = selectionKey.channel();
+            int ops = selectionKey.interestOps();
+            Object att = selectionKey.attachment();
 
-                // register the channel with the new selector now
-                try {
-                    SelectionKey sk = ch.register(ioThread.getSelector(), ops, att);
-                    this.selectionKey = sk;
-                } catch (ClosedChannelException ignore) {
-
-                }
-                // todo reschedule for execution
-                if (this instanceof Runnable) {
-                    ioThread.addTaskAndWakeup((Runnable) this);
-                }
-
-                return;
+            // register the channel with the new selector now
+            try {
+                SelectionKey sk = ch.register(ioThread.getSelector(), ops, att);
+                this.selectionKey = sk;
+            } catch (ClosedChannelException ignore) {
+                EmptyStatement.ignore(ignore);
             }
+            reschedule();
+            return;
         }
 
         if (selectionKey != null) {

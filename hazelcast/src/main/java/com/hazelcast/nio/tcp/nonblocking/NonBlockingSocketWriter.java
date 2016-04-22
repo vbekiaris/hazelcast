@@ -435,6 +435,11 @@ public final class NonBlockingSocketWriter extends AbstractHandler implements Ru
     }
 
     @Override
+    protected void reschedule() {
+        ioThread.addTaskAndWakeup(this);
+    }
+
+    @Override
     public String toString() {
         return connection + ".socketWriter";
     }

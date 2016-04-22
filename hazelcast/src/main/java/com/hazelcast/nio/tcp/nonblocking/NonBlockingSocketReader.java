@@ -245,6 +245,20 @@ public final class NonBlockingSocketReader extends AbstractHandler implements So
         return connection + ".socketReader";
     }
 
+    @Override
+    protected void reschedule() {
+        ioThread.addTaskAndWakeup(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    handle();
+                } catch (Exception e) {
+                    onFailure(e);
+                }
+            }
+        });
+    }
+
     private class StartMigrationTask implements Runnable {
         private final NonBlockingIOThread newOwner;
 
