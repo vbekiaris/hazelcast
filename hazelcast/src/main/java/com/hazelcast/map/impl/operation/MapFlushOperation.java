@@ -48,7 +48,7 @@ public class MapFlushOperation extends MapOperation implements BackupAwareOperat
 
     @Override
     public boolean shouldBackup() {
-        MapStoreConfig mapStoreConfig = mapContainer.getMapConfig().getMapStoreConfig();
+        MapStoreConfig mapStoreConfig = IMapContainer.getMapConfig().getMapStoreConfig();
         return mapStoreConfig != null
                 && mapStoreConfig.isEnabled()
                 && mapStoreConfig.getWriteDelaySeconds() > 0;
@@ -56,12 +56,12 @@ public class MapFlushOperation extends MapOperation implements BackupAwareOperat
 
     @Override
     public int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

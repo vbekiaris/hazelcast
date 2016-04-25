@@ -72,12 +72,12 @@ public class TxnRollbackOperation extends KeyBasedMapOperation implements Backup
 
     @Override
     public final int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public final int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

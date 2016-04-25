@@ -18,7 +18,7 @@ package com.hazelcast.map.impl.nearcache;
 
 import com.hazelcast.cache.impl.nearcache.NearCache;
 import com.hazelcast.cluster.ClusterService;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.operation.MapOperation;
 import com.hazelcast.map.impl.operation.NearCacheBatchInvalidationOperation;
@@ -84,12 +84,12 @@ public abstract class AbstractNearCacheInvalidator implements NearCacheInvalidat
     }
 
     protected boolean isMemberNearCacheInvalidationEnabled(String mapName) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
         return mapContainer.isMemberNearCacheInvalidationEnabled();
     }
 
     protected boolean hasInvalidationListener(String mapName) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
         return mapContainer.hasInvalidationListener();
     }
 

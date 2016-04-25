@@ -17,7 +17,7 @@
 package com.hazelcast.map.impl.tx;
 
 import com.hazelcast.core.PartitioningStrategy;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.operation.MapOperation;
@@ -59,10 +59,10 @@ public abstract class TransactionalMapProxySupport
         super(nodeEngine, mapService, transaction);
         this.name = name;
         this.mapServiceContext = mapService.getMapServiceContext();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(name);
-        this.recordFactory = mapContainer.getRecordFactoryConstructor().createNew(null);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(name);
+        this.recordFactory = IMapContainer.getRecordFactoryConstructor().createNew(null);
         this.operationProvider = mapServiceContext.getMapOperationProvider(name);
-        this.partitionStrategy = mapContainer.getPartitioningStrategy();
+        this.partitionStrategy = IMapContainer.getPartitioningStrategy();
     }
 
     protected boolean isEquals(Object value1, Object value2) {

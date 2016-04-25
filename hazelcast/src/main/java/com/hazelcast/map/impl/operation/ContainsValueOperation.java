@@ -46,7 +46,7 @@ public class ContainsValueOperation extends MapOperation implements PartitionAwa
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
         RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), name);
         contains = recordStore.containsValue(testValue);
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
+        if (IMapContainer.getMapConfig().isStatisticsEnabled()) {
             LocalMapStatsProvider localMapStatsProvider = mapServiceContext.getLocalMapStatsProvider();
             localMapStatsProvider.getLocalMapStatsImpl(name).incrementOtherOperations();
         }

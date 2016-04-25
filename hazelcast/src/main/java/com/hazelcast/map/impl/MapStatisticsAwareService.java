@@ -40,7 +40,7 @@ class MapStatisticsAwareService implements StatisticsAwareService {
     @Override
     public Map<String, LocalMapStats> getStats() {
         MapServiceContext mapServiceContext = this.mapServiceContext;
-        Map<String, MapContainer> mapContainers = mapServiceContext.getMapContainers();
+        Map<String, IMapContainer> mapContainers = mapServiceContext.getMapContainers();
         Map<String, LocalMapStats> mapStats = MapUtil.createHashMap(mapContainers.size());
         for (String mapName : mapContainers.keySet()) {
             LocalMapStatsProvider localMapStatsProvider = mapServiceContext.getLocalMapStatsProvider();

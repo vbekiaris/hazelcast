@@ -62,7 +62,7 @@ public abstract class BasePutOperation extends LockAwareOperation implements Bac
 
     private void publishWANReplicationEvent(MapServiceContext mapServiceContext,
                                             MapEventPublisher mapEventPublisher, Object value) {
-        if (!mapContainer.isWanReplicationEnabled()) {
+        if (!IMapContainer.isWanReplicationEnabled()) {
             return;
         }
 
@@ -100,12 +100,12 @@ public abstract class BasePutOperation extends LockAwareOperation implements Bac
 
     @Override
     public final int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public final int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

@@ -16,7 +16,7 @@
 
 package com.hazelcast.map.impl.operation;
 
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 
 /**
@@ -43,7 +43,7 @@ public class MapOperationProviders {
      * config of the requested map instance.
      */
     public MapOperationProvider getOperationProvider(String name) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(name);
-        return mapContainer.isWanReplicationEnabled() ? wanAwareProvider : defaultProvider;
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(name);
+        return IMapContainer.isWanReplicationEnabled() ? wanAwareProvider : defaultProvider;
     }
 }

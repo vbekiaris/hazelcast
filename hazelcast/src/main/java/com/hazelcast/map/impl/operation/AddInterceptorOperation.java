@@ -17,7 +17,7 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.map.MapInterceptor;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -51,7 +51,7 @@ public class AddInterceptorOperation extends AbstractOperation implements Mutati
     @Override
     public void run() {
         mapService = getService();
-        MapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(mapName);
+        IMapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(mapName);
         mapContainer.getInterceptorRegistry().register(id, mapInterceptor);
     }
 

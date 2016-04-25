@@ -57,9 +57,9 @@ public interface MapServiceContext extends MapServiceContextInterceptorSupport, 
 
     Data toData(Object object);
 
-    MapContainer getMapContainer(String mapName);
+    IMapContainer getMapContainer(String mapName);
 
-    Map<String, MapContainer> getMapContainers();
+    Map<String, IMapContainer> getMapContainers();
 
     PartitionContainer getPartitionContainer(int partitionId);
 
@@ -93,7 +93,7 @@ public interface MapServiceContext extends MapServiceContextInterceptorSupport, 
 
     NearCacheProvider getNearCacheProvider();
 
-    RecordStore createRecordStore(MapContainer mapContainer, int partitionId, MapKeyLoader keyLoader);
+    RecordStore createRecordStore(IMapContainer IMapContainer, int partitionId, MapKeyLoader keyLoader);
 
     RecordStore getRecordStore(int partitionId, String mapName);
 
@@ -125,5 +125,5 @@ public interface MapServiceContext extends MapServiceContextInterceptorSupport, 
 
     void incrementOperationStats(long startTime, LocalMapStatsImpl localMapStats, String mapName, Operation operation);
 
-    void removeMapContainer(MapContainer mapContainer);
+    void removeMapContainer(IMapContainer IMapContainer);
 }

@@ -51,7 +51,7 @@ import static com.hazelcast.map.impl.mapstore.MapStoreContextFactory.createMapSt
 /**
  * Map container.
  */
-public class MapContainer {
+public class MapContainer implements IMapContainer {
 
     protected final String name;
     protected final String quorumName;
@@ -135,6 +135,7 @@ public class MapContainer {
     }
 
 
+    @Override
     public void initWanReplication(NodeEngine nodeEngine) {
         WanReplicationRef wanReplicationRef = mapConfig.getWanReplicationRef();
         if (wanReplicationRef == null) {
@@ -163,18 +164,22 @@ public class MapContainer {
         return strategy;
     }
 
+    @Override
     public Indexes getIndexes() {
         return indexes;
     }
 
+    @Override
     public WanReplicationPublisher getWanReplicationPublisher() {
         return wanReplicationPublisher;
     }
 
+    @Override
     public MapMergePolicy getWanMergePolicy() {
         return wanMergePolicy;
     }
 
+    @Override
     public boolean isWanReplicationEnabled() {
         if (wanReplicationPublisher == null || wanMergePolicy == null) {
             return false;
@@ -182,105 +187,129 @@ public class MapContainer {
         return true;
     }
 
+    @Override
     public void checkWanReplicationQueues() {
         if (isWanReplicationEnabled()) {
             wanReplicationPublisher.checkWanReplicationQueues();
         }
     }
 
+    @Override
     public boolean hasMemberNearCache() {
         return mapConfig.isNearCacheEnabled();
     }
 
+    @Override
     public int getTotalBackupCount() {
         return getBackupCount() + getAsyncBackupCount();
     }
 
+    @Override
     public int getBackupCount() {
         return mapConfig.getBackupCount();
     }
 
+    @Override
     public int getAsyncBackupCount() {
         return mapConfig.getAsyncBackupCount();
     }
 
+    @Override
     public PartitioningStrategy getPartitioningStrategy() {
         return partitioningStrategy;
     }
 
+    @Override
     public SizeEstimator getNearCacheSizeEstimator() {
         return nearCacheSizeEstimator;
     }
 
+    @Override
     public MapServiceContext getMapServiceContext() {
         return mapServiceContext;
     }
 
+    @Override
     public MapStoreContext getMapStoreContext() {
         return mapStoreContext;
     }
 
+    @Override
     public MapConfig getMapConfig() {
         return mapConfig;
     }
 
+    @Override
     public void setMapConfig(MapConfig mapConfig) {
         this.mapConfig = mapConfig;
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public String getQuorumName() {
         return quorumName;
     }
 
+    @Override
     public IFunction<Object, Data> toData() {
         return toDataFunction;
     }
 
+    @Override
     public ConstructorFunction<Void, RecordFactory> getRecordFactoryConstructor() {
         return recordFactoryConstructor;
     }
 
+    @Override
     public QueryableEntry newQueryEntry(Data key, Object value) {
         return queryEntryFactory.newEntry(serializationService, key, value, extractors);
     }
 
+    @Override
     public Evictor getEvictor() {
         return evictor;
     }
 
     // only used for testing purposes.
+    @Override
     public void setEvictor(Evictor evictor) {
         this.evictor = evictor;
     }
 
-    Extractors getExtractors() {
+    public Extractors getExtractors() {
         return extractors;
     }
 
+    @Override
     public boolean isMemberNearCacheInvalidationEnabled() {
         return memberNearCacheInvalidationEnabled;
     }
 
+    @Override
     public boolean hasInvalidationListener() {
         return invalidationListenerCount.get() > 0;
     }
 
+    @Override
     public void increaseInvalidationListenerCount() {
         invalidationListenerCount.incrementAndGet();
     }
 
+    @Override
     public void decreaseInvalidationListenerCount() {
         invalidationListenerCount.decrementAndGet();
     }
 
+    @Override
     public boolean isInvalidationEnabled() {
         return isMemberNearCacheInvalidationEnabled() || hasInvalidationListener();
     }
 
+    @Override
     public InterceptorRegistry getInterceptorRegistry() {
         return interceptorRegistry;
     }

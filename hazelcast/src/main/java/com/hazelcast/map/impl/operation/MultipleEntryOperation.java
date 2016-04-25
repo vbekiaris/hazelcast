@@ -98,7 +98,7 @@ public class MultipleEntryOperation extends AbstractMultipleEntryOperation imple
 
     @Override
     public int getAsyncBackupCount() {
-        return mapContainer.getTotalBackupCount();
+        return IMapContainer.getTotalBackupCount();
     }
 
     @Override

@@ -21,7 +21,7 @@ import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
@@ -102,7 +102,7 @@ public class MapContainerCreationUponDestroyStressTest extends HazelcastTestSupp
     private void assertRecordStoresSharesSameMapContainerInstance(IMap<Long, Long> map) {
         String mapName = map.getName();
 
-        MapContainer expectedMapContainer = getMapContainer(map);
+        IMapContainer expectedIMapContainer = getMapContainer(map);
 
         for (int i = 0; i < PARTITION_COUNT; i++) {
             PartitionContainer partitionContainer = getMapServiceContext(map).getPartitionContainer(i);
@@ -110,7 +110,7 @@ public class MapContainerCreationUponDestroyStressTest extends HazelcastTestSupp
             if (recordStore == null) {
                 continue;
             }
-            assertEquals(expectedMapContainer, recordStore.getMapContainer());
+            assertEquals(expectedIMapContainer, recordStore.getMapContainer());
         }
     }
 
@@ -124,7 +124,7 @@ public class MapContainerCreationUponDestroyStressTest extends HazelcastTestSupp
         return node.getMap(mapName);
     }
 
-    private MapContainer getMapContainer(IMap map) {
+    private IMapContainer getMapContainer(IMap map) {
         MapServiceContext mapServiceContext = getMapServiceContext(map);
         return mapServiceContext.getMapContainers().get(map.getName());
     }

@@ -93,8 +93,8 @@ public class RecordStoreTest extends HazelcastTestSupport {
 
     private Indexes getIndexService(IMap<Object, Object> map) {
         MapServiceContext mapServiceContext = getMapServiceContext((MapProxyImpl) map);
-        MapContainer mapContainer = mapServiceContext.getMapContainer(map.getName());
-        return mapContainer.getIndexes();
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(map.getName());
+        return IMapContainer.getIndexes();
     }
 
     private MapServiceContext getMapServiceContext(MapProxyImpl map) {

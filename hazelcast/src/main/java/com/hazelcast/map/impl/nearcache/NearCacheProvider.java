@@ -18,7 +18,7 @@ package com.hazelcast.map.impl.nearcache;
 
 import com.hazelcast.cache.impl.nearcache.NearCache;
 import com.hazelcast.instance.GroupProperties;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapManagedService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.SizeEstimator;
@@ -44,8 +44,8 @@ public class NearCacheProvider {
     protected final ConstructorFunction<String, NearCache> nearCacheConstructor = new ConstructorFunction<String, NearCache>() {
         @Override
         public NearCache createNew(String mapName) {
-            MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-            SizeEstimator nearCacheSizeEstimator = mapContainer.getNearCacheSizeEstimator();
+            IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+            SizeEstimator nearCacheSizeEstimator = IMapContainer.getNearCacheSizeEstimator();
             NearCacheImpl nearCache = new NearCacheImpl(mapName, nodeEngine);
             nearCache.setNearCacheSizeEstimator(nearCacheSizeEstimator);
             return nearCache;
@@ -120,8 +120,8 @@ public class NearCacheProvider {
     }
 
     public Object getFromNearCache(String mapName, Data key) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-        if (!mapContainer.hasMemberNearCache()) {
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+        if (!IMapContainer.hasMemberNearCache()) {
             return null;
         }
         NearCache nearCache = getOrCreateNearCache(mapName);

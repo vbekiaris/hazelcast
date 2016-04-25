@@ -85,7 +85,7 @@ public class LocalMapStatsProvider {
     }
 
     public LocalMapStatsImpl createLocalMapStats(String mapName) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
         LocalMapStatsImpl stats = getLocalMapStatsImpl(mapName);
         if (!mapContainer.getMapConfig().isStatisticsEnabled()) {
             return stats;
@@ -264,7 +264,7 @@ public class LocalMapStatsProvider {
      * Adds near cache stats.
      */
     protected void addNearCacheStats(LocalMapStatsImpl stats,
-                                     LocalMapOnDemandCalculatedStats onDemandStats, MapContainer mapContainer) {
+                                     LocalMapOnDemandCalculatedStats onDemandStats, IMapContainer mapContainer) {
         if (!mapContainer.getMapConfig().isNearCacheEnabled()) {
             return;
         }

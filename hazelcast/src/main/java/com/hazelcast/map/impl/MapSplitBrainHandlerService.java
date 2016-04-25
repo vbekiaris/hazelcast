@@ -57,22 +57,22 @@ class MapSplitBrainHandlerService implements SplitBrainHandlerService {
     public Runnable prepareMergeRunnable() {
         final long now = getNow();
 
-        final Map<String, MapContainer> mapContainers = getMapContainers();
-        final Map<MapContainer, Collection<Record>> recordMap = new HashMap<MapContainer,
+        final Map<String, IMapContainer> mapContainers = getMapContainers();
+        final Map<IMapContainer, Collection<Record>> recordMap = new HashMap<IMapContainer,
                 Collection<Record>>(mapContainers.size());
         final InternalPartitionService partitionService = nodeEngine.getPartitionService();
         final int partitionCount = partitionService.getPartitionCount();
         final Address thisAddress = nodeEngine.getClusterService().getThisAddress();
 
-        for (MapContainer mapContainer : mapContainers.values()) {
+        for (IMapContainer IMapContainer : mapContainers.values()) {
             for (int i = 0; i < partitionCount; i++) {
-                RecordStore recordStore = mapServiceContext.getPartitionContainer(i).getRecordStore(mapContainer.getName());
+                RecordStore recordStore = mapServiceContext.getPartitionContainer(i).getRecordStore(IMapContainer.getName());
                 // add your owned entries to the map so they will be merged
                 if (thisAddress.equals(partitionService.getPartitionOwner(i))) {
-                    Collection<Record> records = recordMap.get(mapContainer);
+                    Collection<Record> records = recordMap.get(IMapContainer);
                     if (records == null) {
                         records = new ArrayList<Record>();
-                        recordMap.put(mapContainer, records);
+                        recordMap.put(IMapContainer, records);
                     }
                     final Iterator<Record> iterator = recordStore.iterator(now, false);
                     while (iterator.hasNext()) {
@@ -83,13 +83,13 @@ class MapSplitBrainHandlerService implements SplitBrainHandlerService {
                 // clear all records either owned or backup
                 recordStore.reset();
             }
-            Indexes indexes = mapContainer.getIndexes();
+            Indexes indexes = IMapContainer.getIndexes();
             indexes.clearIndexes();
         }
         return new Merger(recordMap);
     }
 
-    protected Map<String, MapContainer> getMapContainers() {
+    protected Map<String, IMapContainer> getMapContainers() {
         return mapServiceContext.getMapContainers();
     }
 
@@ -101,9 +101,9 @@ class MapSplitBrainHandlerService implements SplitBrainHandlerService {
 
         private static final int TIMEOUT_FACTOR = 500;
 
-        private Map<MapContainer, Collection<Record>> recordMap;
+        private Map<IMapContainer, Collection<Record>> recordMap;
 
-        Merger(Map<MapContainer, Collection<Record>> recordMap) {
+        Merger(Map<IMapContainer, Collection<Record>> recordMap) {
             this.recordMap = recordMap;
         }
 
@@ -126,10 +126,10 @@ class MapSplitBrainHandlerService implements SplitBrainHandlerService {
                 }
             };
 
-            for (MapContainer mapContainer : recordMap.keySet()) {
-                String mapName = mapContainer.getName();
-                Collection<Record> recordList = recordMap.get(mapContainer);
-                String mergePolicyName = mapContainer.getMapConfig().getMergePolicy();
+            for (IMapContainer IMapContainer : recordMap.keySet()) {
+                String mapName = IMapContainer.getName();
+                Collection<Record> recordList = recordMap.get(IMapContainer);
+                String mergePolicyName = IMapContainer.getMapConfig().getMergePolicy();
 
                 // todo number of records may be high.
                 // todo below can be optimized a many records can be send in single invocation

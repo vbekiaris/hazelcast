@@ -16,7 +16,7 @@
 
 package com.hazelcast.map.impl.operation;
 
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.nio.ObjectDataInput;
@@ -44,8 +44,8 @@ public class RemoveInterceptorOperation extends AbstractOperation implements Mut
     public void run() {
         mapService = getService();
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-        mapContainer.getInterceptorRegistry().deregister(id);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer.getInterceptorRegistry().deregister(id);
     }
 
     @Override

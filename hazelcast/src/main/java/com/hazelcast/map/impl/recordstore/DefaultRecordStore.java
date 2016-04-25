@@ -25,7 +25,7 @@ import com.hazelcast.core.EntryView;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.EntryViews;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapEntries;
 import com.hazelcast.map.impl.MapKeyLoader;
 import com.hazelcast.map.impl.MapService;
@@ -72,7 +72,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
     // loadingFutures are modified by partition threads and could be accessed by query threads
     protected final Collection<Future> loadingFutures = new ConcurrentLinkedQueue<Future>();
 
-    public DefaultRecordStore(MapContainer mapContainer, int partitionId,
+    public DefaultRecordStore(IMapContainer mapContainer, int partitionId,
                               MapKeyLoader keyLoader, ILogger logger) {
         super(mapContainer, partitionId);
 

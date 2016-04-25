@@ -44,11 +44,11 @@ class MapPartitionAwareService implements PartitionAwareService {
         final Address thisAddress = nodeEngine.getThisAddress();
         final int partitionId = partitionLostEvent.getPartitionId();
 
-        for (Entry<String, MapContainer> entry : mapServiceContext.getMapContainers().entrySet()) {
+        for (Entry<String, IMapContainer> entry : mapServiceContext.getMapContainers().entrySet()) {
             final String mapName = entry.getKey();
-            final MapContainer mapContainer = entry.getValue();
+            final IMapContainer IMapContainer = entry.getValue();
 
-            if (mapContainer.getBackupCount() <= partitionLostEvent.getLostReplicaIndex()) {
+            if (IMapContainer.getBackupCount() <= partitionLostEvent.getLostReplicaIndex()) {
                 mapServiceContext.getMapEventPublisher().publishMapPartitionLostEvent(thisAddress, mapName, partitionId);
             }
         }

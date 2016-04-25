@@ -37,7 +37,7 @@ public class MapIsEmptyOperation extends MapOperation implements PartitionAwareO
         final MapServiceContext mapServiceContext = mapService.getMapServiceContext();
         RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), name);
         empty = recordStore.isEmpty();
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
+        if (IMapContainer.getMapConfig().isStatisticsEnabled()) {
             LocalMapStatsImpl localMapStatsImpl = mapServiceContext.getLocalMapStatsProvider()
                     .getLocalMapStatsImpl(name);
             localMapStatsImpl.incrementOtherOperations();

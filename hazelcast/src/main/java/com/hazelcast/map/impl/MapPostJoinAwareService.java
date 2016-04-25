@@ -33,10 +33,10 @@ class MapPostJoinAwareService implements PostJoinAwareService {
     @Override
     public Operation getPostJoinOperation() {
         PostJoinMapOperation o = new PostJoinMapOperation();
-        final Map<String, MapContainer> mapContainers = mapServiceContext.getMapContainers();
-        for (MapContainer mapContainer : mapContainers.values()) {
-            o.addMapIndex(mapContainer);
-            o.addMapInterceptors(mapContainer);
+        final Map<String, IMapContainer> mapContainers = mapServiceContext.getMapContainers();
+        for (IMapContainer IMapContainer : mapContainers.values()) {
+            o.addMapIndex(IMapContainer);
+            o.addMapInterceptors(IMapContainer);
         }
         return o;
     }

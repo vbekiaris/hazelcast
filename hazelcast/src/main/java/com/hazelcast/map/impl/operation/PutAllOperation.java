@@ -106,7 +106,7 @@ public class PutAllOperation extends MapOperation implements PartitionAwareOpera
     }
 
     private void addInvalidation(Data dataKey) {
-        if (mapContainer.isInvalidationEnabled()) {
+        if (IMapContainer.isInvalidationEnabled()) {
             if (invalidationKeys == null) {
                 invalidationKeys = new ArrayList<Data>(mapEntries.size());
             }
@@ -130,7 +130,7 @@ public class PutAllOperation extends MapOperation implements PartitionAwareOpera
     }
 
     private boolean shouldWanReplicate() {
-        return mapContainer.getWanReplicationPublisher() != null && mapContainer.getWanMergePolicy() != null;
+        return IMapContainer.getWanReplicationPublisher() != null && IMapContainer.getWanMergePolicy() != null;
     }
 
     protected void evict() {
@@ -150,12 +150,12 @@ public class PutAllOperation extends MapOperation implements PartitionAwareOpera
 
     @Override
     public final int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public final int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

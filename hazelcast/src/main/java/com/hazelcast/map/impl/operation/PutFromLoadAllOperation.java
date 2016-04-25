@@ -83,7 +83,7 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
     }
 
     private void addInvalidation(Data key) {
-        if (!mapContainer.isInvalidationEnabled()) {
+        if (!IMapContainer.isInvalidationEnabled()) {
             return;
         }
 
@@ -107,7 +107,7 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
     }
 
     private void publishWanReplicationEvent(Data key, Object value, Record record) {
-        if (record == null || !mapContainer.isWanReplicationEnabled()) {
+        if (record == null || !IMapContainer.isWanReplicationEnabled()) {
             return;
         }
 
@@ -137,12 +137,12 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
 
     @Override
     public final int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public final int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

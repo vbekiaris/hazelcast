@@ -89,8 +89,8 @@ class MapMigrationAwareService implements MigrationAwareService {
 
         final PartitionContainer container = mapServiceContext.getPartitionContainer(event.getPartitionId());
         for (RecordStore recordStore : container.getMaps().values()) {
-            final MapContainer mapContainer = mapServiceContext.getMapContainer(recordStore.getName());
-            final Indexes indexes = mapContainer.getIndexes();
+            final IMapContainer IMapContainer = mapServiceContext.getMapContainer(recordStore.getName());
+            final Indexes indexes = IMapContainer.getIndexes();
             if (indexes.hasIndex()) {
                 final Iterator<Record> iterator = recordStore.iterator(now, false);
                 while (iterator.hasNext()) {
@@ -102,7 +102,7 @@ class MapMigrationAwareService implements MigrationAwareService {
                     } else {
                         Object value = Records.getValueOrCachedValue(record, serializationService);
                         if (value != null) {
-                            QueryableEntry queryEntry = mapContainer.newQueryEntry(record.getKey(), value);
+                            QueryableEntry queryEntry = IMapContainer.newQueryEntry(record.getKey(), value);
                             indexes.saveEntryIndex(queryEntry, null);
                         }
                     }

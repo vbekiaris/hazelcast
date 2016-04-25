@@ -22,7 +22,7 @@ import com.hazelcast.config.MapStoreConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.PartitioningStrategy;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.MapStoreWrapper;
 import com.hazelcast.internal.serialization.SerializationService;
@@ -111,7 +111,7 @@ final class BasicMapStoreContext implements MapStoreContext {
         return storeWrapper;
     }
 
-    static MapStoreContext create(MapContainer mapContainer) {
+    static MapStoreContext create(IMapContainer mapContainer) {
         final BasicMapStoreContext context = new BasicMapStoreContext();
         final String mapName = mapContainer.getName();
         final MapServiceContext mapServiceContext = mapContainer.getMapServiceContext();

@@ -18,7 +18,7 @@ package com.hazelcast.map.impl.recordstore;
 
 import com.hazelcast.instance.GroupProperty;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.mapstore.MapDataStore;
@@ -69,7 +69,7 @@ class BasicRecordStoreLoader implements RecordStoreLoader {
 
     BasicRecordStoreLoader(RecordStore recordStore) {
         this.recordStore = recordStore;
-        final MapContainer mapContainer = recordStore.getMapContainer();
+        final IMapContainer mapContainer = recordStore.getMapContainer();
         this.name = mapContainer.getName();
         this.mapServiceContext = mapContainer.getMapServiceContext();
         this.partitionId = recordStore.getPartitionId();

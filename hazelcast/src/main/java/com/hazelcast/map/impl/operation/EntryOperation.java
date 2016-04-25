@@ -24,9 +24,9 @@ import com.hazelcast.core.ManagedContext;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.map.EntryBackupProcessor;
 import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.LazyMapEntry;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.event.MapEventPublisher;
 import com.hazelcast.map.impl.record.Record;
@@ -137,12 +137,12 @@ public class EntryOperation extends LockAwareOperation implements BackupAwareOpe
 
     @Override
     public int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     private long getLatencyFrom(long begin) {
@@ -217,7 +217,7 @@ public class EntryOperation extends LockAwareOperation implements BackupAwareOpe
      * may be same due to the object in memory format.
      */
     private void nullifyOldValueIfNecessary() {
-        final MapConfig mapConfig = mapContainer.getMapConfig();
+        final MapConfig mapConfig = IMapContainer.getMapConfig();
         final InMemoryFormat format = mapConfig.getInMemoryFormat();
         if (format == InMemoryFormat.OBJECT && eventType != REMOVED) {
             oldValue = null;
@@ -233,7 +233,7 @@ public class EntryOperation extends LockAwareOperation implements BackupAwareOpe
     }
 
     private void publishWanReplicationEvent() {
-        final MapContainer mapContainer = this.mapContainer;
+        final IMapContainer mapContainer = this.IMapContainer;
         if (mapContainer.getWanReplicationPublisher() == null
                 && mapContainer.getWanMergePolicy() == null) {
             return;

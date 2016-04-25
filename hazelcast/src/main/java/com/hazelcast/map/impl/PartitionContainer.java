@@ -82,20 +82,20 @@ public class PartitionContainer {
 
     private RecordStore createRecordStore(String name) {
         MapServiceContext serviceContext = mapService.getMapServiceContext();
-        MapContainer mapContainer = serviceContext.getMapContainer(name);
-        MapConfig mapConfig = mapContainer.getMapConfig();
+        IMapContainer IMapContainer = serviceContext.getMapContainer(name);
+        MapConfig mapConfig = IMapContainer.getMapConfig();
         NodeEngine nodeEngine = serviceContext.getNodeEngine();
         InternalPartitionService ps = nodeEngine.getPartitionService();
         OperationService opService = nodeEngine.getOperationService();
         ExecutionService execService = nodeEngine.getExecutionService();
         GroupProperties groupProperties = nodeEngine.getGroupProperties();
 
-        MapKeyLoader keyLoader = new MapKeyLoader(name, opService, ps, execService, mapContainer.toData());
+        MapKeyLoader keyLoader = new MapKeyLoader(name, opService, ps, execService, IMapContainer.toData());
         keyLoader.setMaxBatch(groupProperties.getInteger(GroupProperty.MAP_LOAD_CHUNK_SIZE));
         keyLoader.setMaxSize(getMaxSizePerNode(mapConfig.getMaxSizeConfig()));
         keyLoader.setHasBackup(mapConfig.getTotalBackupCount() > 0);
         keyLoader.setMapOperationProvider(serviceContext.getMapOperationProvider(name));
-        RecordStore recordStore = serviceContext.createRecordStore(mapContainer, partitionId, keyLoader);
+        RecordStore recordStore = serviceContext.createRecordStore(IMapContainer, partitionId, keyLoader);
         recordStore.init();
         return recordStore;
     }
@@ -124,8 +124,8 @@ public class PartitionContainer {
         return maps.get(mapName);
     }
 
-    public void destroyMap(MapContainer mapContainer) {
-        String name = mapContainer.getName();
+    public void destroyMap(IMapContainer IMapContainer) {
+        String name = IMapContainer.getName();
         RecordStore recordStore = maps.remove(name);
         if (recordStore != null) {
             recordStore.destroy();
@@ -138,7 +138,7 @@ public class PartitionContainer {
         }
 
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
-        mapServiceContext.removeMapContainer(mapContainer);
+        mapServiceContext.removeMapContainer(IMapContainer);
     }
 
     private void clearLockStore(String name) {

@@ -21,7 +21,7 @@ import com.hazelcast.core.EntryView;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.map.impl.EntryEventFilter;
 import com.hazelcast.map.impl.EventListenerFilter;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapPartitionLostEventFilter;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.query.QueryEventFilter;
@@ -67,10 +67,10 @@ public class MapEventPublisherImpl implements MapEventPublisher {
 
     @Override
     public void publishWanReplicationUpdate(String mapName, EntryView entryView) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
         MapReplicationUpdate replicationEvent
-                = new MapReplicationUpdate(mapName, mapContainer.getWanMergePolicy(), entryView);
-        mapContainer.getWanReplicationPublisher().publishReplicationEvent(SERVICE_NAME, replicationEvent);
+                = new MapReplicationUpdate(mapName, IMapContainer.getWanMergePolicy(), entryView);
+        IMapContainer.getWanReplicationPublisher().publishReplicationEvent(SERVICE_NAME, replicationEvent);
     }
 
     @Override
@@ -310,8 +310,8 @@ public class MapEventPublisherImpl implements MapEventPublisher {
     }
 
     protected void publishWanReplicationEventInternal(String mapName, ReplicationEventObject event) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-        WanReplicationPublisher wanReplicationPublisher = mapContainer.getWanReplicationPublisher();
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+        WanReplicationPublisher wanReplicationPublisher = IMapContainer.getWanReplicationPublisher();
         wanReplicationPublisher.publishReplicationEvent(SERVICE_NAME, event);
     }
 

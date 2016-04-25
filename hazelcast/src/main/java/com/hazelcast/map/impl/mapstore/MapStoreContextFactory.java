@@ -19,7 +19,7 @@ package com.hazelcast.map.impl.mapstore;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapStoreConfig;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.MapStoreWrapper;
 import com.hazelcast.internal.serialization.SerializationService;
@@ -39,7 +39,7 @@ public final class MapStoreContextFactory {
     private MapStoreContextFactory() {
     }
 
-    public static MapStoreContext createMapStoreContext(MapContainer mapContainer) {
+    public static MapStoreContext createMapStoreContext(IMapContainer mapContainer) {
         final MapConfig mapConfig = mapContainer.getMapConfig();
         final MapStoreConfig mapStoreConfig = mapConfig.getMapStoreConfig();
         if (mapStoreConfig == null || !mapStoreConfig.isEnabled()) {

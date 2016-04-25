@@ -21,7 +21,7 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.instance.GroupProperties;
 import com.hazelcast.instance.GroupProperty;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.event.MapEventPublisher;
 import com.hazelcast.map.impl.eviction.EvictionChecker;
 import com.hazelcast.map.impl.eviction.Evictor;
@@ -68,7 +68,7 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
     private long lastEvictionTime;
     private volatile boolean hasEntryWithCustomTTL;
 
-    protected AbstractEvictableRecordStore(MapContainer mapContainer, int partitionId) {
+    protected AbstractEvictableRecordStore(IMapContainer mapContainer, int partitionId) {
         super(mapContainer, partitionId);
         NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         GroupProperties groupProperties = nodeEngine.getGroupProperties();

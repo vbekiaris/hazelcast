@@ -18,7 +18,7 @@ package com.hazelcast.map.impl.eviction;
 
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MaxSizeConfig;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.recordstore.RecordStore;
@@ -63,7 +63,7 @@ public class EvictionCheckerImpl implements EvictionChecker {
         String mapName = recordStore.getName();
         int partitionId = recordStore.getPartitionId();
 
-        MapContainer mapContainer = recordStore.getMapContainer();
+        IMapContainer mapContainer = recordStore.getMapContainer();
         MaxSizeConfig maxSizeConfig = mapContainer.getMapConfig().getMaxSizeConfig();
         MaxSizeConfig.MaxSizePolicy maxSizePolicy = maxSizeConfig.getMaxSizePolicy();
 
@@ -186,7 +186,7 @@ public class EvictionCheckerImpl implements EvictionChecker {
             heapCost += getRecordStoreHeapCost(mapName, container);
         }
 
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
         heapCost += mapContainer.getNearCacheSizeEstimator().getSize();
         return heapCost;
     }

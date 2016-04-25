@@ -17,8 +17,8 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.map.MapInterceptor;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.InterceptorRegistry;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.nio.ObjectDataInput;
@@ -44,10 +44,10 @@ public class PostJoinMapOperation extends AbstractOperation {
         return MapService.SERVICE_NAME;
     }
 
-    public void addMapIndex(MapContainer mapContainer) {
-        final Indexes indexes = mapContainer.getIndexes();
+    public void addMapIndex(IMapContainer IMapContainer) {
+        final Indexes indexes = IMapContainer.getIndexes();
         if (indexes.hasIndex()) {
-            MapIndexInfo mapIndexInfo = new MapIndexInfo(mapContainer.getName());
+            MapIndexInfo mapIndexInfo = new MapIndexInfo(IMapContainer.getName());
             for (Index index : indexes.getIndexes()) {
                 mapIndexInfo.addIndexInfo(index.getAttributeName(), index.isOrdered());
             }
@@ -55,15 +55,15 @@ public class PostJoinMapOperation extends AbstractOperation {
         }
     }
 
-    public void addMapInterceptors(MapContainer mapContainer) {
-        InterceptorRegistry interceptorRegistry = mapContainer.getInterceptorRegistry();
+    public void addMapInterceptors(IMapContainer IMapContainer) {
+        InterceptorRegistry interceptorRegistry = IMapContainer.getInterceptorRegistry();
         List<MapInterceptor> interceptorList = interceptorRegistry.getInterceptors();
         Map<String, MapInterceptor> interceptorMap = interceptorRegistry.getId2InterceptorMap();
         Map<MapInterceptor, String> revMap = new HashMap<MapInterceptor, String>();
         for (Map.Entry<String, MapInterceptor> entry : interceptorMap.entrySet()) {
             revMap.put(entry.getValue(), entry.getKey());
         }
-        InterceptorInfo interceptorInfo = new InterceptorInfo(mapContainer.getName());
+        InterceptorInfo interceptorInfo = new InterceptorInfo(IMapContainer.getName());
         for (MapInterceptor interceptor : interceptorList) {
             interceptorInfo.addInterceptor(revMap.get(interceptor), interceptor);
         }
@@ -113,15 +113,15 @@ public class PostJoinMapOperation extends AbstractOperation {
         MapService mapService = getService();
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
         for (MapIndexInfo mapIndex : indexInfoList) {
-            final MapContainer mapContainer = mapServiceContext.getMapContainer(mapIndex.mapName);
+            final IMapContainer mapContainer = mapServiceContext.getMapContainer(mapIndex.mapName);
             final Indexes indexes = mapContainer.getIndexes();
             for (MapIndexInfo.IndexInfo indexInfo : mapIndex.lsIndexes) {
                 indexes.addOrGetIndex(indexInfo.attributeName, indexInfo.ordered);
             }
         }
         for (InterceptorInfo interceptorInfo : interceptorInfoList) {
-            final MapContainer mapContainer = mapServiceContext.getMapContainer(interceptorInfo.mapName);
-            InterceptorRegistry interceptorRegistry = mapContainer.getInterceptorRegistry();
+            final IMapContainer IMapContainer = mapServiceContext.getMapContainer(interceptorInfo.mapName);
+            InterceptorRegistry interceptorRegistry = IMapContainer.getInterceptorRegistry();
             Map<String, MapInterceptor> interceptorMap = interceptorRegistry.getId2InterceptorMap();
             List<Map.Entry<String, MapInterceptor>> entryList = interceptorInfo.interceptors;
             for (Map.Entry<String, MapInterceptor> entry : entryList) {

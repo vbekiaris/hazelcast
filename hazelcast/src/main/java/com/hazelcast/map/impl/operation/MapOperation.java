@@ -16,7 +16,7 @@
 
 package com.hazelcast.map.impl.operation;
 
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.mapstore.MapDataStore;
@@ -32,7 +32,7 @@ import static com.hazelcast.util.CollectionUtil.isEmpty;
 public abstract class MapOperation extends AbstractNamedOperation {
 
     protected transient MapService mapService;
-    protected transient MapContainer mapContainer;
+    protected transient IMapContainer IMapContainer;
     protected transient MapServiceContext mapServiceContext;
 
     public MapOperation() {
@@ -48,8 +48,8 @@ public abstract class MapOperation extends AbstractNamedOperation {
     }
 
     // for testing only
-    public void setMapContainer(MapContainer mapContainer) {
-        this.mapContainer = mapContainer;
+    public void setMapContainer(IMapContainer IMapContainer) {
+        this.IMapContainer = IMapContainer;
     }
 
     @Override
@@ -57,7 +57,7 @@ public abstract class MapOperation extends AbstractNamedOperation {
         super.beforeRun();
         mapService = getService();
         mapServiceContext = mapService.getMapServiceContext();
-        mapContainer = mapServiceContext.getMapContainer(name);
+        IMapContainer = mapServiceContext.getMapContainer(name);
         innerBeforeRun();
     }
 
@@ -88,7 +88,7 @@ public abstract class MapOperation extends AbstractNamedOperation {
     }
 
     protected final void invalidateNearCache(List<Data> keys) {
-        if (!mapContainer.isInvalidationEnabled() || isEmpty(keys)) {
+        if (!IMapContainer.isInvalidationEnabled() || isEmpty(keys)) {
             return;
         }
         NearCacheProvider nearCacheProvider = mapServiceContext.getNearCacheProvider();
@@ -96,7 +96,7 @@ public abstract class MapOperation extends AbstractNamedOperation {
     }
 
     protected final void invalidateNearCache(Data key) {
-        if (!mapContainer.isInvalidationEnabled() || key == null) {
+        if (!IMapContainer.isInvalidationEnabled() || key == null) {
             return;
         }
         NearCacheProvider nearCacheProvider = mapServiceContext.getNearCacheProvider();
@@ -104,7 +104,7 @@ public abstract class MapOperation extends AbstractNamedOperation {
     }
 
     protected final void clearNearCache(boolean owner) {
-        if (!mapContainer.isInvalidationEnabled()) {
+        if (!IMapContainer.isInvalidationEnabled()) {
             return;
         }
         NearCacheProvider nearCacheProvider = mapServiceContext.getNearCacheProvider();

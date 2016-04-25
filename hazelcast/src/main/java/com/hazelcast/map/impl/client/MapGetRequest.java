@@ -18,7 +18,7 @@ package com.hazelcast.map.impl.client;
 
 import com.hazelcast.client.impl.client.RetryableRequest;
 import com.hazelcast.client.impl.client.SecureRequest;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapPortableHook;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.operation.MapOperation;
@@ -75,7 +75,7 @@ public class MapGetRequest extends MapKeyBasedClientRequest implements Portable,
     protected void beforeResponse() {
         final long latency = System.currentTimeMillis() - startTime;
         final MapService mapService = getService();
-        MapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(name);
+        IMapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(name);
         if (mapContainer.getMapConfig().isStatisticsEnabled()) {
             mapService.getMapServiceContext().getLocalMapStatsProvider().getLocalMapStatsImpl(name)
                     .incrementGets(latency);

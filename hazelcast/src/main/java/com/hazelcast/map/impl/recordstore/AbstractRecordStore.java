@@ -21,7 +21,7 @@ import com.hazelcast.concurrent.lock.LockStore;
 import com.hazelcast.config.InMemoryFormat;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.serialization.SerializationService;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.SizeEstimator;
@@ -54,7 +54,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
 
     protected final RecordFactory recordFactory;
     protected final String name;
-    protected final MapContainer mapContainer;
+    protected final IMapContainer mapContainer;
     protected final MapServiceContext mapServiceContext;
     protected final SerializationService serializationService;
 
@@ -67,7 +67,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
 
     protected Storage<Data, Record> storage;
 
-    protected AbstractRecordStore(MapContainer mapContainer, int partitionId) {
+    protected AbstractRecordStore(IMapContainer mapContainer, int partitionId) {
         this.mapContainer = mapContainer;
         this.partitionId = partitionId;
         this.mapServiceContext = mapContainer.getMapServiceContext();
@@ -111,7 +111,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     }
 
     @Override
-    public MapContainer getMapContainer() {
+    public IMapContainer getMapContainer() {
         return mapContainer;
     }
 

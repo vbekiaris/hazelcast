@@ -104,7 +104,7 @@ public class PartitionWideEntryOperation extends AbstractMultipleEntryOperation 
 
     @Override
     public int getAsyncBackupCount() {
-        return mapContainer.getTotalBackupCount();
+        return IMapContainer.getTotalBackupCount();
     }
 
     @Override
@@ -129,7 +129,7 @@ public class PartitionWideEntryOperation extends AbstractMultipleEntryOperation 
             return false;
         }
 
-        QueryableEntry queryEntry = mapContainer.newQueryEntry(key, value);
+        QueryableEntry queryEntry = IMapContainer.newQueryEntry(key, value);
         return getPredicate().apply(queryEntry);
     }
 

@@ -17,7 +17,7 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
@@ -65,8 +65,8 @@ public class MapReplicationOperation extends AbstractOperation implements Mutati
         data = new HashMap<String, Set<RecordReplicationInfo>>(container.getMaps().size());
         for (Entry<String, RecordStore> entry : container.getMaps().entrySet()) {
             RecordStore recordStore = entry.getValue();
-            MapContainer mapContainer = recordStore.getMapContainer();
-            final MapConfig mapConfig = mapContainer.getMapConfig();
+            IMapContainer IMapContainer = recordStore.getMapContainer();
+            final MapConfig mapConfig = IMapContainer.getMapConfig();
             if (mapConfig.getTotalBackupCount() < replicaIndex) {
                 continue;
             }
@@ -90,8 +90,8 @@ public class MapReplicationOperation extends AbstractOperation implements Mutati
         delayedEntries = new HashMap<String, Collection<DelayedEntry>>(container.getMaps().size());
         for (Entry<String, RecordStore> entry : container.getMaps().entrySet()) {
             RecordStore recordStore = entry.getValue();
-            MapContainer mapContainer = recordStore.getMapContainer();
-            if (!mapContainer.getMapStoreContext().isWriteBehindMapStoreEnabled()) {
+            IMapContainer IMapContainer = recordStore.getMapContainer();
+            if (!IMapContainer.getMapStoreContext().isWriteBehindMapStoreEnabled()) {
                 continue;
             }
             final WriteBehindQueue<DelayedEntry> writeBehindQueue = ((WriteBehindStore) recordStore.getMapDataStore())

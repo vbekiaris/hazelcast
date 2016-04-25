@@ -19,7 +19,7 @@ package com.hazelcast.map.impl.recordstore;
 import com.hazelcast.config.InMemoryFormat;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapEntries;
 import com.hazelcast.map.impl.mapstore.MapDataStore;
 import com.hazelcast.map.impl.record.Record;
@@ -227,7 +227,7 @@ public interface RecordStore<R extends Record> {
      */
     int evictAll(boolean backup);
 
-    MapContainer getMapContainer();
+    IMapContainer getMapContainer();
 
     void flush();
 

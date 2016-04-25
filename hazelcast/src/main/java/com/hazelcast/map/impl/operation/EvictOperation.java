@@ -17,7 +17,7 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.core.EntryEventType;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -65,7 +65,7 @@ public class EvictOperation extends LockAwareOperation implements MutatingOperat
     @Override
     public int getAsyncBackupCount() {
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(name);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(name);
         if (asyncBackup) {
             return mapContainer.getTotalBackupCount();
         }
@@ -79,7 +79,7 @@ public class EvictOperation extends LockAwareOperation implements MutatingOperat
             return 0;
         }
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(name);
+        IMapContainer mapContainer = mapServiceContext.getMapContainer(name);
         return mapContainer.getBackupCount();
     }
 

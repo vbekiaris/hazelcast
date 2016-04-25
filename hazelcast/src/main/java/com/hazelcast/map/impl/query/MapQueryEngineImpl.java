@@ -22,8 +22,8 @@ import com.hazelcast.core.Member;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.QueryResultSizeExceededException;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
@@ -118,15 +118,15 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
 
         // first we optimize the query
-        predicate = queryOptimizer.optimize(predicate, mapContainer.getIndexes());
+        predicate = queryOptimizer.optimize(predicate, IMapContainer.getIndexes());
 
         // then we try to run using an index, but if that doesn't work, we'll try a full table scan
         // This would be the point where a query-plan should be added. It should determine if a full table scan
         // or an index should be used.
-        QueryResult result = tryQueryUsingIndexes(predicate, initialPartitions, mapContainer, iterationType);
+        QueryResult result = tryQueryUsingIndexes(predicate, initialPartitions, IMapContainer, iterationType);
         if (result == null) {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
         }
@@ -135,19 +135,19 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             result.setPartitionIds(initialPartitions);
         }
 
-        updateStatistics(mapContainer);
+        updateStatistics(IMapContainer);
 
         return result;
     }
 
-    protected QueryResult tryQueryUsingIndexes(Predicate predicate, Collection<Integer> partitions, MapContainer mapContainer,
+    protected QueryResult tryQueryUsingIndexes(Predicate predicate, Collection<Integer> partitions, IMapContainer IMapContainer,
                                                IterationType iterationType) {
 
         if (partitionService.hasOnGoingMigrationLocal()) {
             return null;
         }
 
-        Set<QueryableEntry> entries = mapContainer.getIndexes().query(predicate);
+        Set<QueryableEntry> entries = IMapContainer.getIndexes().query(predicate);
         if (entries == null) {
             return null;
         }
@@ -157,9 +157,9 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         return result;
     }
 
-    protected void updateStatistics(MapContainer mapContainer) {
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
-            LocalMapStatsImpl localStats = localMapStatsProvider.getLocalMapStatsImpl(mapContainer.getName());
+    protected void updateStatistics(IMapContainer IMapContainer) {
+        if (IMapContainer.getMapConfig().isStatisticsEnabled()) {
+            LocalMapStatsImpl localStats = localMapStatsProvider.getLocalMapStatsImpl(IMapContainer.getName());
             localStats.incrementOtherOperations();
         }
     }
@@ -267,10 +267,10 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
         PartitionContainer partitionContainer = mapServiceContext.getPartitionContainer(partitionId);
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
         Iterator<Record> iterator = partitionContainer.getRecordStore(mapName).loadAwareIterator(getNow(), false);
         Map.Entry<Integer, Map.Entry> nearestAnchorEntry = getNearestAnchorEntry(pagingPredicate);
-        boolean useCachedVersion = shouldUseCachedValue(mapContainer);
+        boolean useCachedVersion = shouldUseCachedValue(IMapContainer);
         Extractors extractors = mapServiceContext.getExtractors(mapName);
         while (iterator.hasNext()) {
             Record record = iterator.next();
@@ -289,8 +289,8 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
     }
 
-    private boolean shouldUseCachedValue(MapContainer mapContainer) {
-        CacheDeserializedValues cacheDeserializedValues = mapContainer.getMapConfig().getCacheDeserializedValues();
+    private boolean shouldUseCachedValue(IMapContainer IMapContainer) {
+        CacheDeserializedValues cacheDeserializedValues = IMapContainer.getMapConfig().getCacheDeserializedValues();
         switch (cacheDeserializedValues) {
             case NEVER:
                 return false;
@@ -298,7 +298,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                 return true;
             default:
                 //if index exists then cached value is already set -> let's use it
-                return mapContainer.getIndexes().hasIndex();
+                return IMapContainer.getIndexes().hasIndex();
         }
     }
 

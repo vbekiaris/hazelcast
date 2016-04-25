@@ -70,7 +70,7 @@ public class RemoveBackupOperation extends KeyBasedMapOperation implements Backu
     public void afterRun() throws Exception {
         evict();
         if (!disableWanReplicationEvent
-                && mapContainer.isWanReplicationEnabled()) {
+                && IMapContainer.isWanReplicationEnabled()) {
             mapService.getMapServiceContext()
                     .getMapEventPublisher().publishWanReplicationRemoveBackup(name, dataKey, Clock.currentTimeMillis());
         }

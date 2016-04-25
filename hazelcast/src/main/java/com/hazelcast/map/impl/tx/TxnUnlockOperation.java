@@ -96,12 +96,12 @@ public class TxnUnlockOperation extends LockAwareOperation implements MapTxnOper
 
     @Override
     public final int getAsyncBackupCount() {
-        return mapContainer.getAsyncBackupCount();
+        return IMapContainer.getAsyncBackupCount();
     }
 
     @Override
     public final int getSyncBackupCount() {
-        return mapContainer.getBackupCount();
+        return IMapContainer.getBackupCount();
     }
 
     @Override

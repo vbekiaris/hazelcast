@@ -17,7 +17,7 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.internal.serialization.SerializationService;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.map.impl.record.Records;
@@ -58,7 +58,7 @@ public class AddIndexOperation extends AbstractNamedOperation implements Partiti
     @Override
     public void run() throws Exception {
         MapService mapService = getService();
-        MapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(name);
+        IMapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(name);
         RecordStore recordStore = mapService.getMapServiceContext()
                 .getPartitionContainer(getPartitionId()).getRecordStore(name);
         Indexes indexes = mapContainer.getIndexes();

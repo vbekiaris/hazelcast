@@ -70,16 +70,16 @@ public class MapManagedService implements ManagedService {
     private class ObjectNamespaceLockStoreInfoConstructorFunction implements ConstructorFunction<ObjectNamespace, LockStoreInfo> {
         @Override
         public LockStoreInfo createNew(final ObjectNamespace key) {
-            final MapContainer mapContainer = mapServiceContext.getMapContainer(key.getObjectName());
+            final IMapContainer IMapContainer = mapServiceContext.getMapContainer(key.getObjectName());
             return new LockStoreInfo() {
                 @Override
                 public int getBackupCount() {
-                    return mapContainer.getBackupCount();
+                    return IMapContainer.getBackupCount();
                 }
 
                 @Override
                 public int getAsyncBackupCount() {
-                    return mapContainer.getAsyncBackupCount();
+                    return IMapContainer.getAsyncBackupCount();
                 }
             };
         }

@@ -94,7 +94,7 @@ abstract class AbstractMultipleEntryOperation extends MapOperation implements Mu
      * may be same due to the object in memory format.
      */
     protected Object nullifyOldValueIfNecessary(Object oldValue, EntryEventType eventType) {
-        final MapConfig mapConfig = mapContainer.getMapConfig();
+        final MapConfig mapConfig = IMapContainer.getMapConfig();
         final InMemoryFormat format = mapConfig.getInMemoryFormat();
         if (format == InMemoryFormat.OBJECT && eventType != EntryEventType.REMOVED) {
             return null;
@@ -174,7 +174,7 @@ abstract class AbstractMultipleEntryOperation extends MapOperation implements Mu
             Record record = recordStore.getRecord(key);
             newValue = record.getValue();
         }
-        if (mapContainer.isWanReplicationEnabled()) {
+        if (IMapContainer.isWanReplicationEnabled()) {
             newValue = toData(newValue);
             publishWanReplicationEvent(key, (Data) newValue, eventType);
         }

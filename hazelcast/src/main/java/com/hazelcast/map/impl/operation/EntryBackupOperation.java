@@ -21,8 +21,8 @@ import com.hazelcast.core.EntryView;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.map.EntryBackupProcessor;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.LazyMapEntry;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.event.MapEventPublisher;
 import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.nio.ObjectDataInput;
@@ -80,7 +80,7 @@ public class EntryBackupOperation extends KeyBasedMapOperation implements Backup
     }
 
     private void publishWanReplicationEvent(EntryEventType eventType) {
-        final MapContainer mapContainer = this.mapContainer;
+        final IMapContainer mapContainer = this.IMapContainer;
         if (!mapContainer.isWanReplicationEnabled()) {
             return;
         }

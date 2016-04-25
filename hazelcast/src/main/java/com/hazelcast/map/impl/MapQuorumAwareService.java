@@ -31,7 +31,7 @@ public class MapQuorumAwareService implements QuorumAwareService {
 
     @Override
     public String getQuorumName(String name) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(name);
-        return mapContainer.getQuorumName();
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(name);
+        return IMapContainer.getQuorumName();
     }
 }

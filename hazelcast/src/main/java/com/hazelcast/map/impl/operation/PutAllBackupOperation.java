@@ -61,7 +61,7 @@ public class PutAllBackupOperation extends MapOperation implements PartitionAwar
         MapServiceContext mapServiceContext = mapService.getMapServiceContext();
         MapEventPublisher eventPublisher = mapServiceContext.getMapEventPublisher();
         recordStore = mapServiceContext.getRecordStore(partitionId, name);
-        boolean wanEnabled = mapContainer.isWanReplicationEnabled();
+        boolean wanEnabled = IMapContainer.isWanReplicationEnabled();
         for (int i = 0; i < entries.size(); i++) {
             final RecordInfo recordInfo = recordInfos.get(i);
             final Map.Entry<Data, Data> entry = entries.get(i);

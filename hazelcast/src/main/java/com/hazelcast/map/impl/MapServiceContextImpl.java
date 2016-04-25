@@ -77,7 +77,7 @@ class MapServiceContextImpl implements MapServiceContext {
 
     protected final NodeEngine nodeEngine;
     protected final PartitionContainer[] partitionContainers;
-    protected final ConcurrentMap<String, MapContainer> mapContainers;
+    protected final ConcurrentMap<String, IMapContainer> mapContainers;
     protected final AtomicReference<Collection<Integer>> ownedPartitions;
     protected final ConstructorFunction<String, MapContainer> mapConstructor = new ConstructorFunction<String, MapContainer>() {
         public MapContainer createNew(String mapName) {
@@ -107,7 +107,7 @@ class MapServiceContextImpl implements MapServiceContext {
     MapServiceContextImpl(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
         this.partitionContainers = createPartitionContainers();
-        this.mapContainers = new ConcurrentHashMap<String, MapContainer>();
+        this.mapContainers = new ConcurrentHashMap<String, IMapContainer>();
         this.ownedPartitions = new AtomicReference<Collection<Integer>>();
         this.expirationManager = new ExpirationManager(this, nodeEngine);
         this.nearCacheProvider = createNearCacheProvider();
@@ -149,13 +149,20 @@ class MapServiceContextImpl implements MapServiceContext {
     }
 
     @Override
-    public MapContainer getMapContainer(String mapName) {
-        return ConcurrencyUtil.getOrPutSynchronized(mapContainers, mapName, mapContainers, mapConstructor);
+    public IMapContainer getMapContainer(String mapName) {
+        IMapContainer result = mapContainers.get(mapName);
+        if (result != null) {
+            return result;
+        } else {
+            IMapContainer value = new LazyMapContainer(mapName, mapConstructor);
+            result = mapContainers.putIfAbsent(mapName, value);
+            return result == null ? value : result;
+        }
     }
 
 
     @Override
-    public Map<String, MapContainer> getMapContainers() {
+    public Map<String, IMapContainer> getMapContainers() {
         return mapContainers;
     }
 
@@ -205,8 +212,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void destroyMapStores() {
-        for (MapContainer mapContainer : mapContainers.values()) {
-            MapStoreWrapper store = mapContainer.getMapStoreContext().getMapStoreWrapper();
+        for (IMapContainer IMapContainer : mapContainers.values()) {
+            MapStoreWrapper store = IMapContainer.getMapStoreContext().getMapStoreWrapper();
             if (store != null) {
                 store.destroy();
             }
@@ -227,23 +234,23 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void destroyMap(String mapName) {
-        MapContainer mapContainer = mapContainers.get(mapName);
-        if (mapContainer == null) {
+        IMapContainer IMapContainer = mapContainers.get(mapName);
+        if (IMapContainer == null) {
             return;
         }
-        mapContainer.getMapStoreContext().stop();
+        IMapContainer.getMapStoreContext().stop();
         nearCacheProvider.destroyNearCache(mapName);
         nodeEngine.getEventService().deregisterAllListeners(SERVICE_NAME, mapName);
-        localMapStatsProvider.destroyLocalMapStatsImpl(mapContainer.getName());
+        localMapStatsProvider.destroyLocalMapStatsImpl(IMapContainer.getName());
 
-        destroyPartitionsAndMapContainer(mapContainer);
+        destroyPartitionsAndMapContainer(IMapContainer);
     }
 
-    private void destroyPartitionsAndMapContainer(MapContainer mapContainer) {
+    private void destroyPartitionsAndMapContainer(IMapContainer IMapContainer) {
         Semaphore semaphore = new Semaphore(0);
         InternalOperationService operationService = (InternalOperationService) nodeEngine.getOperationService();
         for (PartitionContainer container : partitionContainers) {
-            MapPartitionDestroyTask partitionDestroyTask = new MapPartitionDestroyTask(container, mapContainer, semaphore);
+            MapPartitionDestroyTask partitionDestroyTask = new MapPartitionDestroyTask(container, IMapContainer, semaphore);
             operationService.execute(partitionDestroyTask);
         }
 
@@ -354,8 +361,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void interceptAfterGet(String mapName, Object value) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        List<MapInterceptor> interceptors = mapContainer.getInterceptorRegistry().getInterceptors();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        List<MapInterceptor> interceptors = IMapContainer.getInterceptorRegistry().getInterceptors();
         if (!interceptors.isEmpty()) {
             value = toObject(value);
             for (MapInterceptor interceptor : interceptors) {
@@ -366,8 +373,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public Object interceptPut(String mapName, Object oldValue, Object newValue) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        List<MapInterceptor> interceptors = mapContainer.getInterceptorRegistry().getInterceptors();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        List<MapInterceptor> interceptors = IMapContainer.getInterceptorRegistry().getInterceptors();
         Object result = null;
         if (!interceptors.isEmpty()) {
             result = toObject(newValue);
@@ -384,8 +391,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void interceptAfterPut(String mapName, Object newValue) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        List<MapInterceptor> interceptors = mapContainer.getInterceptorRegistry().getInterceptors();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        List<MapInterceptor> interceptors = IMapContainer.getInterceptorRegistry().getInterceptors();
         if (!interceptors.isEmpty()) {
             newValue = toObject(newValue);
             for (MapInterceptor interceptor : interceptors) {
@@ -396,8 +403,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public Object interceptRemove(String mapName, Object value) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        List<MapInterceptor> interceptors = mapContainer.getInterceptorRegistry().getInterceptors();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        List<MapInterceptor> interceptors = IMapContainer.getInterceptorRegistry().getInterceptors();
         Object result = null;
         if (!interceptors.isEmpty()) {
             result = toObject(value);
@@ -413,8 +420,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void interceptAfterRemove(String mapName, Object value) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        InterceptorRegistry interceptorRegistry = mapContainer.getInterceptorRegistry();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        InterceptorRegistry interceptorRegistry = IMapContainer.getInterceptorRegistry();
         List<MapInterceptor> interceptors = interceptorRegistry.getInterceptors();
         if (!interceptors.isEmpty()) {
             for (MapInterceptor interceptor : interceptors) {
@@ -426,8 +433,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void addInterceptor(String id, String mapName, MapInterceptor interceptor) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        mapContainer.getInterceptorRegistry().register(id, interceptor);
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        IMapContainer.getInterceptorRegistry().register(id, interceptor);
     }
 
 
@@ -438,15 +445,15 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public void removeInterceptor(String mapName, String id) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        mapContainer.getInterceptorRegistry().deregister(id);
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        IMapContainer.getInterceptorRegistry().deregister(id);
     }
 
     // todo interceptors should get a wrapped object which includes the serialized version
     @Override
     public Object interceptGet(String mapName, Object value) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        InterceptorRegistry interceptorRegistry = mapContainer.getInterceptorRegistry();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        InterceptorRegistry interceptorRegistry = IMapContainer.getInterceptorRegistry();
         List<MapInterceptor> interceptors = interceptorRegistry.getInterceptors();
         Object result = null;
         if (!interceptors.isEmpty()) {
@@ -463,8 +470,8 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public boolean hasInterceptor(String mapName) {
-        MapContainer mapContainer = getMapContainer(mapName);
-        return !mapContainer.getInterceptorRegistry().getInterceptors().isEmpty();
+        IMapContainer IMapContainer = getMapContainer(mapName);
+        return !IMapContainer.getInterceptorRegistry().getInterceptors().isEmpty();
     }
 
     @Override
@@ -532,7 +539,7 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public Extractors getExtractors(String mapName) {
-        MapContainer mapContainer = getMapContainer(mapName);
+        IMapContainer mapContainer = getMapContainer(mapName);
         return mapContainer.getExtractors();
     }
 
@@ -548,13 +555,13 @@ class MapServiceContextImpl implements MapServiceContext {
         }
     }
 
-    public RecordStore createRecordStore(MapContainer mapContainer, int partitionId, MapKeyLoader keyLoader) {
+    public RecordStore createRecordStore(IMapContainer IMapContainer, int partitionId, MapKeyLoader keyLoader) {
         ILogger logger = nodeEngine.getLogger(DefaultRecordStore.class);
-        return new DefaultRecordStore(mapContainer, partitionId, keyLoader, logger);
+        return new DefaultRecordStore(IMapContainer, partitionId, keyLoader, logger);
     }
 
     @Override
-    public void removeMapContainer(MapContainer mapContainer) {
-        mapContainers.remove(mapContainer.getName(), mapContainer);
+    public void removeMapContainer(IMapContainer IMapContainer) {
+        mapContainers.remove(IMapContainer.getName(), IMapContainer);
     }
 }

@@ -60,7 +60,7 @@ abstract class AbstractMultipleEntryBackupOperation extends AbstractMultipleEntr
     }
 
     protected void publishWanReplicationEventBackup(Data key, Object value, EntryEventType eventType) {
-        if (mapContainer.isWanReplicationEnabled()) {
+        if (IMapContainer.isWanReplicationEnabled()) {
             final MapEventPublisher mapEventPublisher = getMapEventPublisher();
             if (EntryEventType.REMOVED.equals(eventType)) {
                 mapEventPublisher.publishWanReplicationRemoveBackup(name, key, getNow());

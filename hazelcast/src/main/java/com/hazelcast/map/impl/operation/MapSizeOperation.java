@@ -40,7 +40,7 @@ public class MapSizeOperation extends MapOperation implements PartitionAwareOper
         RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), name);
         recordStore.checkIfLoaded();
         size = recordStore.size();
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
+        if (IMapContainer.getMapConfig().isStatisticsEnabled()) {
             LocalMapStatsProvider localMapStatsProvider = mapServiceContext.getLocalMapStatsProvider();
             LocalMapStatsImpl localMapStatsImpl = localMapStatsProvider.getLocalMapStatsImpl(name);
             localMapStatsImpl.incrementOtherOperations();

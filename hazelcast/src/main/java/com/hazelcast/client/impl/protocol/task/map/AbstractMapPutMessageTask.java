@@ -18,7 +18,7 @@ package com.hazelcast.client.impl.protocol.task.map;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.instance.Node;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.security.permission.ActionConstants;
@@ -43,7 +43,7 @@ public abstract class AbstractMapPutMessageTask<P> extends AbstractMapPartitionM
     protected void beforeResponse() {
         final long latency = System.currentTimeMillis() - startTime;
         final MapService mapService = getService(MapService.SERVICE_NAME);
-        MapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(getDistributedObjectName());
+        IMapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(getDistributedObjectName());
         if (mapContainer.getMapConfig().isStatisticsEnabled()) {
             mapService.getMapServiceContext().getLocalMapStatsProvider().getLocalMapStatsImpl(getDistributedObjectName())
                     .incrementPuts(latency);

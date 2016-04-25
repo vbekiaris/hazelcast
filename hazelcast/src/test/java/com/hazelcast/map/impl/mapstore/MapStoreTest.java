@@ -33,7 +33,7 @@ import com.hazelcast.core.MapStoreFactory;
 import com.hazelcast.core.PostProcessingMapStore;
 import com.hazelcast.instance.GroupProperty;
 import com.hazelcast.map.AbstractEntryProcessor;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapStoreWrapper;
 import com.hazelcast.map.impl.proxy.MapProxyImpl;
@@ -861,7 +861,7 @@ public class MapStoreTest extends AbstractMapStoreTest {
         HazelcastInstance hz = createHazelcastInstance(config);
         MapProxyImpl map = (MapProxyImpl) hz.getMap(mapName);
         MapService mapService = (MapService) map.getService();
-        MapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(mapName);
+        IMapContainer mapContainer = mapService.getMapServiceContext().getMapContainer(mapName);
         MapStoreWrapper mapStoreWrapper = mapContainer.getMapStoreContext().getMapStoreWrapper();
         Iterator keys = mapStoreWrapper.loadAllKeys().iterator();
 

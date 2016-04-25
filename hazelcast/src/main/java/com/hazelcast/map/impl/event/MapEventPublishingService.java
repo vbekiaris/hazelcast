@@ -23,8 +23,8 @@ import com.hazelcast.core.Member;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.map.MapPartitionLostEvent;
 import com.hazelcast.map.impl.DataAwareEntryEvent;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.ListenerAdapter;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.nearcache.Invalidation;
 import com.hazelcast.spi.EventPublishingService;
@@ -81,8 +81,8 @@ public class MapEventPublishingService implements EventPublishingService<Object,
     }
 
     private void incrementEventStatsInternal(String mapName) {
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-        if (mapContainer.getMapConfig().isStatisticsEnabled()) {
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+        if (IMapContainer.getMapConfig().isStatisticsEnabled()) {
             mapServiceContext.getLocalMapStatsProvider()
                     .getLocalMapStatsImpl(mapName).incrementReceivedEvents();
         }

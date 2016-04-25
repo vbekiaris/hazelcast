@@ -72,9 +72,9 @@ class MapReplicationSupportingService implements ReplicationSupportingService {
         EntryView entryView = replicationUpdate.getEntryView();
         MapMergePolicy mergePolicy = replicationUpdate.getMergePolicy();
         String mapName = replicationUpdate.getMapName();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
         MapOperationProvider operationProvider = mapServiceContext.getMapOperationProvider(mapName);
-        Data dataKey = mapServiceContext.toData(entryView.getKey(), mapContainer.getPartitioningStrategy());
+        Data dataKey = mapServiceContext.toData(entryView.getKey(), IMapContainer.getPartitioningStrategy());
         MapOperation operation = operationProvider.createMergeOperation(mapName, dataKey, entryView, mergePolicy, true);
         try {
             int partitionId = nodeEngine.getPartitionService().getPartitionId(entryView.getKey());

@@ -44,7 +44,7 @@ public class NearCacheBatchInvalidationOperation extends MapOperation implements
 
     @Override
     public void run() {
-        if (mapContainer.hasMemberNearCache()) {
+        if (IMapContainer.hasMemberNearCache()) {
             NearCacheProvider nearCacheProvider = mapServiceContext.getNearCacheProvider();
             NearCacheInvalidator nearCacheInvalidator = nearCacheProvider.getNearCacheInvalidator();
             ((AbstractNearCacheInvalidator) nearCacheInvalidator).invalidateLocal(name, null, keys);

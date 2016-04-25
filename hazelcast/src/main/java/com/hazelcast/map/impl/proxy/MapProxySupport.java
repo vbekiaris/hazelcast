@@ -40,8 +40,8 @@ import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.map.EntryProcessor;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.EntryEventFilter;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
-import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapEntries;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
@@ -128,7 +128,7 @@ abstract class MapProxySupport extends AbstractDistributedObject<MapService> imp
     protected final MapServiceContext mapServiceContext;
     protected final InternalPartitionService partitionService;
     protected final Address thisAddress;
-    protected final MapContainer mapContainer;
+    protected final IMapContainer IMapContainer;
     protected final OperationService operationService;
     protected final SerializationService serializationService;
     protected final boolean statisticsEnabled;
@@ -141,7 +141,7 @@ abstract class MapProxySupport extends AbstractDistributedObject<MapService> imp
         this.name = name;
 
         this.mapServiceContext = service.getMapServiceContext();
-        this.mapContainer = mapServiceContext.getMapContainer(name);
+        this.IMapContainer = mapServiceContext.getMapContainer(name);
         this.partitionStrategy = mapServiceContext.getMapContainer(name).getPartitioningStrategy();
         this.localMapStats = mapServiceContext.getLocalMapStatsProvider().getLocalMapStatsImpl(name);
         this.partitionService = getNodeEngine().getPartitionService();
@@ -151,7 +151,7 @@ abstract class MapProxySupport extends AbstractDistributedObject<MapService> imp
         this.operationService = nodeEngine.getOperationService();
         this.serializationService = nodeEngine.getSerializationService();
         this.thisAddress = nodeEngine.getClusterService().getThisAddress();
-        this.statisticsEnabled = mapContainer.getMapConfig().isStatisticsEnabled();
+        this.statisticsEnabled = IMapContainer.getMapConfig().isStatisticsEnabled();
     }
 
     @Override
@@ -982,11 +982,11 @@ abstract class MapProxySupport extends AbstractDistributedObject<MapService> imp
     }
 
     protected MapStore getMapStore() {
-        return mapContainer.getMapStoreContext().getMapStoreWrapper();
+        return IMapContainer.getMapStoreContext().getMapStoreWrapper();
     }
 
     protected MapConfig getMapConfig() {
-        return mapContainer.getMapConfig();
+        return IMapContainer.getMapConfig();
     }
 
     @Override

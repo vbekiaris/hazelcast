@@ -26,7 +26,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MapLoader;
 import com.hazelcast.instance.Node;
-import com.hazelcast.map.impl.MapContainer;
+import com.hazelcast.map.impl.IMapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.nio.ObjectDataInput;
@@ -183,8 +183,8 @@ public class IndexIntegrationTest extends HazelcastTestSupport {
         Node node = getNode(instance);
         MapService service = node.nodeEngine.getService(MapService.SERVICE_NAME);
         MapServiceContext mapServiceContext = service.getMapServiceContext();
-        MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
-        Indexes indexes = mapContainer.getIndexes();
+        IMapContainer IMapContainer = mapServiceContext.getMapContainer(mapName);
+        Indexes indexes = IMapContainer.getIndexes();
         return indexes.getIndex(attribute);
     }
 

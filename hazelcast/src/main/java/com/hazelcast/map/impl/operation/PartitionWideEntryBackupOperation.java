@@ -82,7 +82,7 @@ public class PartitionWideEntryBackupOperation extends AbstractMultipleEntryBack
         if (getPredicate() == null) {
             return true;
         }
-        QueryableEntry queryEntry = mapContainer.newQueryEntry(key, value);
+        QueryableEntry queryEntry = IMapContainer.newQueryEntry(key, value);
         return getPredicate().apply(queryEntry);
     }
 

@@ -16,6 +16,9 @@
 
 package com.hazelcast.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -23,6 +26,8 @@ import java.util.concurrent.ConcurrentMap;
  * from ConcurrentMap with a ConstructorFunction.
  */
 public final class ConcurrencyUtil {
+
+    public static final Logger LOGGER = LoggerFactory.getLogger(ConcurrencyUtil.class);
 
     private ConcurrencyUtil() {
     }
@@ -34,10 +39,14 @@ public final class ConcurrencyUtil {
         }
         V value = map.get(key);
         if (value == null) {
+            LOGGER.info("going to acquire mutex " + mutex.getClass()+"@"+System.identityHashCode(mutex));
             synchronized (mutex) {
+                LOGGER.info("mutex acquired " + mutex.getClass()+"@"+System.identityHashCode(mutex));
                 value = map.get(key);
                 if (value == null) {
+                    LOGGER.info("going to create new " + func + " via ctor func");
                     value = func.createNew(key);
+                    LOGGER.info("created " + value + " -- of func " + func);
                     map.put(key, value);
                 }
             }
