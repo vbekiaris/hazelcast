@@ -18,6 +18,7 @@ package com.hazelcast.map.impl;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
+import com.hazelcast.core.IFunction;
 import com.hazelcast.core.PartitioningStrategy;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.MapInterceptor;
@@ -49,6 +50,7 @@ import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.eventservice.impl.TrueEventFilter;
 import com.hazelcast.spi.impl.operationservice.InternalOperationService;
 import com.hazelcast.util.ConcurrencyUtil;
+import com.hazelcast.util.ConcurrentReferenceHashMap;
 import com.hazelcast.util.ConstructorFunction;
 import com.hazelcast.util.ExceptionUtil;
 
@@ -68,6 +70,7 @@ import static com.hazelcast.map.impl.ListenerAdapters.createListenerAdapter;
 import static com.hazelcast.map.impl.MapListenerFlagOperator.setAndGetListenerFlags;
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
 import static com.hazelcast.query.impl.predicates.QueryOptimizerFactory.newOptimizer;
+import static com.hazelcast.util.ConcurrentReferenceHashMap.ReferenceType.STRONG;
 
 /**
  * Default implementation of map service context.
@@ -77,10 +80,11 @@ class MapServiceContextImpl implements MapServiceContext {
 
     protected final NodeEngine nodeEngine;
     protected final PartitionContainer[] partitionContainers;
-    protected final ConcurrentMap<String, MapContainer> mapContainers;
+    protected final ConcurrentReferenceHashMap<String, MapContainer> mapContainers;
     protected final AtomicReference<Collection<Integer>> ownedPartitions;
-    protected final ConstructorFunction<String, MapContainer> mapConstructor = new ConstructorFunction<String, MapContainer>() {
-        public MapContainer createNew(String mapName) {
+    protected final IFunction<String, MapContainer> mapConstructor = new IFunction<String, MapContainer>() {
+        @Override
+        public MapContainer apply(String mapName) {
             final MapServiceContext mapServiceContext = getService().getMapServiceContext();
             final Config config = nodeEngine.getConfig();
             final MapConfig mapConfig = config.findMapConfig(mapName);
@@ -107,7 +111,7 @@ class MapServiceContextImpl implements MapServiceContext {
     MapServiceContextImpl(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
         this.partitionContainers = createPartitionContainers();
-        this.mapContainers = new ConcurrentHashMap<String, MapContainer>();
+        this.mapContainers = new ConcurrentReferenceHashMap<String, MapContainer>(STRONG, STRONG);
         this.ownedPartitions = new AtomicReference<Collection<Integer>>();
         this.expirationManager = new ExpirationManager(this, nodeEngine);
         this.nearCacheProvider = createNearCacheProvider();
@@ -150,7 +154,7 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public MapContainer getMapContainer(String mapName) {
-        return ConcurrencyUtil.getOrPutSynchronized(mapContainers, mapName, mapContainers, mapConstructor);
+        return mapContainers.applyIfAbsent(mapName, mapConstructor);
     }
 
 
