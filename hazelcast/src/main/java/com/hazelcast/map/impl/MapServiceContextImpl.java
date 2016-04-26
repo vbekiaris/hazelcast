@@ -51,6 +51,7 @@ import com.hazelcast.spi.impl.eventservice.impl.TrueEventFilter;
 import com.hazelcast.spi.impl.operationservice.InternalOperationService;
 import com.hazelcast.util.ConcurrentReferenceHashMap;
 import com.hazelcast.util.ExceptionUtil;
+import com.hazelcast.util.concurrent.jsr166e.ConcurrentHashMapV8;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -76,9 +77,9 @@ class MapServiceContextImpl implements MapServiceContext {
 
     protected final NodeEngine nodeEngine;
     protected final PartitionContainer[] partitionContainers;
-    protected final ConcurrentReferenceHashMap<String, MapContainer> mapContainers;
+    protected final ConcurrentHashMapV8<String, MapContainer> mapContainers;
     protected final AtomicReference<Collection<Integer>> ownedPartitions;
-    protected final IFunction<String, MapContainer> mapConstructor = new IFunction<String, MapContainer>() {
+    protected final ConcurrentHashMapV8.Fun<String, MapContainer> mapConstructor = new ConcurrentHashMapV8.Fun<String, MapContainer>() {
         @Override
         public MapContainer apply(String mapName) {
             final MapServiceContext mapServiceContext = getService().getMapServiceContext();
@@ -107,7 +108,7 @@ class MapServiceContextImpl implements MapServiceContext {
     MapServiceContextImpl(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
         this.partitionContainers = createPartitionContainers();
-        this.mapContainers = new ConcurrentReferenceHashMap<String, MapContainer>(STRONG, STRONG);
+        this.mapContainers = new ConcurrentHashMapV8<String, MapContainer>();
         this.ownedPartitions = new AtomicReference<Collection<Integer>>();
         this.expirationManager = new ExpirationManager(this, nodeEngine);
         this.nearCacheProvider = createNearCacheProvider();
@@ -150,7 +151,7 @@ class MapServiceContextImpl implements MapServiceContext {
 
     @Override
     public MapContainer getMapContainer(String mapName) {
-        return mapContainers.applyIfAbsent(mapName, mapConstructor);
+        return mapContainers.computeIfAbsent(mapName, mapConstructor);
     }
 
 
