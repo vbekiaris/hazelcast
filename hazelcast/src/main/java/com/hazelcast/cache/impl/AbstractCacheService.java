@@ -496,7 +496,7 @@ public abstract class AbstractCacheService
                 }
             }
         }
-        eventService.deregisterAllListeners(AbstractCacheService.SERVICE_NAME, name);
+        eventService.deregisterAllListeners(SERVICE_NAME, name);
         CacheContext cacheContext = cacheContexts.get(name);
         if (cacheContext != null) {
             cacheContext.resetCacheEntryListenerCount();
@@ -511,7 +511,7 @@ public abstract class AbstractCacheService
 
     @Override
     public CacheOperationProvider getCacheOperationProvider(String nameWithPrefix, InMemoryFormat inMemoryFormat) {
-        if (InMemoryFormat.NATIVE.equals(inMemoryFormat)) {
+        if (NATIVE.equals(inMemoryFormat)) {
             throw new IllegalArgumentException("Native memory is available only in Hazelcast Enterprise."
                     + "Make sure you have Hazelcast Enterprise JARs on your classpath!");
         }

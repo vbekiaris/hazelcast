@@ -16,8 +16,6 @@
 
 package com.hazelcast.instance;
 
-import com.hazelcast.cache.impl.CacheService;
-import com.hazelcast.cache.impl.ICacheService;
 import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.SerializationConfig;
@@ -53,6 +51,9 @@ import com.hazelcast.wan.impl.WanReplicationServiceImpl;
 import java.util.Collections;
 import java.util.Map;
 
+import static com.hazelcast.cache.impl.CacheInitializationHelper.CACHE_SERVICE_CLASS_NAME;
+import static com.hazelcast.cache.impl.CacheInitializationHelper.ICACHE_SERVICE_CLASS;
+import static com.hazelcast.cache.impl.CacheInitializationHelper.ICACHE_SERVICE_CLASS_NAME;
 import static com.hazelcast.map.impl.MapServiceConstructor.getDefaultMapServiceConstructor;
 
 @PrivateApi
@@ -149,10 +150,19 @@ public class DefaultNodeExtension implements NodeExtension {
     public <T> T createService(Class<T> clazz) {
         if (WanReplicationService.class.isAssignableFrom(clazz)) {
             return (T) new WanReplicationServiceImpl(node);
-        } else if (ICacheService.class.isAssignableFrom(clazz)) {
-            return (T) new CacheService();
+        } else if (ICACHE_SERVICE_CLASS != null && ICACHE_SERVICE_CLASS.isAssignableFrom(clazz)) {
+            try {
+                return (T) ClassLoaderUtil.newInstance(null, CACHE_SERVICE_CLASS_NAME);
+            } catch (Exception e) {
+                // this should never happen as both ICacheService & CacheService are located in the same artifact
+                throw new RuntimeException("Could not instantiate " + CACHE_SERVICE_CLASS_NAME +". Is it in the classpath?");
+            }
         } else if (MapService.class.isAssignableFrom(clazz)) {
             return createMapService();
+        }
+        if (clazz.getName().equals(ICACHE_SERVICE_CLASS_NAME) && ICACHE_SERVICE_CLASS == null) {
+            throw new RuntimeException("Attempted to obtain an instance of cache service but its interface is not in the "
+                    + "classpath. Is hazelcast-jcache.jar in your classpath?");
         }
         throw new IllegalArgumentException("Unknown service class: " + clazz);
     }

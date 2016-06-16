@@ -16,9 +16,6 @@
 
 package com.hazelcast.instance;
 
-import com.hazelcast.cache.HazelcastCacheManager;
-import com.hazelcast.cache.ICache;
-import com.hazelcast.cache.impl.ICacheService;
 import com.hazelcast.client.impl.ClientServiceProxy;
 import com.hazelcast.collection.impl.list.ListService;
 import com.hazelcast.collection.impl.queue.QueueService;
@@ -34,7 +31,6 @@ import com.hazelcast.core.ClientService;
 import com.hazelcast.core.Cluster;
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.DistributedObjectListener;
-import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.IAtomicLong;
@@ -296,25 +292,6 @@ public class HazelcastInstanceImpl implements HazelcastInstance {
     public <K, V> ReplicatedMap<K, V> getReplicatedMap(String name) {
         checkNotNull(name, "Retrieving a replicated map instance with a null name is not allowed!");
         return getDistributedObject(ReplicatedMapService.SERVICE_NAME, name);
-    }
-
-    @Override
-    public <K, V> ICache<K, V> getCache(String name) {
-        checkNotNull(name, "Retrieving a cache instance with a null name is not allowed!");
-        return getCacheByFullName(HazelcastCacheManager.CACHE_MANAGER_PREFIX + name);
-    }
-
-    public <K, V> ICache<K, V> getCacheByFullName(String fullName) {
-        checkNotNull(fullName, "Retrieving a cache instance with a null name is not allowed!");
-        try {
-            return getDistributedObject(ICacheService.SERVICE_NAME, fullName);
-        } catch (HazelcastException e) {
-            if (e.getCause() instanceof ServiceNotFoundException) {
-                throw new IllegalStateException(ICacheService.CACHE_SUPPORT_NOT_AVAILABLE_ERROR_MESSAGE);
-            } else {
-                throw e;
-            }
-        }
     }
 
     @Override

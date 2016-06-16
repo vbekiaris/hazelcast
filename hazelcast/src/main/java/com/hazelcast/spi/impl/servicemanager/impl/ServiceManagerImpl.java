@@ -16,7 +16,7 @@
 
 package com.hazelcast.spi.impl.servicemanager.impl;
 
-import com.hazelcast.cache.impl.ICacheService;
+import com.hazelcast.cache.impl.CacheInitializationHelper;
 import com.hazelcast.cache.impl.JCacheDetector;
 import com.hazelcast.client.impl.ClientEngineImpl;
 import com.hazelcast.collection.impl.list.ListService;
@@ -74,6 +74,8 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static com.hazelcast.cache.impl.CacheInitializationHelper.ICACHE_SERVICE_CLASS;
+import static com.hazelcast.cache.impl.CacheInitializationHelper.SERVICE_NAME;
 import static com.hazelcast.util.EmptyStatement.ignore;
 
 @SuppressWarnings("checkstyle:classfanoutcomplexity")
@@ -191,8 +193,8 @@ public final class ServiceManagerImpl implements ServiceManager {
         //CacheService Optional initialization
         //search for jcache api jar on classpath
         if (JCacheDetector.isJcacheAvailable(nodeEngine.getConfigClassLoader(), logger)) {
-            ICacheService service = createService(ICacheService.class);
-            registerService(ICacheService.SERVICE_NAME, service);
+            Object service = createService(ICACHE_SERVICE_CLASS);
+            registerService(SERVICE_NAME, service);
         } else {
             logger.finest("javax.cache api is not detected on classpath. Skipping CacheService...");
         }

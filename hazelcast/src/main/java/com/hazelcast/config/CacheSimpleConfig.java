@@ -16,8 +16,7 @@
 
 package com.hazelcast.config;
 
-import com.hazelcast.cache.BuiltInCacheMergePolicies;
-import com.hazelcast.cache.merge.PassThroughCacheMergePolicy;
+import com.hazelcast.cache.impl.CacheInitializationHelper;
 import com.hazelcast.spi.partition.IPartition;
 
 import java.util.ArrayList;
@@ -63,7 +62,7 @@ public class CacheSimpleConfig {
     /**
      * Default policy for merging
      */
-    public static final String DEFAULT_CACHE_MERGE_POLICY = PassThroughCacheMergePolicy.class.getName();
+    public static final String DEFAULT_CACHE_MERGE_POLICY = CacheInitializationHelper.DEFAULT_CACHE_MERGE_POLICY;
 
     private String name;
 
@@ -97,7 +96,7 @@ public class CacheSimpleConfig {
 
     private List<CachePartitionLostListenerConfig> partitionLostListenerConfigs;
 
-    private String mergePolicy = BuiltInCacheMergePolicies.getDefault().getImplementationClassName();
+    private String mergePolicy = CacheInitializationHelper.DEFAULT_CACHE_MERGE_POLICY;
 
     private HotRestartConfig hotRestartConfig = new HotRestartConfig();
 

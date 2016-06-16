@@ -73,7 +73,7 @@ public class CacheService extends AbstractCacheService {
 
     @Override
     public String toString() {
-        return "CacheService[" + SERVICE_NAME + ']';
+        return "CacheService[" + ICacheService.SERVICE_NAME + ']';
     }
 
     @Override
