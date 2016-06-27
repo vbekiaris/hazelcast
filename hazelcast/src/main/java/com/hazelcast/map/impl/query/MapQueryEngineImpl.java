@@ -19,7 +19,9 @@ package com.hazelcast.map.impl.query;
 import com.hazelcast.config.CacheDeserializedValues;
 import com.hazelcast.core.Member;
 import com.hazelcast.internal.cluster.ClusterService;
+import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.serialization.InternalSerializationService;
+import com.hazelcast.internal.util.counters.MwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.QueryResultSizeExceededException;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
@@ -42,6 +44,7 @@ import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.exception.RetryableHazelcastException;
+import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterationType;
@@ -61,6 +64,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import static com.hazelcast.internal.util.counters.MwCounter.newMwCounter;
 import static com.hazelcast.query.PagingPredicateAccessor.getNearestAnchorEntry;
 import static com.hazelcast.spi.ExecutionService.QUERY_EXECUTOR;
 import static com.hazelcast.spi.properties.GroupProperty.QUERY_PREDICATE_PARALLEL_EVALUATION;
@@ -93,6 +97,15 @@ public class MapQueryEngineImpl implements MapQueryEngine {
     protected final boolean parallelEvaluation;
     protected final ManagedExecutorService executor;
 
+    /// count of times an indexed query was not executed due to
+    @Probe
+    private final MwCounter ownerMigrationWhileRunningIndexedQueryCount = newMwCounter();
+
+    @Probe
+    private final MwCounter partitionStateChangeWhileRunningIndexedQueryCount = newMwCounter();
+
+    private volatile long lastIndexedQueryAbortTimeMs;
+
     public MapQueryEngineImpl(MapServiceContext mapServiceContext, QueryOptimizer optimizer) {
         this.mapServiceContext = mapServiceContext;
         this.nodeEngine = mapServiceContext.getNodeEngine();
@@ -106,10 +119,20 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         this.localMapStatsProvider = mapServiceContext.getLocalMapStatsProvider();
         this.parallelEvaluation = nodeEngine.getProperties().getBoolean(QUERY_PREDICATE_PARALLEL_EVALUATION);
         this.executor = nodeEngine.getExecutionService().getExecutor(QUERY_EXECUTOR);
+        if (nodeEngine instanceof NodeEngineImpl) {
+            ((NodeEngineImpl)nodeEngine).getMetricsRegistry().scanAndRegister(this, "map.queryEngine");
+        } else {
+            logger.fine("Map query engine probes could not be registered with a metrics registry.");
+        }
     }
 
     QueryResultSizeLimiter getQueryResultSizeLimiter() {
         return queryResultSizeLimiter;
+    }
+
+    @Probe
+    private final long timeSinceLastIndexedQueryMs() {
+        return System.currentTimeMillis() - lastIndexedQueryAbortTimeMs;
     }
 
     @Override
@@ -149,6 +172,8 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // beforeMigration has been executed but commit/rollback is not yet executed).
         // This is a temporary fix for 3.7, the actual issue will be addressed with an additional migration hook in 3.8.
         if (mapServiceContext.getService().getOwnerMigrationsInFlight() > 0) {
+            ownerMigrationWhileRunningIndexedQueryCount.inc();
+            lastIndexedQueryAbortTimeMs = System.currentTimeMillis();
             return null;
         }
 
@@ -161,6 +186,8 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // if partition state version has changed in the meanwhile, this means migrations were executed and we may
         // return stale data, so we should rather return null and let the query run with a full table scan
         if (initialPartitionStateVersion != partitionService.getPartitionStateVersion()) {
+            partitionStateChangeWhileRunningIndexedQueryCount.inc();
+            lastIndexedQueryAbortTimeMs = System.currentTimeMillis();
             return null;
         }
         result.addAll(entries);
