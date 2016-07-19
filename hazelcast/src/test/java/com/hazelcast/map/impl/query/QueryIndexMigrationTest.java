@@ -160,6 +160,7 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
      */
     @Test(timeout = MINUTE)
     public void testIndexCleanupOnMigration() throws Exception {
+        MapQueryEngineImpl.lastQueryExecInfo = new ConcurrentHashMap<Thread, MapQueryEngineImpl.QueryExecutionInfo>();
         int nodeCount = 6;
         final int runCount = 500;
         final Config config = newConfigWithIndex("testMap", "name");
@@ -256,6 +257,11 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
             sleepMillis(random.nextInt(100) + 1);
 
             Collection<Value> values = map.values(predicate);
+            if (values.size() == 2) {
+                for (Value v : values) {
+                    System.out.println("Pred: " + predicate.toString() + " -- Value matches: " + v.getName()+ ", " + v.getIndex());
+                }
+            }
             assertEquals(1, values.size());
             Value firstValue = IterableUtil.getFirst(values, null);
             assertEquals(value, firstValue);
