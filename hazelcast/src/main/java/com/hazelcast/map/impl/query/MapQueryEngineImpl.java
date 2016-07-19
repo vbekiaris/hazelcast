@@ -50,16 +50,7 @@ import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterationType;
 import com.hazelcast.util.executor.ManagedExecutorService;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -89,14 +80,18 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         public int numResults;
 
+        public Integer[] partitionIDs, initialPartitionIDs;
+
         @Override
         public String toString() {
             return "QueryExecutionInfo{" +
                     "numResults=" + numResults +
-                    "usedIndexes=" + didUseIndexes +
+                    ". usedIndexes=" + didUseIndexes +
                     ", partitionsChangedDuringIndexedQuery=" + didPartitionsChangeDuringIndexedQuery +
                     ", partitionsChangedDuringQuery=" + didPartitionsChangeDuringQuery +
-                    ", noIndexesUsedDueToMigrationsInflight=" + didNotUseIndexesDueToMigrationsInflight +
+                    ", migrationsInflight=" + didNotUseIndexesDueToMigrationsInflight +
+                    ", partitionIDs=" + partitionIDs +
+                    ", initialPartitionIDs=" + initialPartitionIDs +
                     '}';
         }
     }
@@ -163,6 +158,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         QueryExecutionInfo qei = new QueryExecutionInfo();
         int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
+        qei.initialPartitionIDs = initialPartitions.toArray(new Integer[initialPartitions.size()]);
         MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
 
         // first we optimize the query
@@ -177,6 +173,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
         }
 
+        qei.partitionIDs = result.getPartitionIds().toArray(new Integer[result.getPartitionIds().size()]);
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
             qei.didPartitionsChangeDuringQuery = true;
             result.setPartitionIds(initialPartitions);
@@ -328,6 +325,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @SuppressWarnings("unchecked")
     protected Collection<QueryableEntry> queryTheLocalPartition(String mapName, Predicate predicate, int partitionId) {
+        System.out.println("Query the local partition");
         PagingPredicate pagingPredicate = predicate instanceof PagingPredicate ? (PagingPredicate) predicate : null;
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
@@ -489,10 +487,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         // query the local partitions
         try {
+            System.out.println("Query on members");
             List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
             // modifies partitionIds list!
+            System.out.println("Aggregating");
             addResultsOfPredicate(futures, result, partitionIds);
             if (partitionIds.isEmpty()) {
+                System.out.println("Done 1");
                 return result;
             }
         } catch (Throwable t) {
@@ -504,7 +505,9 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         // query the remaining partitions that are not local to the member
         try {
+            System.out.println("Query on partitions");
             List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
+            System.out.println("Aggregating again");
             addResultsOfPredicate(futures, result, partitionIds);
         } catch (Throwable t) {
             throw rethrow(t);
@@ -603,6 +606,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (queryResult == null) {
                 continue;
             }
+            System.out.println("Results: " + queryResult.getRows().size() + " found. Partition IDs: " + Arrays.toString(queryResult.getPartitionIds().toArray()));
             Collection<Integer> queriedPartitionIds = queryResult.getPartitionIds();
             if (queriedPartitionIds != null) {
                 partitionIds.removeAll(queriedPartitionIds);
