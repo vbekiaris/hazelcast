@@ -76,7 +76,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     public static class QueryExecutionInfo {
         public boolean didUseIndexes, didPartitionsChangeDuringIndexedQuery, didPartitionsChangeDuringQuery,
-                        didNotUseIndexesDueToMigrationsInflight;
+                        didNotUseIndexesDueToMigrationsInflight, fromTheLocalPartition;
 
         public int numResults;
 
@@ -87,12 +87,12 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             return "QueryExecutionInfo{" +
                     "numResults=" + numResults +
                     ". usedIndexes=" + didUseIndexes +
-                    ", partitionsChangedDuringIndexedQuery=" + didPartitionsChangeDuringIndexedQuery +
-                    ", partitionsChangedDuringQuery=" + didPartitionsChangeDuringQuery +
+                    ", partitionsChangedInIxQuery=" + didPartitionsChangeDuringIndexedQuery +
+                    ", partitionsChangedInQuery=" + didPartitionsChangeDuringQuery +
                     ", migrationsInflight=" + didNotUseIndexesDueToMigrationsInflight +
                     ", partitionIDs=" + partitionIDs +
                     ", initialPartitionIDs=" + initialPartitionIDs +
-                    '}';
+                    ", theLocalPart=" + fromTheLocalPartition + "}";
         }
     }
 
@@ -325,7 +325,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @SuppressWarnings("unchecked")
     protected Collection<QueryableEntry> queryTheLocalPartition(String mapName, Predicate predicate, int partitionId) {
+        QueryExecutionInfo queryExecutionInfo = new QueryExecutionInfo();
+        lastQueryExecInfo.putIfAbsent(Thread.currentThread(), queryExecutionInfo);
         int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
+        queryExecutionInfo.initialPartitionIDs = new Integer[] {partitionId};
+        if (mapServiceContext.getService().getOwnerMigrationsInFlight() > 0) {
+            queryExecutionInfo.didNotUseIndexesDueToMigrationsInflight = true;
+        }
         PagingPredicate pagingPredicate = predicate instanceof PagingPredicate ? (PagingPredicate) predicate : null;
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
@@ -350,7 +356,9 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             }
         }
         if (partitionService.getPartitionStateVersion() != initialPartitionStateVersion) {
-            System.out.println("Partition state version changed while querying partition " + partitionId + " with " +
+            queryExecutionInfo.didPartitionsChangeDuringQuery = true;
+            queryExecutionInfo.numResults = resultList.size();
+            System.out.println("[" + Thread.currentThread() + "] Partition state version changed while querying partition " + partitionId + " with " +
                     resultList.size() + " results");
         }
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
