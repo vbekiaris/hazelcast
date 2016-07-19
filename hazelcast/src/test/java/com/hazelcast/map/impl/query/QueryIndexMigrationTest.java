@@ -34,6 +34,7 @@ import com.hazelcast.test.annotation.QuickTest;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterableUtil;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -45,10 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 import static com.hazelcast.query.Predicates.equal;
 import static com.hazelcast.test.TimeConstants.MINUTE;
@@ -174,7 +172,17 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
                 public void run() {
                     HazelcastInstance hz = nodeFactory.newHazelcastInstance(config);
                     IMap<Object, Value> map = hz.getMap("testMap");
-                    updateMapAndRunQuery(map, runCount);
+                    try {
+                        updateMapAndRunQuery(map, runCount);
+                    }
+                    catch (AssertionError e) {
+                        System.out.println("Assertion error: " + e.getMessage());
+                        System.out.println("Dumping last queries per thread:");
+                        for (Map.Entry<Thread, MapQueryEngineImpl.QueryExecutionInfo> entry : MapQueryEngineImpl.lastQueryExecInfo.entrySet()) {
+                            System.out.println("Thread " + entry.getKey() + ": \t"  + entry.getValue());
+                        }
+                        throw e;
+                    }
                 }
             }));
         }

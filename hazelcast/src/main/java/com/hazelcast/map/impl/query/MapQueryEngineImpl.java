@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -81,6 +82,26 @@ import static java.util.concurrent.TimeUnit.MINUTES;
  * The {@link MapQueryEngine} implementation.
  */
 public class MapQueryEngineImpl implements MapQueryEngine {
+
+    public static class QueryExecutionInfo {
+        public boolean didUseIndexes, didPartitionsChangeDuringIndexedQuery, didPartitionsChangeDuringQuery,
+                        didNotUseIndexesDueToMigrationsInflight;
+
+        public int numResults;
+
+        @Override
+        public String toString() {
+            return "QueryExecutionInfo{" +
+                    "numResults=" + numResults +
+                    "usedIndexes=" + didUseIndexes +
+                    ", partitionsChangedDuringIndexedQuery=" + didPartitionsChangeDuringIndexedQuery +
+                    ", partitionsChangedDuringQuery=" + didPartitionsChangeDuringQuery +
+                    ", noIndexesUsedDueToMigrationsInflight=" + didNotUseIndexesDueToMigrationsInflight +
+                    '}';
+        }
+    }
+
+    public static ConcurrentHashMap<Thread, QueryExecutionInfo> lastQueryExecInfo = new ConcurrentHashMap<Thread, QueryExecutionInfo>();
 
     protected static final long QUERY_EXECUTION_TIMEOUT_MINUTES = 5;
 
@@ -139,6 +160,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
     public QueryResult queryLocalPartitions(String mapName, Predicate predicate, IterationType iterationType)
             throws ExecutionException, InterruptedException {
 
+        QueryExecutionInfo qei = new QueryExecutionInfo();
         int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
         MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
@@ -150,22 +172,24 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // This would be the point where a query-plan should be added. It should determine if a full table scan
         // or an index should be used.
         QueryResult result = tryQueryUsingIndexes(predicate, initialPartitions, mapContainer, iterationType,
-                initialPartitionStateVersion);
+                initialPartitionStateVersion, qei);
         if (result == null) {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
         }
 
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
+            qei.didPartitionsChangeDuringQuery = true;
             result.setPartitionIds(initialPartitions);
         }
 
         updateStatistics(mapContainer);
-
+        qei.numResults = result.size();
+        lastQueryExecInfo.put(Thread.currentThread(), qei);
         return result;
     }
 
     protected QueryResult tryQueryUsingIndexes(Predicate predicate, Collection<Integer> partitions, MapContainer mapContainer,
-                                               IterationType iterationType, int initialPartitionStateVersion) {
+                                               IterationType iterationType, int initialPartitionStateVersion, QueryExecutionInfo qei) {
 
         // if a migration is in progress, do not attempt to use an index as they may have not been created yet.
         // MapService.getMigrationsInFlight() returns the number of currently executing migrations (for which
@@ -174,11 +198,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         if (mapServiceContext.getService().getOwnerMigrationsInFlight() > 0) {
             ownerMigrationWhileRunningIndexedQueryCount.inc();
             lastIndexedQueryAbortTimeMs = System.currentTimeMillis();
+            qei.didNotUseIndexesDueToMigrationsInflight = true;
             return null;
         }
 
         Set<QueryableEntry> entries = mapContainer.getIndexes().query(predicate);
         if (entries == null) {
+            qei.didUseIndexes = true;
             return null;
         }
 
@@ -188,8 +214,10 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         if (initialPartitionStateVersion != partitionService.getPartitionStateVersion()) {
             partitionStateChangeWhileRunningIndexedQueryCount.inc();
             lastIndexedQueryAbortTimeMs = System.currentTimeMillis();
+            qei.didPartitionsChangeDuringIndexedQuery = true;
             return null;
         }
+        qei.didUseIndexes = true;
         result.addAll(entries);
         return result;
     }
