@@ -325,7 +325,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @SuppressWarnings("unchecked")
     protected Collection<QueryableEntry> queryTheLocalPartition(String mapName, Predicate predicate, int partitionId) {
-        System.out.println("Query the local partition");
+        int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         PagingPredicate pagingPredicate = predicate instanceof PagingPredicate ? (PagingPredicate) predicate : null;
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
@@ -348,6 +348,10 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (predicate.apply(queryEntry) && compareAnchor(pagingPredicate, queryEntry, nearestAnchorEntry)) {
                 resultList.add(queryEntry);
             }
+        }
+        if (partitionService.getPartitionStateVersion() != initialPartitionStateVersion) {
+            System.out.println("Partition state version changed while querying partition " + partitionId + " with " +
+                    resultList.size() + " results");
         }
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
     }
