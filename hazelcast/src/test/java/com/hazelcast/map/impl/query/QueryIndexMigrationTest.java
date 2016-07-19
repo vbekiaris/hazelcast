@@ -31,6 +31,7 @@ import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.test.annotation.Repeat;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterableUtil;
 import org.junit.After;
@@ -159,6 +160,7 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
      * test for issue #359
      */
     @Test(timeout = MINUTE)
+    @Repeat(1000)
     public void testIndexCleanupOnMigration() throws Exception {
         MapQueryEngineImpl.lastQueryExecInfo = new ConcurrentHashMap<Thread, MapQueryEngineImpl.QueryExecutionInfo>();
         int nodeCount = 6;
