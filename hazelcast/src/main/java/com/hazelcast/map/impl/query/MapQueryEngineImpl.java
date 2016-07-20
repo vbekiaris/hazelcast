@@ -358,7 +358,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         if (partitionService.getPartitionStateVersion() != initialPartitionStateVersion) {
             queryExecutionInfo.didPartitionsChangeDuringQuery = true;
             queryExecutionInfo.numResults = resultList.size();
-            System.out.println("[" + Thread.currentThread() + "] Partition state version changed while querying partition " + partitionId + " with " +
+            logger.warning("[" + Thread.currentThread() + "] Partition state version changed while querying partition " + partitionId + " with " +
                     resultList.size() + " results");
         }
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
@@ -379,10 +379,20 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @Override
     public QueryResult queryLocalPartition(String mapName, Predicate predicate, int partitionId, IterationType iterationType) {
+        int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
+        int migrationsInFlight = mapServiceContext.getService().getOwnerMigrationsInFlight();
         Collection<QueryableEntry> queryableEntries = queryTheLocalPartition(mapName, predicate, partitionId);
         QueryResult result = newQueryResult(1, iterationType);
         result.addAll(queryableEntries);
         result.setPartitionIds(singletonList(partitionId));
+        if (partitionService.getPartitionStateVersion() != initialPartitionStateVersion) {
+            logger.warning("Partition state version changed while querying partition ID " + partitionId + ", was " +
+                    initialPartitionStateVersion + ", is " + partitionService.getPartitionStateVersion());
+        }
+        if (migrationsInFlight > 0) {
+            logger.warning("While querying partition ID " + partitionId + ", migrations in flight " +
+                    migrationsInFlight);
+        }
         return result;
     }
 
@@ -499,13 +509,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         // query the local partitions
         try {
-            System.out.println("Query on members");
+            logger.info("Query on members");
             List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
             // modifies partitionIds list!
-            System.out.println("Aggregating");
+            logger.info("Aggregating");
             addResultsOfPredicate(futures, result, partitionIds);
             if (partitionIds.isEmpty()) {
-                System.out.println("Done 1");
+                logger.info("Done 1");
                 return result;
             }
         } catch (Throwable t) {
@@ -517,9 +527,9 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
         // query the remaining partitions that are not local to the member
         try {
-            System.out.println("Query on partitions");
+            logger.warning("Query on partitions");
             List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
-            System.out.println("Aggregating again");
+            logger.warning("Aggregating again");
             addResultsOfPredicate(futures, result, partitionIds);
         } catch (Throwable t) {
             throw rethrow(t);
@@ -618,7 +628,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (queryResult == null) {
                 continue;
             }
-            System.out.println("Results: " + queryResult.getRows().size() + " found. Partition IDs: " + Arrays.toString(queryResult.getPartitionIds().toArray()));
+            logger.info("Results: " + queryResult.getRows().size() + " found. Partition IDs: " + Arrays.toString(queryResult.getPartitionIds().toArray()));
             Collection<Integer> queriedPartitionIds = queryResult.getPartitionIds();
             if (queriedPartitionIds != null) {
                 partitionIds.removeAll(queriedPartitionIds);
