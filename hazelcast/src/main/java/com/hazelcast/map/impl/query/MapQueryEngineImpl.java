@@ -304,7 +304,8 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                     partitionService.getPartitionStateVersion());
         }
         if (!resultList.isEmpty()) {
-            System.out.println(Thread.currentThread() + " -- found " + resultList.size() + " results on partition " +
+            System.out.println(Thread.currentThread() + " -- found " + resultList.size() + "[ " + resultList.get(0).getKey() + "->" +
+                           resultList.get(0).getValue() + "] results on partition " +
                 initialPartitionStateVersion + " / " + partitionService.getPartitionStateVersion());
         }
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
@@ -451,6 +452,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // query the local partitions
         while (!partitionIds.isEmpty()) {
             iterations++;
+            System.out.println(Thread.currentThread() + " >>> #" + iterations);
             try {
                 List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
                 // modifies partitionIds list!
