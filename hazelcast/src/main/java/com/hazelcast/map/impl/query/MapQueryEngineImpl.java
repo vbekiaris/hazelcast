@@ -42,6 +42,7 @@ import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.exception.RetryableHazelcastException;
+import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterationType;
@@ -455,7 +456,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                 if (partitionIds.isEmpty()) {
                     return result;
                 }
-                if (iterations == 5) {
+                if (iterations == 10) {
                     // give up, return partial result
                     System.out.println("Giving up after 5 iterations, returning " + result.size() + "results, " +
                         "missing partition IDs: " + Arrays.toString(partitionIds.toArray()));
@@ -466,9 +467,16 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                     partitionIds = new HashSet<Integer>(originalPartitionIds);
                 }
             } catch (Throwable t) {
-                t.printStackTrace();
-//                if (t.getCause() instanceof QueryResultSizeExceededException) {
+                if (t.getCause() instanceof TargetNotMemberException) {
+                    logger.severe("One more TNME");
+                }
+                else {
+                    logger.severe("Exception in queryOnMembers ", t);
+                    t.printStackTrace();
                     throw rethrow(t);
+                }
+                //                if (t.getCause() instanceof QueryResultSizeExceededException) {
+
 //                }
 //                logger.warning("Could not get results", t);
             }
