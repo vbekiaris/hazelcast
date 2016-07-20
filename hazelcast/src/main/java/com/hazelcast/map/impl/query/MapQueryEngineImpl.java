@@ -173,10 +173,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
         }
 
-        qei.partitionIDs = result.getPartitionIds().toArray(new Integer[result.getPartitionIds().size()]);
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
-            qei.didPartitionsChangeDuringQuery = true;
+            qei.didPartitionsChangeDuringQuery = false;
             result.setPartitionIds(initialPartitions);
+            qei.partitionIDs = result.getPartitionIds().toArray(new Integer[result.getPartitionIds().size()]);
+        }
+        else {
+            qei.didPartitionsChangeDuringQuery = true;
         }
 
         updateStatistics(mapContainer);
@@ -325,7 +328,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @SuppressWarnings("unchecked")
     protected Collection<QueryableEntry> queryTheLocalPartition(String mapName, Predicate predicate, int partitionId) {
-        System.out.println("Query the local partition");
+//        System.out.println("Query the local partition");
         PagingPredicate pagingPredicate = predicate instanceof PagingPredicate ? (PagingPredicate) predicate : null;
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
@@ -485,33 +488,41 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         Set<Integer> partitionIds = getAllPartitionIds();
         QueryResult result = newQueryResult(partitionIds.size(), iterationType);
 
+        int iterations = 0;
         // query the local partitions
-        try {
-            System.out.println("Query on members");
-            List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
-            // modifies partitionIds list!
-            System.out.println("Aggregating");
-            addResultsOfPredicate(futures, result, partitionIds);
-            if (partitionIds.isEmpty()) {
-                System.out.println("Done 1");
-                return result;
+        while (!partitionIds.isEmpty()) {
+            iterations++;
+            try {
+//            System.out.println("Query on members");
+                List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
+                // modifies partitionIds list!
+//            System.out.println("Aggregating");
+                addResultsOfPredicate(futures, result, partitionIds);
+                if (partitionIds.isEmpty()) {
+//                System.out.println("Done 1");
+                    return result;
+                }
+                if (iterations == 10) {
+                    System.out.println("Returning result as-is after 10 iterations");
+                    return result;
+                }
+            } catch (Throwable t) {
+                if (t.getCause() instanceof QueryResultSizeExceededException) {
+                    throw rethrow(t);
+                }
+                logger.warning("Could not get results", t);
             }
-        } catch (Throwable t) {
-            if (t.getCause() instanceof QueryResultSizeExceededException) {
-                throw rethrow(t);
-            }
-            logger.warning("Could not get results", t);
         }
 
         // query the remaining partitions that are not local to the member
-        try {
-            System.out.println("Query on partitions");
-            List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
-            System.out.println("Aggregating again");
-            addResultsOfPredicate(futures, result, partitionIds);
-        } catch (Throwable t) {
-            throw rethrow(t);
-        }
+//        try {
+////            System.out.println("Query on partitions");
+//            List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
+////            System.out.println("Aggregating again");
+//            addResultsOfPredicate(futures, result, partitionIds);
+//        } catch (Throwable t) {
+//            throw rethrow(t);
+//        }
 
         return result;
     }
@@ -606,7 +617,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (queryResult == null) {
                 continue;
             }
-            System.out.println("Results: " + queryResult.getRows().size() + " found. Partition IDs: " + Arrays.toString(queryResult.getPartitionIds().toArray()));
+//            System.out.println("Results: " + queryResult.getRows().size() + " found. Partition IDs: " + Arrays.toString(queryResult.getPartitionIds().toArray()));
             Collection<Integer> queriedPartitionIds = queryResult.getPartitionIds();
             if (queriedPartitionIds != null) {
                 partitionIds.removeAll(queriedPartitionIds);
