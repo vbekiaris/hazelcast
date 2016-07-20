@@ -488,41 +488,44 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         Set<Integer> partitionIds = getAllPartitionIds();
         QueryResult result = newQueryResult(partitionIds.size(), iterationType);
 
-        int iterations = 0;
         // query the local partitions
+
+//        try {
+////            System.out.println("Query on members");
+//            List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
+//            // modifies partitionIds list!
+////            System.out.println("Aggregating");
+//            addResultsOfPredicate(futures, result, partitionIds);
+//            if (partitionIds.isEmpty()) {
+////                System.out.println("Done 1");
+//                return result;
+//            }
+//
+//        } catch (Throwable t) {
+//            if (t.getCause() instanceof QueryResultSizeExceededException) {
+//                throw rethrow(t);
+//            }
+//            logger.warning("Could not get results", t);
+//        }
+
+
+        // query the remaining partitions that are not local to the member
+        int iterations = 0;
         while (!partitionIds.isEmpty()) {
             iterations++;
             try {
-//            System.out.println("Query on members");
-                List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
-                // modifies partitionIds list!
-//            System.out.println("Aggregating");
+//            System.out.println("Query on partitions");
+                List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
+//            System.out.println("Aggregating again");
                 addResultsOfPredicate(futures, result, partitionIds);
-                if (partitionIds.isEmpty()) {
-//                System.out.println("Done 1");
-                    return result;
-                }
                 if (iterations == 10) {
                     System.out.println("Returning result as-is after 10 iterations");
                     return result;
                 }
             } catch (Throwable t) {
-                if (t.getCause() instanceof QueryResultSizeExceededException) {
-                    throw rethrow(t);
-                }
-                logger.warning("Could not get results", t);
+                throw rethrow(t);
             }
         }
-
-        // query the remaining partitions that are not local to the member
-//        try {
-////            System.out.println("Query on partitions");
-//            List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
-////            System.out.println("Aggregating again");
-//            addResultsOfPredicate(futures, result, partitionIds);
-//        } catch (Throwable t) {
-//            throw rethrow(t);
-//        }
 
         return result;
     }
