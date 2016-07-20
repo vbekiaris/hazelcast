@@ -300,10 +300,12 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             }
         }
         if (initialPartitionStateVersion != partitionService.getPartitionStateVersion()) {
-            logger.severe("Partition state version changed from " + initialPartitionStateVersion + " to " +
-                partitionService.getPartitionStateVersion());
             System.out.println(Thread.currentThread() + " -- Partition state version changed from " + initialPartitionStateVersion + " to " +
                     partitionService.getPartitionStateVersion());
+        }
+        if (!resultList.isEmpty()) {
+            System.out.println(Thread.currentThread() + " -- found " + resultList.size() + " results on partition " +
+                initialPartitionStateVersion + " / " + partitionService.getPartitionStateVersion());
         }
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
     }
