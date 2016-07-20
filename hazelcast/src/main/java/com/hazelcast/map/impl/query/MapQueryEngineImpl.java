@@ -49,6 +49,7 @@ import com.hazelcast.util.executor.ManagedExecutorService;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -396,26 +397,33 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // in case of value, we also need to get the keys for sorting.
         IterationType retrievalIterationType = iterationType == IterationType.VALUE ? IterationType.ENTRY : iterationType;
 
-        // query the local partitions
-        try {
-            List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, retrievalIterationType);
-            // modifies partitionIds list!
-            addResultsOfPagingPredicate(futures, resultList, partitionIds);
-            if (partitionIds.isEmpty()) {
-                return getSortedQueryResultSet(resultList, predicate, iterationType);
-            }
-        } catch (Throwable t) {
-            if (t.getCause() instanceof QueryResultSizeExceededException) {
-                throw rethrow(t);
-            }
-            logger.warning("Could not get results", t);
-        }
+//        int iterations = 0;
+//        // query the local partitions
+//        while (!partitionIds.isEmpty()) {
+//            iterations++;
+//            try {
+//                List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, retrievalIterationType);
+//                // modifies partitionIds list!
+//                addResultsOfPagingPredicate(futures, resultList, partitionIds);
+//                if (partitionIds.isEmpty()) {
+//                    return getSortedQueryResultSet(resultList, predicate, iterationType);
+//                }
+//            } catch (Throwable t) {
+//                t.printStackTrace();
+//                if (t.getCause() instanceof QueryResultSizeExceededException) {
+//                    throw rethrow(t);
+//                }
+//                logger.warning("Could not get results", t);
+//            }
+//        }
 
         // query the remaining partitions that are not local to the member
         try {
             List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, retrievalIterationType);
             addResultsOfPagingPredicate(futures, resultList, partitionIds);
         } catch (Throwable t) {
+            logger.severe("Exception in queryPartitions", t);
+            t.printStackTrace();
             throw rethrow(t);
         }
 
@@ -430,30 +438,47 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         }
 
         Set<Integer> partitionIds = getAllPartitionIds();
+        Set<Integer> originalPartitionIds = new HashSet<Integer>(partitionIds);
+
         QueryResult result = newQueryResult(partitionIds.size(), iterationType);
 
+        int iterations = 0;
         // query the local partitions
-        try {
-            List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
-            // modifies partitionIds list!
-            addResultsOfPredicate(futures, result, partitionIds);
-            if (partitionIds.isEmpty()) {
-                return result;
+        while (!partitionIds.isEmpty()) {
+            iterations++;
+            try {
+                List<Future<QueryResult>> futures = queryOnMembers(mapName, predicate, iterationType);
+                // modifies partitionIds list!
+                addResultsOfPredicate(futures, result, partitionIds);
+                if (partitionIds.isEmpty()) {
+                    return result;
+                }
+                if (iterations == 5) {
+                    // give up, return partial result
+                    System.out.println("Giving up after 5 iterations, returning " + result.size() + "results, " +
+                        "missing partition IDs: " + Arrays.toString(partitionIds.toArray()));
+                    return result;
+                }
+                else {
+                    // reset partitionIDs & retry
+                    partitionIds = new HashSet<Integer>(originalPartitionIds);
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
+//                if (t.getCause() instanceof QueryResultSizeExceededException) {
+                    throw rethrow(t);
+//                }
+//                logger.warning("Could not get results", t);
             }
-        } catch (Throwable t) {
-            if (t.getCause() instanceof QueryResultSizeExceededException) {
-                throw rethrow(t);
-            }
-            logger.warning("Could not get results", t);
         }
 
-        // query the remaining partitions that are not local to the member
-        try {
-            List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
-            addResultsOfPredicate(futures, result, partitionIds);
-        } catch (Throwable t) {
-            throw rethrow(t);
-        }
+//        // query the remaining partitions that are not local to the member
+//        try {
+//            List<Future<QueryResult>> futures = queryPartitions(mapName, predicate, partitionIds, iterationType);
+//            addResultsOfPredicate(futures, result, partitionIds);
+//        } catch (Throwable t) {
+//            throw rethrow(t);
+//        }
 
         return result;
     }
