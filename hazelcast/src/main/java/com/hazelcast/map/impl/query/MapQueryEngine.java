@@ -20,6 +20,7 @@ import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.util.IterationType;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -43,6 +44,10 @@ public interface MapQueryEngine {
      * @throws InterruptedException
      */
     QueryResult queryLocalPartitions(String mapName, Predicate predicate, IterationType iterationType)
+            throws ExecutionException, InterruptedException;
+
+    QueryResult queryLocalPartitions(String mapName, Predicate predicate, IterationType iterationType,
+                                     List<Integer> forPartitionIds)
             throws ExecutionException, InterruptedException;
 
     /**

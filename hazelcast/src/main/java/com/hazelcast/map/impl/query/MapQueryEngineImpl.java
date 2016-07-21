@@ -17,7 +17,6 @@
 package com.hazelcast.map.impl.query;
 
 import com.hazelcast.config.CacheDeserializedValues;
-import com.hazelcast.core.Member;
 import com.hazelcast.internal.cluster.ClusterService;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.logging.ILogger;
@@ -30,6 +29,7 @@ import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.map.impl.record.Records;
 import com.hazelcast.monitor.impl.LocalMapStatsImpl;
+import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.Predicate;
@@ -44,6 +44,7 @@ import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.exception.RetryableHazelcastException;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.util.Clock;
+import com.hazelcast.util.CollectionUtil;
 import com.hazelcast.util.IterationType;
 import com.hazelcast.util.executor.ManagedExecutorService;
 
@@ -69,6 +70,8 @@ import static com.hazelcast.spi.properties.GroupProperty.QUERY_PREDICATE_PARALLE
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.FutureUtil.RETHROW_EVERYTHING;
 import static com.hazelcast.util.FutureUtil.returnWithDeadline;
+import static com.hazelcast.util.IterationType.ENTRY;
+import static com.hazelcast.util.IterationType.VALUE;
 import static com.hazelcast.util.SortingUtil.compareAnchor;
 import static com.hazelcast.util.SortingUtil.getSortedQueryResultSet;
 import static com.hazelcast.util.SortingUtil.getSortedSubList;
@@ -119,9 +122,34 @@ public class MapQueryEngineImpl implements MapQueryEngine {
     @Override
     public QueryResult queryLocalPartitions(String mapName, Predicate predicate, IterationType iterationType)
             throws ExecutionException, InterruptedException {
+        return queryLocalPartitions(mapName, predicate, iterationType, null);
+    }
+
+    /**
+     * Same as {@link #queryLocalPartitions(String, Predicate, IterationType)}, however only returns results for the given
+     * {@code forPartitionIds}.
+     * @param mapName
+     * @param predicate
+     * @param iterationType
+     * @param requestedPartitionIds
+     * @return
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    public QueryResult queryLocalPartitions(String mapName, Predicate predicate, IterationType iterationType,
+                                            List<Integer> requestedPartitionIds)
+            throws ExecutionException, InterruptedException {
 
         int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         Collection<Integer> initialPartitions = mapServiceContext.getOwnedPartitions();
+        Collection<Integer> partitionsToQueryFor = initialPartitions;
+        if (requestedPartitionIds != null) {
+            // if a query in specific partition IDs was requested, then lookup the intersection of owned partition IDs
+            // and requested partition IDs
+            partitionsToQueryFor = new ArrayList<Integer>(requestedPartitionIds);
+            partitionsToQueryFor.retainAll(initialPartitions);
+        }
+
         MapContainer mapContainer = mapServiceContext.getMapContainer(mapName);
 
         // first we optimize the query
@@ -130,17 +158,48 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         // then we try to run using an index, but if that doesn't work, we'll try a full table scan
         // This would be the point where a query-plan should be added. It should determine if a full table scan
         // or an index should be used.
-        QueryResult result = tryQueryUsingIndexes(predicate, initialPartitions, mapContainer, iterationType,
+        // todo check: If VALUE iterationType is provided and we plan to also filter by given requestedPartitionIds, then
+        // we also need the key information, so use ENTRY internally, then filter and null-out keys.
+        QueryResult result = tryQueryUsingIndexes(predicate, partitionsToQueryFor, mapContainer,
+//                (iterationType == VALUE && forPartitionIds != null) ? ENTRY : iterationType,
+                iterationType,
                 initialPartitionStateVersion);
         if (result == null) {
-            result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
+            result = queryUsingFullTableScan(mapName, predicate,
+                    partitionsToQueryFor,
+                    iterationType);
             DEBUG_LOG.offer(Thread.currentThread() + " obtained " + result.size() + " from full table scan");
+        }
+        else if (requestedPartitionIds != null) {
+            // If a specific set of partition IDs has been given, and we obtain results from indexes
+            // filter only entries in those partition IDs
+            List<QueryResultRow> toBeRemoved = new ArrayList<QueryResultRow>();
+            for (QueryResultRow qrr : result.getRows()) {
+                if (!partitionsToQueryFor.contains(partitionService.getPartitionId(qrr.getKey()))) {
+                    toBeRemoved.add(qrr);
+                }
+            }
+            result.getRows().removeAll(toBeRemoved);
+            // additionally, if iterationtype was VALUE, null-out keys
+//            if (iterationType == VALUE) {
+//                for (QueryResultRow qrr : result.getRows()) {
+//                    qrr.set
+//                }
+//            }
         }
 
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
-            result.setPartitionIds(initialPartitions);
-            DEBUG_LOG.offer(Thread.currentThread() + " will return " + result.size() + " results with partition IDs " +
-                    Arrays.toString(initialPartitions.toArray()));
+            // if we have not already set partition IDs from query-with-indexes && forPartitionIds!=null code path above
+            if (result.getPartitionIds() == null) {
+                result.setPartitionIds(initialPartitions);
+                DEBUG_LOG.offer(Thread.currentThread() + " will return " + result.size() + " results with partition IDs " +
+                        Arrays.toString(initialPartitions.toArray()));
+            }
+        }
+        else {
+            // partition state version has changed, most probably we view stale query results, nullify partition IDs
+            // if it was previously set
+            result.setPartitionIds(null);
         }
 
         updateStatistics(mapContainer);
@@ -379,7 +438,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         List<Integer> partitionIds = getLocalPartitionIds();
 
         // in case of value, we also need to get the keys for sorting.
-        IterationType retrievalIterationType = iterationType == IterationType.VALUE ? IterationType.ENTRY : iterationType;
+        IterationType retrievalIterationType = iterationType == VALUE ? ENTRY : iterationType;
 
         // query the local partitions
         try {
@@ -414,7 +473,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         Set<Integer> partitionIds = getAllPartitionIds();
 
         // in case of value, we also need to get the keys for sorting.
-        IterationType retrievalIterationType = iterationType == IterationType.VALUE ? IterationType.ENTRY : iterationType;
+        IterationType retrievalIterationType = iterationType == VALUE ? ENTRY : iterationType;
 
         // query the local partitions
         try {
@@ -500,11 +559,12 @@ public class MapQueryEngineImpl implements MapQueryEngine {
     }
 
     protected List<Future<QueryResult>> queryOnMembers(String mapName, Predicate predicate, IterationType iterationType) {
-        Collection<Member> members = clusterService.getMembers();
-        List<Future<QueryResult>> futures = new ArrayList<Future<QueryResult>>(members.size());
-        for (Member member : members) {
-            Operation operation = new QueryOperation(mapName, predicate, iterationType);
-            Future<QueryResult> future = operationService.invokeOnTarget(MapService.SERVICE_NAME, operation, member.getAddress());
+        Map<Address, List<Integer>> partitionsPerMember = partitionService.getMemberPartitionsMap();
+        List<Future<QueryResult>> futures = new ArrayList<Future<QueryResult>>(partitionsPerMember.size());
+        for (Map.Entry<Address, List<Integer>> memberPartitions : partitionsPerMember.entrySet()) {
+            Operation operation = new QueryOperation(mapName, predicate, iterationType, memberPartitions.getValue());
+            Future<QueryResult> future = operationService.invokeOnTarget(MapService.SERVICE_NAME, operation,
+                    memberPartitions.getKey());
             futures.add(future);
         }
         return futures;
@@ -570,6 +630,15 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             }
             Collection<Integer> queriedPartitionIds = queryResult.getPartitionIds();
             if (queriedPartitionIds != null) {
+                // only add all results if none of the queriedPartitionIds exist in partitionIds
+                // this way we may discard some valid results but avoid correctness issue which may cause over-reporting
+                // results.
+                // for example:
+                // 1. member1 reports 3 results on partitions [1,2,3], member2 owns partition [4,5,6]
+                // 2. migration follows
+                // 3. member2 reports 1 result on partitions [3,4,5] (ownership changed due to migration)
+                // In this case we will discard member2's results. This leads to some waste but fixes correctness problem.
+
                 partitionIds.removeAll(queriedPartitionIds);
                 result.addAllRows(queryResult.getRows());
             }
