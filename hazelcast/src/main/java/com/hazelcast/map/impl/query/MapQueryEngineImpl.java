@@ -49,6 +49,7 @@ import com.hazelcast.util.executor.ManagedExecutorService;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -79,6 +80,8 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public class MapQueryEngineImpl implements MapQueryEngine {
 
     protected static final long QUERY_EXECUTION_TIMEOUT_MINUTES = 5;
+
+    public static List<String> DEBUG_LOG;
 
     protected final MapServiceContext mapServiceContext;
     protected final NodeEngine nodeEngine;
@@ -130,10 +133,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                 initialPartitionStateVersion);
         if (result == null) {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
+            DEBUG_LOG.add(Thread.currentThread() + " obtained " + result.size() + " from full table scan");
         }
 
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
             result.setPartitionIds(initialPartitions);
+            DEBUG_LOG.add(Thread.currentThread() + " will return " + result.size() + " results with partition IDs " +
+                    Arrays.toString(initialPartitions.toArray()));
         }
 
         updateStatistics(mapContainer);
@@ -273,6 +279,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     @SuppressWarnings("unchecked")
     protected Collection<QueryableEntry> queryTheLocalPartition(String mapName, Predicate predicate, int partitionId) {
+        int initialPartitionStateVersion = partitionService.getPartitionStateVersion();
         PagingPredicate pagingPredicate = predicate instanceof PagingPredicate ? (PagingPredicate) predicate : null;
         List<QueryableEntry> resultList = new LinkedList<QueryableEntry>();
 
@@ -296,6 +303,16 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                 resultList.add(queryEntry);
             }
         }
+        if (initialPartitionStateVersion != partitionService.getPartitionStateVersion()) {
+            DEBUG_LOG.add(Thread.currentThread() + " -- Partition state version changed from " + initialPartitionStateVersion + " to " +
+                    partitionService.getPartitionStateVersion());
+            if (!resultList.isEmpty()) {
+                DEBUG_LOG.add(Thread.currentThread() + " -- found " + resultList.size() + "[ " + resultList.get(0).getKey() + "->" +
+                        resultList.get(0).getValue() + "] results on partition " +
+                        initialPartitionStateVersion + " / " + partitionService.getPartitionStateVersion());
+            }
+        }
+
         return getSortedSubList(resultList, pagingPredicate, nearestAnchorEntry);
     }
 
@@ -318,6 +335,8 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         QueryResult result = newQueryResult(1, iterationType);
         result.addAll(queryableEntries);
         result.setPartitionIds(singletonList(partitionId));
+        DEBUG_LOG.add(Thread.currentThread() + " returning " + result.size() + " results from queryLocalPartition(" +
+                partitionId + ")");
         return result;
     }
 
@@ -552,6 +571,28 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (queriedPartitionIds != null) {
                 partitionIds.removeAll(queriedPartitionIds);
                 result.addAllRows(queryResult.getRows());
+            }
+        }
+    }
+
+    /**
+     * Adds results of non-paging predicates to result set and removes queried partition ids.
+     */
+    @SuppressWarnings("unchecked")
+    protected void addResultsOfPredicate(List<Future<QueryResult>> futures, QueryResult result,
+                                         Collection<Integer> partitionIds, String source) throws ExecutionException, InterruptedException {
+
+        for (Future<QueryResult> future : futures) {
+            QueryResult queryResult = future.get();
+            if (queryResult == null) {
+                continue;
+            }
+            Collection<Integer> queriedPartitionIds = queryResult.getPartitionIds();
+            if (queriedPartitionIds != null) {
+                partitionIds.removeAll(queriedPartitionIds);
+                result.addAllRows(queryResult.getRows());
+                DEBUG_LOG.add(Thread.currentThread() + " added " + result.size() + " results from " + source +
+                        " for partition IDs" + Arrays.toString(partitionIds.toArray()));
             }
         }
     }
