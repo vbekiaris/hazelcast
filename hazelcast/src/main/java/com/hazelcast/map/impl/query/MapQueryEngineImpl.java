@@ -57,6 +57,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -81,7 +82,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
 
     protected static final long QUERY_EXECUTION_TIMEOUT_MINUTES = 5;
 
-    public static List<String> DEBUG_LOG;
+    public static Queue<String> DEBUG_LOG;
 
     protected final MapServiceContext mapServiceContext;
     protected final NodeEngine nodeEngine;
@@ -133,12 +134,12 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                 initialPartitionStateVersion);
         if (result == null) {
             result = queryUsingFullTableScan(mapName, predicate, initialPartitions, iterationType);
-            DEBUG_LOG.add(Thread.currentThread() + " obtained " + result.size() + " from full table scan");
+            DEBUG_LOG.offer(Thread.currentThread() + " obtained " + result.size() + " from full table scan");
         }
 
         if (hasPartitionVersion(initialPartitionStateVersion, predicate)) {
             result.setPartitionIds(initialPartitions);
-            DEBUG_LOG.add(Thread.currentThread() + " will return " + result.size() + " results with partition IDs " +
+            DEBUG_LOG.offer(Thread.currentThread() + " will return " + result.size() + " results with partition IDs " +
                     Arrays.toString(initialPartitions.toArray()));
         }
 
@@ -304,10 +305,10 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             }
         }
         if (initialPartitionStateVersion != partitionService.getPartitionStateVersion()) {
-            DEBUG_LOG.add(Thread.currentThread() + " -- Partition state version changed from " + initialPartitionStateVersion + " to " +
+            DEBUG_LOG.offer(Thread.currentThread() + " -- Partition state version changed from " + initialPartitionStateVersion + " to " +
                     partitionService.getPartitionStateVersion());
             if (!resultList.isEmpty()) {
-                DEBUG_LOG.add(Thread.currentThread() + " -- found " + resultList.size() + "[ " + resultList.get(0).getKey() + "->" +
+                DEBUG_LOG.offer(Thread.currentThread() + " -- found " + resultList.size() + "[ " + resultList.get(0).getKey() + "->" +
                         resultList.get(0).getValue() + "] results on partition " +
                         initialPartitionStateVersion + " / " + partitionService.getPartitionStateVersion());
             }
@@ -335,7 +336,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
         QueryResult result = newQueryResult(1, iterationType);
         result.addAll(queryableEntries);
         result.setPartitionIds(singletonList(partitionId));
-        DEBUG_LOG.add(Thread.currentThread() + " returning " + result.size() + " results from queryLocalPartition(" +
+        DEBUG_LOG.offer(Thread.currentThread() + " returning " + result.size() + " results from queryLocalPartition(" +
                 partitionId + ")");
         return result;
     }
@@ -591,7 +592,7 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             if (queriedPartitionIds != null) {
                 partitionIds.removeAll(queriedPartitionIds);
                 result.addAllRows(queryResult.getRows());
-                DEBUG_LOG.add(Thread.currentThread() + " added " + result.size() + " results from " + source +
+                DEBUG_LOG.offer(Thread.currentThread() + " added " + result.size() + " results from " + source +
                         " for partition IDs" + Arrays.toString(partitionIds.toArray()));
             }
         }

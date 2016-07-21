@@ -46,10 +46,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.hazelcast.query.Predicates.equal;
 import static com.hazelcast.test.TimeConstants.MINUTE;
@@ -168,8 +170,8 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
         final int runCount = 500;
         final Config config = newConfigWithIndex("testMap", "name");
         executor = Executors.newFixedThreadPool(nodeCount);
-        List<Future<?>> futures = new ArrayList<Future<?>>();
-
+        final List<Future<?>> futures = new ArrayList<Future<?>>();
+        final AtomicBoolean shouldStop = new AtomicBoolean(false);
         for (int i = 0; i < nodeCount; i++) {
             sleepMillis(random.nextInt((i + 1) * 100) + 10);
             futures.add(executor.submit(new Runnable() {
@@ -177,9 +179,10 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
                     HazelcastInstance hz = nodeFactory.newHazelcastInstance(config);
                     IMap<Object, Value> map = hz.getMap("testMap");
                     try {
-                        updateMapAndRunQuery(map, runCount);
+                        updateMapAndRunQuery(map, runCount, shouldStop);
                     }
                     catch (AssertionError error) {
+                        shouldStop.compareAndSet(false, true);
                         System.out.println("Failed with " + error.getMessage());
                         for (String s : MapQueryEngineImpl.DEBUG_LOG) {
                             System.out.println(s);
@@ -244,7 +247,7 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
         }
     }
 
-    private void updateMapAndRunQuery(final IMap<Object, Value> map, final int runCount) {
+    private void updateMapAndRunQuery(final IMap<Object, Value> map, final int runCount, AtomicBoolean shouldStop) {
         String name = randomString();
         Predicate<?, ?> predicate = equal("name", name);
         map.put(name, new Value(name, 0));
@@ -252,7 +255,10 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
         map.size();
 
         for (int i = 1; i <= runCount && !interrupted(); i++) {
-            MapQueryEngineImpl.DEBUG_LOG = new ArrayList<String>();
+            if (shouldStop.get()) {
+                System.out.println(Thread.currentThread() + " stopped");
+            }
+            MapQueryEngineImpl.DEBUG_LOG = new ConcurrentLinkedQueue<String>();
             Value value = map.get(name);
             value.setIndex(i);
             map.put(name, value);
