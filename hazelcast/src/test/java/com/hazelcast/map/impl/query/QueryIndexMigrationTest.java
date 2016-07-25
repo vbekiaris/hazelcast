@@ -31,6 +31,7 @@ import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.test.annotation.Repeat;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterableUtil;
 import org.junit.After;
@@ -45,10 +46,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.hazelcast.query.Predicates.equal;
 import static com.hazelcast.test.TimeConstants.MINUTE;
@@ -161,9 +164,11 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
      * test for issue #359
      */
     @Test(timeout = 2 * MINUTE)
+    @Repeat(2000)
     public void testIndexCleanupOnMigration() throws Exception {
         int nodeCount = 6;
         final int runCount = 500;
+        final AtomicBoolean shouldStop = new AtomicBoolean(false);
         final Config config = newConfigWithIndex("testMap", "name");
         executor = Executors.newFixedThreadPool(nodeCount);
         List<Future<?>> futures = new ArrayList<Future<?>>();
@@ -174,7 +179,16 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
                 public void run() {
                     HazelcastInstance hz = nodeFactory.newHazelcastInstance(config);
                     IMap<Object, Value> map = hz.getMap("testMap");
-                    updateMapAndRunQuery(map, runCount);
+                    try {
+                        updateMapAndRunQuery(map, runCount, shouldStop);
+                    }
+                    catch (AssertionError ae) {
+                        shouldStop.set(true);
+                        System.out.println("Assertion error: " + ae.getMessage());
+                        for (String s : MapQueryEngineImpl.logs) {
+                            System.out.println(s);
+                        }
+                    }
                 }
             }));
         }
@@ -233,7 +247,7 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
         }
     }
 
-    private void updateMapAndRunQuery(final IMap<Object, Value> map, final int runCount) {
+    private void updateMapAndRunQuery(final IMap<Object, Value> map, final int runCount, final AtomicBoolean shouldStop) {
         String name = randomString();
         Predicate<?, ?> predicate = equal("name", name);
         map.put(name, new Value(name, 0));
@@ -241,6 +255,11 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
         map.size();
 
         for (int i = 1; i <= runCount && !interrupted(); i++) {
+            if (shouldStop.get()) {
+                System.out.println("Terminating -- should stop");
+                break;
+            }
+            MapQueryEngineImpl.logs = new ConcurrentLinkedQueue<String>();
             Value value = map.get(name);
             value.setIndex(i);
             map.put(name, value);

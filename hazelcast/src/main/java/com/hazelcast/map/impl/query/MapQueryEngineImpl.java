@@ -20,6 +20,7 @@ import com.hazelcast.config.CacheDeserializedValues;
 import com.hazelcast.core.Member;
 import com.hazelcast.internal.cluster.ClusterService;
 import com.hazelcast.internal.serialization.InternalSerializationService;
+import com.hazelcast.internal.util.collection.MPSCQueue;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.QueryResultSizeExceededException;
 import com.hazelcast.map.impl.LocalMapStatsProvider;
@@ -45,10 +46,12 @@ import com.hazelcast.spi.exception.RetryableHazelcastException;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.IterationType;
+import com.hazelcast.util.concurrent.IdleStrategy;
 import com.hazelcast.util.executor.ManagedExecutorService;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -56,8 +59,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -79,6 +84,8 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public class MapQueryEngineImpl implements MapQueryEngine {
 
     protected static final long QUERY_EXECUTION_TIMEOUT_MINUTES = 5;
+
+    public static Queue<String> logs = new ConcurrentLinkedQueue<String>();
 
     protected final MapServiceContext mapServiceContext;
     protected final NodeEngine nodeEngine;
@@ -455,6 +462,13 @@ public class MapQueryEngineImpl implements MapQueryEngine {
             throw rethrow(t);
         }
 
+        if (!partitionIds.isEmpty()) {
+            System.out.println("Still have some pending partition IDs: " + Arrays.toString(partitionIds.toArray()) + " is not "
+                    + "empty, returning partial results");
+            logs.offer("Still have some pending partition IDs: " + Arrays.toString(partitionIds.toArray()) + " is not "
+                    + "empty, returning partial results");
+        }
+
         return result;
     }
 
@@ -559,10 +573,14 @@ public class MapQueryEngineImpl implements MapQueryEngine {
                     // do not take into account results that contain partition IDs already removed from partitionIds collection
                     // as this means that we will count results from a single partition twice
                     // see also https://github.com/hazelcast/hazelcast/issues/6471
+                    logs.offer(String.format("Discarded " + Arrays.toString(queriedPartitionIds.toArray())) + " because partition "
+                            + "IDs is " + Arrays.toString(partitionIds.toArray()));
                     continue;
                 }
                 partitionIds.removeAll(queriedPartitionIds);
                 result.addAllRows(queryResult.getRows());
+                logs.offer(String.format("Added results " + queryResult.size() + " / " + queryResult.getRows().size() + " from "
+                        + "partitions " + Arrays.toString(queriedPartitionIds.toArray())));
             }
         }
     }
