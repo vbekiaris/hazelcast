@@ -25,12 +25,18 @@ import com.hazelcast.util.ExceptionUtil;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * A {@link ClientDelegatingFuture} which executes near-cache and cache statistics updates as synchronous operations
  * on get.
  */
 abstract class CacheMaintenanceClientDelegatingFuture<V> extends ClientDelegatingFuture<V> {
+
+    private static final AtomicIntegerFieldUpdater<CacheMaintenanceClientDelegatingFuture> ATOMIC_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(CacheMaintenanceClientDelegatingFuture.class, "executed");
+    private static final int NOT_EXECUTED = 0;
+    private static final int EXECUTED = 1;
 
     // responseData & deserializedValue are set once the future is resolved, before invoking
     // near-cache & statistics handling
@@ -39,6 +45,7 @@ abstract class CacheMaintenanceClientDelegatingFuture<V> extends ClientDelegatin
 
     private final boolean nearCacheEnabled;
     private final boolean statsEnabled;
+    private volatile int executed = NOT_EXECUTED;
 
     CacheMaintenanceClientDelegatingFuture(ClientInvocationFuture clientInvocationFuture,
                                            SerializationService serializationService,
@@ -63,11 +70,14 @@ abstract class CacheMaintenanceClientDelegatingFuture<V> extends ClientDelegatin
         try {
             deserializedValue = super.get(timeout, unit);
             responseData = getResponse();
-            if (nearCacheEnabled) {
-                handleNearCacheUpdate();
-            }
-            if (statsEnabled) {
-                handleStatistics();
+            // only execute nearcache/statistics update once
+            if (ATOMIC_UPDATER.compareAndSet(this, NOT_EXECUTED, EXECUTED)) {
+                if (nearCacheEnabled) {
+                    handleNearCacheUpdate();
+                }
+                if (statsEnabled) {
+                    handleStatistics();
+                }
             }
             return deserializedValue;
         } catch (Throwable t) {
