@@ -23,6 +23,7 @@ import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.ManagedContext;
 import com.hazelcast.core.PartitioningStrategy;
 import com.hazelcast.instance.BuildInfoProvider;
+import com.hazelcast.instance.Node;
 import com.hazelcast.internal.memory.GlobalMemoryAccessorRegistry;
 import com.hazelcast.internal.serialization.InputOutputFactory;
 import com.hazelcast.internal.serialization.InternalSerializationService;
@@ -82,6 +83,8 @@ public class DefaultSerializationServiceBuilder
     protected PartitioningStrategy partitioningStrategy;
 
     protected HazelcastInstance hazelcastInstance;
+
+    protected Node node;
 
     @Override
     public SerializationServiceBuilder setVersion(byte version) {
@@ -206,6 +209,12 @@ public class DefaultSerializationServiceBuilder
     }
 
     @Override
+    public SerializationServiceBuilder setNode(Node node) {
+        this.node = node;
+        return this;
+    }
+
+    @Override
     public InternalSerializationService build() {
         initVersions();
         if (config != null) {
@@ -215,7 +224,7 @@ public class DefaultSerializationServiceBuilder
         }
 
         InputOutputFactory inputOutputFactory = createInputOutputFactory();
-        InternalSerializationService ss = createSerializationService(inputOutputFactory);
+        InternalSerializationService ss = createSerializationService(inputOutputFactory, node);
 
         registerSerializerHooks(ss);
 
@@ -258,13 +267,13 @@ public class DefaultSerializationServiceBuilder
         }
     }
 
-    protected InternalSerializationService createSerializationService(InputOutputFactory inputOutputFactory) {
+    protected InternalSerializationService createSerializationService(InputOutputFactory inputOutputFactory, Node node) {
         switch (version) {
             case 1:
                 SerializationServiceV1 serializationServiceV1 = new SerializationServiceV1(inputOutputFactory, version,
                         portableVersion, classLoader, dataSerializableFactories, portableFactories, managedContext,
                         partitioningStrategy, initialOutputBufferSize, new BufferPoolFactoryImpl(), enableCompression,
-                        enableSharedObject);
+                        enableSharedObject, node);
                 serializationServiceV1.registerClassDefinitions(classDefinitions, checkClassDefErrors);
                 return serializationServiceV1;
 

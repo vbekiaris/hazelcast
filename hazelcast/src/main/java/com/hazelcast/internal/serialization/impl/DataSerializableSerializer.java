@@ -17,6 +17,8 @@
 package com.hazelcast.internal.serialization.impl;
 
 
+import com.hazelcast.instance.BuildInfoProvider;
+import com.hazelcast.instance.Node;
 import com.hazelcast.internal.serialization.DataSerializerHook;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.nio.ClassLoaderUtil;
@@ -30,6 +32,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.ServiceLoader;
 import com.hazelcast.util.collection.Int2ObjectHashMap;
+import com.hazelcast.version.Version;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -54,9 +57,11 @@ final class DataSerializableSerializer implements StreamSerializer<DataSerializa
     private static final String FACTORY_ID = "com.hazelcast.DataSerializerHook";
 
     private final Int2ObjectHashMap<DataSerializableFactory> factories = new Int2ObjectHashMap<DataSerializableFactory>();
+    private final Node node;
 
     DataSerializableSerializer(Map<Integer, ? extends DataSerializableFactory> dataSerializableFactories,
-                               ClassLoader classLoader) {
+                               ClassLoader classLoader, Node node) {
+        this.node = node;
         try {
             final Iterator<DataSerializerHook> hooks = ServiceLoader.iterator(DataSerializerHook.class, FACTORY_ID, classLoader);
             while (hooks.hasNext()) {
@@ -109,6 +114,16 @@ final class DataSerializableSerializer implements StreamSerializer<DataSerializa
             // BasicOperationService::extractOperationCallId
             if (identified) {
                 factoryId = in.readInt();
+                // TODO let's eliminate executing this code once cluster version == HZ node version
+                if (!node.isNodeVersionEqualClusterVersion()) {
+                    // locate the emulated-mode DSF, if one exists
+                    int backwardsCompatibleFactoryId = factoryId ^ 0x8000000;
+                    if (factories.containsKey(backwardsCompatibleFactoryId)) {
+                        // emulated mode DSF available, use that one
+                        System.out.println("A factory for emulated mode was identified for factoryId " + factoryId);
+                        factoryId = backwardsCompatibleFactoryId;
+                    }
+                }
                 final DataSerializableFactory dsf = factories.get(factoryId);
                 if (dsf == null) {
                     throw new HazelcastSerializationException("No DataSerializerFactory registered for namespace: " + factoryId);

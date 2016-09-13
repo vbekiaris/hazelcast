@@ -32,6 +32,9 @@ public final class FactoryIdHelper {
     public static final String MAP_DS_FACTORY = "hazelcast.serialization.ds.map";
     public static final int MAP_DS_FACTORY_ID = -10;
 
+    public static final String MAP_DS_FACTORY_V3_7 = "hazelcast.serialization.ds.map.v3.7";
+    public static final int MAP_DS_FACTORY_ID_v3_7 = MAP_DS_FACTORY_ID ^ 0x8000000;
+
     public static final String QUEUE_DS_FACTORY = "hazelcast.serialization.ds.queue";
     public static final int QUEUE_DS_FACTORY_ID = -11;
 

@@ -18,6 +18,7 @@ package com.hazelcast.internal.serialization.impl;
 
 import com.hazelcast.core.ManagedContext;
 import com.hazelcast.core.PartitioningStrategy;
+import com.hazelcast.instance.Node;
 import com.hazelcast.internal.serialization.InputOutputFactory;
 import com.hazelcast.internal.serialization.PortableContext;
 import com.hazelcast.internal.serialization.impl.ConstantSerializers.BooleanSerializer;
@@ -81,7 +82,7 @@ public class SerializationServiceV1 extends AbstractSerializationService {
             Map<Integer, ? extends DataSerializableFactory> dataSerializableFactories,
             Map<Integer, ? extends PortableFactory> portableFactories, ManagedContext managedContext,
             PartitioningStrategy globalPartitionStrategy, int initialOutputBufferSize, BufferPoolFactory bufferPoolFactory,
-            boolean enableCompression, boolean enableSharedObject) {
+            boolean enableCompression, boolean enableSharedObject, Node node) {
         super(inputOutputFactory, version, classLoader, managedContext, globalPartitionStrategy, initialOutputBufferSize,
                 bufferPoolFactory);
 
@@ -92,7 +93,7 @@ public class SerializationServiceV1 extends AbstractSerializationService {
         }
 
         dataSerializerAdapter = createSerializerAdapter(
-                new DataSerializableSerializer(dataSerializableFactories, classLoader), this);
+                new DataSerializableSerializer(dataSerializableFactories, classLoader, node), this);
         portableSerializer = new PortableSerializer(portableContext, loader.getFactories());
         portableSerializerAdapter = createSerializerAdapter(portableSerializer, this);
 

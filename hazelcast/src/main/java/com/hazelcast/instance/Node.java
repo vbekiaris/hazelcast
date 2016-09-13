@@ -752,4 +752,20 @@ public class Node {
         }
         return attributes;
     }
+
+    /**
+     * If cluster version & node version have already been set, then returns whether
+     * {@code clusterVersion == nodeVersion}. If cluster and/or node version have not
+     * yet been set in the respective {@code ClusterService} & {@code node.getLocalMember()}
+     * then returns {@code true}, so messages sent while joining a cluster will assume
+     * that this node is running same version as cluster version (so not in emulated mode).
+     * TODO is this join behavior desirable? maybe we do want V+1 version to behave differently
+     * when joining a V cluster, but can we know this when joining a 3.7 cluster?
+     * @return
+     */
+    public boolean isNodeVersionEqualClusterVersion() {
+        return (getClusterService().getClusterVersion() != null &&
+                getClusterService().getLocalMember().getVersion() != null) ?
+                getClusterService().getClusterVersion().equals(getClusterService().getLocalMember().getVersion()) : true;
+    }
 }

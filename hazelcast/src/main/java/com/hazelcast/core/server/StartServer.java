@@ -18,6 +18,7 @@ package com.hazelcast.core.server;
 
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IMap;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -45,6 +46,10 @@ public final class StartServer {
     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
         HazelcastInstance hz = Hazelcast.newHazelcastInstance(null);
         printMemberPort(hz);
+
+        IMap map = hz.getMap("testMap");
+        map.put("a", "b");
+        System.out.println("Value of \"a\" is " + map.get("a"));
     }
 
     private static void printMemberPort(HazelcastInstance hz) throws FileNotFoundException, UnsupportedEncodingException {

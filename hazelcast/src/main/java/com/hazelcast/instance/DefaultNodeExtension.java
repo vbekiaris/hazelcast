@@ -129,6 +129,7 @@ public class DefaultNodeExtension implements NodeExtension {
                     .setPartitioningStrategy(partitioningStrategy)
                     .setHazelcastInstance(hazelcastInstance)
                     .setVersion(version)
+                    .setNode(node)
                     .build();
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);

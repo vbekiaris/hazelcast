@@ -26,17 +26,16 @@ import com.hazelcast.spi.BlockingOperation;
 import com.hazelcast.spi.DefaultObjectNamespace;
 import com.hazelcast.spi.WaitNotifyKey;
 
-public final class GetOperation extends ReadonlyKeyBasedMapOperation
+public final class GetOperation_3_7
+        extends ReadonlyKeyBasedMapOperation
         implements IdentifiedDataSerializable, BlockingOperation {
 
     private Data result;
-    // let's assume we add a new field in 3.8 to return the number of results
-    private int count;
 
-    public GetOperation() {
+    public GetOperation_3_7() {
     }
 
-    public GetOperation(String name, Data dataKey) {
+    public GetOperation_3_7(String name, Data dataKey) {
         super(name, dataKey);
 
         this.dataKey = dataKey;
@@ -44,6 +43,7 @@ public final class GetOperation extends ReadonlyKeyBasedMapOperation
 
     @Override
     public void run() {
+        System.out.println("Operating with GetOperation_3_7");
         result = mapServiceContext.toData(recordStore.get(dataKey, false));
     }
 

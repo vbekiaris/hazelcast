@@ -51,6 +51,8 @@ import com.hazelcast.map.impl.operation.AddInterceptorOperation;
 import com.hazelcast.map.impl.operation.AwaitMapFlushOperation;
 import com.hazelcast.map.impl.operation.ClearOperation;
 import com.hazelcast.map.impl.operation.EvictAllOperation;
+import com.hazelcast.map.impl.operation.GetOperation;
+import com.hazelcast.map.impl.operation.GetOperation_3_7;
 import com.hazelcast.map.impl.operation.IsEmptyOperationFactory;
 import com.hazelcast.map.impl.operation.MapOperation;
 import com.hazelcast.map.impl.operation.MapOperationProvider;
@@ -79,6 +81,7 @@ import com.hazelcast.spi.OperationFactory;
 import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.annotation.Beta;
 import com.hazelcast.spi.impl.BinaryOperationFactory;
+import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.partition.IPartition;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.spi.properties.HazelcastProperties;
@@ -303,7 +306,14 @@ abstract class MapProxySupport extends AbstractDistributedObject<MapService> imp
                 return fromBackup;
             }
         }
-        MapOperation operation = operationProvider.createGetOperation(name, key);
+        MapOperation operation;
+        if (((NodeEngineImpl)getNodeEngine()).getNode().isNodeVersionEqualClusterVersion()) {
+            System.out.println("Using 3.8 version of get operation");
+            operation = new GetOperation(name, key);
+        } else {
+            System.out.println("Using 3.7 version of get operation");
+            operation = new GetOperation_3_7(name, key);
+        }
         operation.setThreadId(ThreadUtil.getThreadId());
         return invokeOperation(key, operation);
     }

@@ -20,6 +20,7 @@ import com.hazelcast.config.SerializationConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ManagedContext;
 import com.hazelcast.core.PartitioningStrategy;
+import com.hazelcast.instance.Node;
 import com.hazelcast.nio.serialization.ClassDefinition;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
 import com.hazelcast.nio.serialization.PortableFactory;
@@ -62,6 +63,9 @@ public interface SerializationServiceBuilder {
     SerializationServiceBuilder setPartitioningStrategy(PartitioningStrategy partitionStrategy);
 
     SerializationServiceBuilder setInitialOutputBufferSize(int initialOutputBufferSize);
+
+    // for serialization service implementations to handle rolling upgrades, cluster & hazelcast version needs to be known
+    SerializationServiceBuilder setNode(Node node);
 
     <T extends SerializationService> T build();
 }
