@@ -215,4 +215,19 @@ public final class StringUtil {
     public static int lastIndexOf(String input, char ch) {
         return lastIndexOf(input, ch, 0);
     }
+
+    public static String join(Object[] objects, char joinCharacter) {
+        if (objects == null) {
+            return null;
+        }
+
+        StringBuilder stringBuilder = new StringBuilder();
+        for (int i = 0; i < objects.length; i++) {
+            if (i > 0) {
+                stringBuilder.append(joinCharacter);
+            }
+            stringBuilder.append(objects[i].toString());
+        }
+        return stringBuilder.toString();
+    }
 }

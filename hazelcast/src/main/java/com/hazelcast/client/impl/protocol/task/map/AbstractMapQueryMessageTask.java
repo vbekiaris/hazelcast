@@ -33,6 +33,7 @@ import com.hazelcast.spi.impl.operationservice.InternalOperationService;
 import com.hazelcast.util.BitSetUtils;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.IterationType;
+import com.hazelcast.util.StringUtil;
 
 import java.security.Permission;
 import java.util.ArrayList;
@@ -98,7 +99,7 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
             List<Integer> missingList = findMissingPartitions(finishedPartitions, partitionCount);
             List<Future> missingFutures = new ArrayList<Future>(missingList.size());
             createInvocationsForMissingPartitions(missingList, missingFutures, predicate);
-            collectResultsFromMissingPartitions(result, missingFutures);
+            collectResultsFromMissingPartitions(finishedPartitions, result, missingFutures);
         }
     }
 
@@ -167,11 +168,18 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
         }
     }
 
-    private void collectResultsFromMissingPartitions(Collection<QueryResultRow> result, List<Future> futures)
+    private void collectResultsFromMissingPartitions(BitSet finishedPartitions,
+                                                     Collection<QueryResultRow> result, List<Future> futures)
             throws InterruptedException, java.util.concurrent.ExecutionException {
         for (Future future : futures) {
             QueryResult queryResult = (QueryResult) future.get();
-            result.addAll(queryResult.getRows());
+            if (BitSetUtils.hasAtLeastOneBitSet(finishedPartitions, queryResult.getPartitionIds())) {
+                logger.severe("Not collecting results QueryPartitionOperation for partition IDs " +
+                        StringUtil.join(queryResult.getPartitionIds().toArray(), ',') + " as some partition IDs were found to "
+                        + "have already been finished.");
+            } else {
+                result.addAll(queryResult.getRows());
+            }
         }
     }
 }
