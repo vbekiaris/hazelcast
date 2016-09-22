@@ -39,8 +39,10 @@ import java.security.Permission;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -72,6 +74,7 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
 
     @Override
     protected final Object call() throws Exception {
+        int initialPartitionTableVersion = nodeEngine.getPartitionService().getPartitionStateVersion();
         Collection<QueryResultRow> result = new LinkedList<QueryResultRow>();
         try {
             Predicate predicate = getPredicate();
@@ -81,6 +84,11 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
             invokeOnMissingPartitions(result, predicate, finishedPartitions, partitionCount);
         } catch (Throwable t) {
             throw ExceptionUtil.rethrow(t);
+        }
+        if (initialPartitionTableVersion != nodeEngine.getPartitionService().getPartitionStateVersion()) {
+            // migrations have occurred during the query, deduplicate results
+            Set<QueryResultRow> deduplicatedResults = new HashSet<QueryResultRow>(result);
+            result = deduplicatedResults;
         }
         return reduce(result);
     }
