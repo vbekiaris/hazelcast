@@ -49,6 +49,7 @@ import java.util.concurrent.Future;
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
 import static com.hazelcast.util.BitSetUtils.hasAtLeastOneBitSet;
+import static com.hazelcast.util.StringUtil.join;
 
 public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMessageTask<P> {
 
@@ -87,7 +88,10 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
         }
         if (initialPartitionTableVersion != nodeEngine.getPartitionService().getPartitionStateVersion()) {
             // migrations have occurred during the query, deduplicate results
+            logger.severe("Duplicates may exist in results for query \"" + getPredicate() + "\" due to partition table changes"
+                    + "during querying, original results size is " + result.size() + ", deduplicating.");
             Set<QueryResultRow> deduplicatedResults = new HashSet<QueryResultRow>(result);
+            logger.severe("After deduplication for query \"" + getPredicate() + "\" results size is " + deduplicatedResults.size());
             result = deduplicatedResults;
         }
         return reduce(result);
@@ -105,6 +109,7 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
             throws InterruptedException, java.util.concurrent.ExecutionException {
         if (hasMissingPartitions(finishedPartitions, partitionCount)) {
             List<Integer> missingList = findMissingPartitions(finishedPartitions, partitionCount);
+            logger.severe("Missing partitions for query \"" + getPredicate() + "\": " + join(missingList.toArray(), ','));
             List<Future> missingFutures = new ArrayList<Future>(missingList.size());
             createInvocationsForMissingPartitions(missingList, missingFutures, predicate);
             collectResultsFromMissingPartitions(finishedPartitions, result, missingFutures);
@@ -138,6 +143,8 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
                     //partition separately later.
                     BitSetUtils.setBits(finishedPartitions, partitionIds);
                     result.addAll(queryResult.getRows());
+                } else if (partitionIds != null) {
+                    logger.severe("Discarding results from partition IDs " + join(partitionIds.toArray(), ','));
                 }
             }
         }
@@ -181,10 +188,13 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
             throws InterruptedException, java.util.concurrent.ExecutionException {
         for (Future future : futures) {
             QueryResult queryResult = (QueryResult) future.get();
-            if (BitSetUtils.hasAtLeastOneBitSet(finishedPartitions, queryResult.getPartitionIds())) {
-                logger.severe("Not collecting results QueryPartitionOperation for partition IDs " +
-                        StringUtil.join(queryResult.getPartitionIds().toArray(), ',') + " as some partition IDs were found to "
-                        + "have already been finished.");
+            if (queryResult.getPartitionIds() != null) {
+                if (BitSetUtils.hasAtLeastOneBitSet(finishedPartitions, queryResult.getPartitionIds())) {
+                    logger.severe("Not collecting results QueryPartitionOperation for partition IDs " + join(
+                            queryResult.getPartitionIds().toArray(), ',') + " as some partition IDs were found to " + "have already been finished.");
+                } else {
+                    logger.severe("QueryPartitionOperation returned with null partition IDs");
+                }
             } else {
                 result.addAll(queryResult.getRows());
             }
