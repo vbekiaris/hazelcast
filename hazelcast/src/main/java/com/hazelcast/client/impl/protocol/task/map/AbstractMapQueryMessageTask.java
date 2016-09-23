@@ -193,10 +193,10 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
                     logger.severe("Not collecting results QueryPartitionOperation for partition IDs " + join(
                             queryResult.getPartitionIds().toArray(), ',') + " as some partition IDs were found to " + "have already been finished.");
                 } else {
-                    logger.severe("QueryPartitionOperation returned with null partition IDs");
+                    result.addAll(queryResult.getRows());
                 }
             } else {
-                result.addAll(queryResult.getRows());
+                logger.severe("QueryPartitionOperation returned with null partition IDs");
             }
         }
     }
