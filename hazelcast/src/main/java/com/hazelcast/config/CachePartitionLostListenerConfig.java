@@ -17,6 +17,7 @@
 package com.hazelcast.config;
 
 import com.hazelcast.cache.impl.event.CachePartitionLostListener;
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 
 import java.io.Serializable;
 
@@ -25,6 +26,7 @@ import java.io.Serializable;
  *
  * @see CachePartitionLostListener
  */
+@ClientProtocol
 public class CachePartitionLostListenerConfig extends ListenerConfig implements Serializable {
 
     private CachePartitionLostListenerConfigReadOnly readOnly;

@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.internal.eviction.EvictionPolicyComparator;
 
 import static com.hazelcast.util.Preconditions.checkNotNull;
@@ -27,6 +28,7 @@ import static com.hazelcast.util.Preconditions.checkNotNull;
  * @deprecated Use {@link com.hazelcast.config.EvictionConfig} instead of this
  */
 @Deprecated
+@ClientProtocol
 public class CacheEvictionConfig extends EvictionConfig {
 
     public CacheEvictionConfig() {

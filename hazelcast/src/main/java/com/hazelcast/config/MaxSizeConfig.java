@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
@@ -27,6 +28,7 @@ import java.io.Serializable;
  * Configuration for map's capacity.
  * You can set a limit for number of entries or total memory cost of entries.
  */
+@ClientProtocol
 public class MaxSizeConfig implements DataSerializable, Serializable {
 
     /**

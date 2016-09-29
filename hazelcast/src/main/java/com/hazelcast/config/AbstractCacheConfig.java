@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.nio.serialization.DataSerializable;
 
 import javax.cache.configuration.CacheEntryListenerConfiguration;
@@ -34,6 +35,7 @@ import static com.hazelcast.util.Preconditions.checkNotNull;
 /**
  * Base class for {@link CacheConfig}
  */
+@ClientProtocol
 abstract class AbstractCacheConfig<K, V> implements CacheConfiguration<K, V>, DataSerializable {
 
     /**

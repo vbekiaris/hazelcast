@@ -14,23 +14,21 @@
  * limitations under the License.
  */
 
-package com.hazelcast.query;
+package com.hazelcast.client.impl.protocol;
 
-import com.hazelcast.client.impl.protocol.ClientProtocol;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-import java.io.Serializable;
-import java.util.Map;
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Predicate instance must be thread-safe.
- * {@link #apply(java.util.Map.Entry)} is called by multiple threads concurrently.
- *
- * @param <K>
- * @param <V>
+ * Indicates that the annotated class is used in client-member communication over Hazelcast Open Binary Client Protocol.
+ * Changing the way @ClientProtocol classes are serialized & deserialized most probably will result in incompatibility in
+ * client-to-member communication.
  */
-@ClientProtocol
-public interface Predicate<K, V> extends Serializable {
-
-    boolean apply(Map.Entry<K, V> mapEntry);
+@Target(TYPE)
+@Retention(RUNTIME)
+public @interface ClientProtocol {
 
 }

@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.internal.eviction.EvictionPolicyComparator;
 
 /**
@@ -23,6 +24,7 @@ import com.hazelcast.internal.eviction.EvictionPolicyComparator;
  *
  * @deprecated this class will be removed in 3.8; it is meant for internal usage only.
  */
+@ClientProtocol
 public class EvictionConfigReadOnly extends EvictionConfig {
 
     public EvictionConfigReadOnly(EvictionConfig config) {

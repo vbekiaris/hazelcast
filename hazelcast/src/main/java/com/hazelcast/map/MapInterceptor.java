@@ -16,6 +16,8 @@
 
 package com.hazelcast.map;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
+
 import java.io.Serializable;
 
 /**
@@ -27,6 +29,7 @@ import java.io.Serializable;
  * hashCode method to return the same value for every instance of the class.
  *
  */
+@ClientProtocol
 public interface MapInterceptor extends Serializable {
 
     /**

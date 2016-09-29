@@ -16,6 +16,7 @@
 
 package com.hazelcast.map.impl;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.nio.IOUtil;
 import com.hazelcast.nio.ObjectDataInput;
@@ -30,6 +31,7 @@ import java.io.IOException;
  * @param <K> the type of key.
  * @param <V> the type of value.
  */
+@ClientProtocol
 public class SimpleEntryView<K, V> implements EntryView<K, V>, IdentifiedDataSerializable {
 
     private K key;

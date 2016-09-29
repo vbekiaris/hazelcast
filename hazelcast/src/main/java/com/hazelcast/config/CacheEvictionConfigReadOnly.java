@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.internal.eviction.EvictionPolicyComparator;
 
 /**
@@ -24,6 +25,7 @@ import com.hazelcast.internal.eviction.EvictionPolicyComparator;
  * @deprecated Use {@link com.hazelcast.config.EvictionConfigReadOnly} instead of this
  */
 @Deprecated
+@ClientProtocol
 public class CacheEvictionConfigReadOnly extends CacheEvictionConfig {
 
     public CacheEvictionConfigReadOnly(EvictionConfig config) {

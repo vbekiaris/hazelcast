@@ -16,6 +16,7 @@
 
 package com.hazelcast.mapreduce;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.core.IList;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.ISet;
@@ -43,6 +44,7 @@ import java.util.Map;
  * @since 3.2
  */
 @Beta
+@ClientProtocol
 public abstract class KeyValueSource<K, V>
         implements Closeable {
 

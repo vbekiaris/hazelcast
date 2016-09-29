@@ -16,6 +16,8 @@
 
 package com.hazelcast.core;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
+
 import java.io.Serializable;
 
 /**
@@ -27,6 +29,8 @@ import java.io.Serializable;
  * @param <R> a result
  * @since 3.2
  */
+
+@ClientProtocol
 public interface IFunction<T, R> extends Serializable {
 
     R apply(T input);

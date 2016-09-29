@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.client.impl.protocol.ClientProtocol;
 import com.hazelcast.internal.eviction.EvictionConfiguration;
 import com.hazelcast.internal.eviction.EvictionPolicyComparator;
 import com.hazelcast.internal.eviction.EvictionPolicyType;
@@ -35,6 +36,7 @@ import static com.hazelcast.util.Preconditions.checkPositive;
  * Configuration for eviction.
  * You can set a limit for number of entries or total memory cost of entries.
  */
+@ClientProtocol
 public class EvictionConfig implements EvictionConfiguration, DataSerializable, Serializable {
 
     /**
