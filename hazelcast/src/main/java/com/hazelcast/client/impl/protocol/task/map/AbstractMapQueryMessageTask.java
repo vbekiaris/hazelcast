@@ -123,22 +123,22 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
         List<Future> futures = new ArrayList<Future>(members.size());
         final InternalOperationService operationService = nodeEngine.getOperationService();
         for (Member member : members) {
-//            try {
+            try {
                 Future future = operationService.createInvocationBuilder(SERVICE_NAME,
                         new QueryOperation(getDistributedObjectName(), predicate, getIterationType()), member.getAddress())
                                                 .invoke();
                 futures.add(future);
-//            } catch (Throwable t) {
-//                if (t.getCause() instanceof QueryResultSizeExceededException) {
-//                    rethrow(t);
-//                } else {
-//                    // log failure to invoke query on member at fine level
-//                    // the missing partition IDs will be queried anyway, so it's not a terminal failure
-//                    if (logger.isFineEnabled()) {
-//                        logger.log(Level.FINE, "Could not invoke query on member " + member, t);
-//                    }
-//                }
-//            }
+            } catch (Throwable t) {
+                if (t.getCause() instanceof QueryResultSizeExceededException) {
+                    rethrow(t);
+                } else {
+                    // log failure to invoke query on member at fine level
+                    // the missing partition IDs will be queried anyway, so it's not a terminal failure
+                    if (logger.isFineEnabled()) {
+                        logger.log(Level.FINE, "Could not invoke query on member " + member, t);
+                    }
+                }
+            }
         }
         return futures;
     }
@@ -148,7 +148,7 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
             throws InterruptedException, ExecutionException {
         BitSet finishedPartitions = new BitSet(partitionCount);
         for (Future future : futures) {
-//            try {
+            try {
                 QueryResult queryResult = (QueryResult) future.get();
                 logPartitionsQueried(queryResult);
                 if (queryResult != null) {
@@ -165,18 +165,18 @@ public abstract class AbstractMapQueryMessageTask<P> extends AbstractCallableMes
                                 + ": " + join(partitionIds, ","));
                     }
                 }
-//            }
-//            catch (Throwable t) {
-//                if (t.getCause() instanceof QueryResultSizeExceededException) {
-//                    rethrow(t);
-//                } else {
-//                    // log failure to invoke query on member at fine level
-//                    // the missing partition IDs will be queried anyway, so it's not a terminal failure
-//                    if (logger.isFineEnabled()) {
-//                        logger.log(Level.FINE, "Query on member failed with exception", t);
-//                    }
-//                }
-//            }
+            }
+            catch (Throwable t) {
+                if (t.getCause() instanceof QueryResultSizeExceededException) {
+                    rethrow(t);
+                } else {
+                    // log failure to invoke query on member at fine level
+                    // the missing partition IDs will be queried anyway, so it's not a terminal failure
+                    if (logger.isFineEnabled()) {
+                        logger.log(Level.FINE, "Query on member failed with exception", t);
+                    }
+                }
+            }
         }
         return finishedPartitions;
     }
