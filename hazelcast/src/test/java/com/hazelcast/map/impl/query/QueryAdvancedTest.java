@@ -49,8 +49,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hazelcast.test.TimeConstants.MINUTE;
@@ -328,6 +332,136 @@ public class QueryAdvancedTest extends HazelcastTestSupport {
             Employee employee = entry.getValue();
             assertEquals(employee.getAge(), 23);
             assertTrue(employee.isActive());
+        }
+    }
+
+    @Test(timeout = 120 * MINUTE)
+    public void testMembersWithIndexesAndShutdownStartup()
+            throws InterruptedException {
+        int clusterSize = 6;
+        int concurrentQueryingThreads = 10;
+        Config config = getConfig();
+        TestHazelcastInstanceFactory nodeFactory = createHazelcastInstanceFactory(6);
+        HazelcastInstance[] instances = new HazelcastInstance[clusterSize];
+        for (int i = 0; i < clusterSize; i++) {
+            instances[i] = nodeFactory.newHazelcastInstance(config);
+        }
+
+        IMap<String, Employee> map = instances[0].getMap("employees");
+        map.addIndex("name", false);
+        map.addIndex("age", true);
+        map.addIndex("active", false);
+
+        populateMap(map, 100000);
+
+        ExecutorService queryingExecutor = Executors.newFixedThreadPool(concurrentQueryingThreads);
+
+        Future[] queryingFutures = queryContinouslyFromMember(map, queryingExecutor, concurrentQueryingThreads);
+
+        shuffleMembers(nodeFactory, instances);
+
+        Thread.sleep(60 * MINUTE);
+        queryingExecutor.shutdown();
+        nodeFactory.shutdownAll();
+    }
+
+    private void shuffleMembers(TestHazelcastInstanceFactory nodeFactory, HazelcastInstance[] instances) {
+        Thread t = new Thread(new MembersMonkey(nodeFactory, instances));
+        t.start();
+    }
+
+    private void populateMap(IMap<String, Employee> map, int numberOfEntries) {
+        for (int i=0; i<numberOfEntries; i++) {
+            Employee e = new Employee(i, "name"+i, i, true, i);
+            map.put("name"+i, e);
+        }
+        System.out.println("Done populating map with " + numberOfEntries + " entries.");
+    }
+
+    private Future[] queryContinouslyFromMember(IMap<String, Employee> map, ExecutorService executor, int concurrency) {
+        Future[] futures = new Future[concurrency];
+        for (int i=0; i<concurrency; i++) {
+            futures[i] = executor.submit(new QueryingCallable(map));
+        }
+        return futures;
+    }
+
+    public static class QueryingCallable implements Runnable {
+
+        // query age min-max range, min is randomized, max = min+1000
+        private static final Random random = new Random();
+        private final IMap map;
+
+        public QueryingCallable(IMap map) {
+            this.map = map;
+        }
+
+        @Override
+        public void run() {
+            int min, max, correctResultsCount = 0;
+            while (true) {
+                if (Thread.currentThread().isInterrupted()) {
+                    System.out.println("Interrupted!");
+                    break;
+                }
+                min = random.nextInt(99000);
+                max = min + 1000;
+                Collection<Employee> employees = map.values(new SqlPredicate("age >= " + min + " AND age < " + max));
+                if (employees.size() != 1000) {
+                    // error
+                    System.out.println("gotcha " + employees.size());
+                } else {
+                    correctResultsCount++;
+                    if (correctResultsCount % 20 == 0) {
+                        System.out.println("Got " + correctResultsCount + " correct results");
+                    }
+                }
+            }
+        }
+
+    }
+
+    public static class MembersMonkey implements Runnable {
+        private final TestHazelcastInstanceFactory nodeFactory;
+        private final HazelcastInstance[] instances;
+
+        public MembersMonkey(TestHazelcastInstanceFactory nodeFactory, HazelcastInstance[] instances) {
+            this.nodeFactory = nodeFactory;
+            this.instances = new HazelcastInstance[instances.length-1];
+            // exclude 0-index instance
+            System.arraycopy(instances, 1, this.instances, 0, instances.length-1);
+        }
+
+        @Override
+        public void run() {
+            int i = 0;
+            int nextInstance = 1;
+            while (true) {
+                if (Thread.currentThread().isInterrupted()) {
+                    System.out.println("Monkey interrupted!");
+                    break;
+                }
+                instances[i].shutdown();
+                nextInstance = (i+1) % instances.length;
+//                waitClusterForSafeState(instances[nextInstance]);
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    System.out.println("Monkey interrupted!");
+                    break;
+                }
+                instances[i] = nodeFactory.newHazelcastInstance();
+//                waitClusterForSafeState(instances[nextInstance]);
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    System.out.println("Monkey interrupted!");
+                    break;
+                }
+                // move to next member
+                i = nextInstance;
+            }
+            System.out.println("Monkey business done.");
         }
     }
 

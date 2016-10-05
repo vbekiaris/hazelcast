@@ -46,6 +46,8 @@ public class QueryResult implements IdentifiedDataSerializable, Iterable<QueryRe
     private transient long resultLimit;
     private transient long resultSize;
     private IterationType iterationType;
+    // document the thread that executed the query
+    private String threadName;
 
     public QueryResult() {
         resultLimit = Long.MAX_VALUE;
@@ -155,6 +157,7 @@ public class QueryResult implements IdentifiedDataSerializable, Iterable<QueryRe
                 row.writeData(out);
             }
         }
+        out.writeUTF(threadName);
     }
 
     @Override
@@ -177,5 +180,14 @@ public class QueryResult implements IdentifiedDataSerializable, Iterable<QueryRe
                 rows.add(row);
             }
         }
+        threadName = in.readUTF();
+    }
+
+    public String getThreadName() {
+        return threadName;
+    }
+
+    public void setThreadName(String threadName) {
+        this.threadName = threadName;
     }
 }
