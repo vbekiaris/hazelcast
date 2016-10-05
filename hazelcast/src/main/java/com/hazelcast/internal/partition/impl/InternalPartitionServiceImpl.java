@@ -633,6 +633,12 @@ public class InternalPartitionServiceImpl implements InternalPartitionService, M
             partitionStateManager.setVersion(newVersion);
             partitionStateManager.setInitialized();
 
+            // so now we have a new version set, but still no owner migration in flight -- let's delay
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             filterAndLogUnknownAddressesInPartitionTable(sender, partitionState.getPartitionTable());
             finalizeOrRollbackMigration(partitionState);
             return true;
