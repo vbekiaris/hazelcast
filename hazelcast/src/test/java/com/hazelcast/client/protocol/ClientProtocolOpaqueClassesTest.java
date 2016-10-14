@@ -28,6 +28,8 @@ import org.junit.runner.RunWith;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import static com.hazelcast.test.ReflectionsHelper.REFLECTIONS;
 import static org.junit.Assert.fail;
@@ -43,32 +45,38 @@ public class ClientProtocolOpaqueClassesTest {
     // is also an IdentifiedDataSerializable
     @Test
     public void test_dataSerializableClasses_areIdentifiedDataSerializable() {
-        Set allDataSerializableClasses = REFLECTIONS.getSubTypesOf(DataSerializable.class);
+        Set dataSerializableClasses = REFLECTIONS.getSubTypesOf(DataSerializable.class);
         Set allIdDataSerializableClasses = REFLECTIONS.getSubTypesOf(IdentifiedDataSerializable.class);
 
-        allDataSerializableClasses.removeAll(allIdDataSerializableClasses);
+        dataSerializableClasses.removeAll(allIdDataSerializableClasses);
+        // also remove IdentifiedDataSerializable itself
+        dataSerializableClasses.remove(IdentifiedDataSerializable.class);
 
         // locate all classes annotated with ClientProtocol (and their subclasses) and remove those as well
         Set allAnnotatedClasses = REFLECTIONS.getTypesAnnotatedWith(ClientProtocol.class);
-        allDataSerializableClasses.removeAll(allAnnotatedClasses);
+        dataSerializableClasses.removeAll(allAnnotatedClasses);
 
         // since test classes are included in the classpath, remove them
         Set testClasses = new HashSet();
-        for (Object o : allDataSerializableClasses) {
-            if (o.toString().contains("Test")) {
+        for (Object o : dataSerializableClasses) {
+            if (o.toString().contains("Test") || o.toString().contains("Mock")) {
                 testClasses.add(o);
             }
         }
 
-        allDataSerializableClasses.removeAll(testClasses);
+        dataSerializableClasses.removeAll(testClasses);
 
-        if (allDataSerializableClasses.size() > 0) {
-            System.out.println("The following classes are DataSerializable while they shoudl be  IdentifiedDataSerializable:");
-            // failure - output non-compliant classes to standard output and fail the test
-            for (Object o : allDataSerializableClasses) {
-                System.out.println(o.toString());
+        if (dataSerializableClasses.size() > 0) {
+            SortedSet<String> nonCompliantClassNames = new TreeSet<String>();
+            for (Object o : dataSerializableClasses) {
+                nonCompliantClassNames.add(o.toString());
             }
-            fail("There are " + allDataSerializableClasses.size() + " classes which are DataSerializable, not @ClientProtocol-"
+            System.out.println("The following classes are DataSerializable while they should be IdentifiedDataSerializable:");
+            // failure - output non-compliant classes to standard output and fail the test
+            for (String s : nonCompliantClassNames) {
+                System.out.println(s);
+            }
+            fail("There are " + dataSerializableClasses.size() + " classes which are DataSerializable, not @ClientProtocol-"
                     + "annotated and are not IdentifiedDataSerializable.");
         }
     }
