@@ -702,6 +702,7 @@ public class BasicMapTest extends HazelcastTestSupport {
         final AtomicInteger counter = new AtomicInteger(6);
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch waitTryPutFailure = new CountDownLatch(1);
+        final CountDownLatch keyUnlocked = new CountDownLatch(1);
         final StringBuilder failureMessageBuilder = new StringBuilder();
         Thread thread = new Thread(new Runnable() {
             public void run() {
@@ -723,7 +724,8 @@ public class BasicMapTest extends HazelcastTestSupport {
                         counter.decrementAndGet();
                     }
 
-                    if (map.tryPut(key1, "value1", 5, SECONDS)) {
+                    keyUnlocked.await(30, SECONDS);
+                    if (map.tryPut(key1, "value1", 1, SECONDS)) {
                         counter.decrementAndGet();
                     } else {
                         failureMessageBuilder.append("tryPut timed out while waiting to acquire lock on key1.");
@@ -748,6 +750,7 @@ public class BasicMapTest extends HazelcastTestSupport {
         assertOpenEventually(waitTryPutFailure);
 
         map.unlock("key1");
+        keyUnlocked.countDown();
         try {
             boolean completed = latch.await(ASSERT_TRUE_EVENTUALLY_TIMEOUT, TimeUnit.SECONDS);
             assertTrue("tryPut operations were not completed in time, counter was " + counter.get() + " and failure"
