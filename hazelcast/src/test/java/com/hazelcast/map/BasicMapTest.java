@@ -724,7 +724,7 @@ public class BasicMapTest extends HazelcastTestSupport {
                         counter.decrementAndGet();
                     }
 
-                    keyUnlocked.await(30, SECONDS);
+                    assertOpenEventually("Main test thread did not unlock key1 on time.", keyUnlocked);
                     if (map.tryPut(key1, "value1", 1, SECONDS)) {
                         counter.decrementAndGet();
                     } else {
