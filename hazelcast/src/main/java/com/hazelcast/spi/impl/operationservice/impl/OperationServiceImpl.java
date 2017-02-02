@@ -16,6 +16,9 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
+import brave.Tracer;
+import brave.propagation.TraceContext;
+import brave.sampler.CountingSampler;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.instance.Node;
@@ -51,8 +54,11 @@ import com.hazelcast.spi.impl.operationservice.InternalOperationService;
 import com.hazelcast.util.EmptyStatement;
 import com.hazelcast.util.executor.ExecutorType;
 import com.hazelcast.util.executor.ManagedExecutorService;
+import zipkin.reporter.AsyncReporter;
+import zipkin.reporter.urlconnection.URLConnectionSender;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +109,7 @@ public final class OperationServiceImpl implements InternalOperationService, Met
 
     final InvocationRegistry invocationRegistry;
     final OperationExecutor operationExecutor;
+    final Tracer tracer;
 
     @Probe(name = "completedCount", level = MANDATORY)
     final AtomicLong completedOperationsCount = new AtomicLong();
@@ -169,12 +176,20 @@ public final class OperationServiceImpl implements InternalOperationService, Met
                 inboundResponseHandler, node.getProperties());
 
         this.operationExecutor = new OperationExecutorImpl(
-                node.getProperties(), node.loggingService, thisAddress, new OperationRunnerFactoryImpl(this),
+                node.getProperties(), node.loggingService, thisAddress,
+                new InstruementedOperationRunnerFactoryImpl(this),
                 node.getHazelcastThreadGroup(), node.getNodeExtension());
 
         this.slowOperationDetector = new SlowOperationDetector(node.loggingService,
                 operationExecutor.getGenericOperationRunners(), operationExecutor.getPartitionOperationRunners(),
                 node.getProperties(), node.getHazelcastThreadGroup());
+
+        this.tracer = Tracer.newBuilder().localEndpoint(
+                ZipkinUtil.forAddress(node.address).serviceName("invocation-builder").build())
+                            .sampler(CountingSampler.create(0.1f))
+                            .reporter(AsyncReporter.builder(
+                                    URLConnectionSender.create("http://localhost:9411/api/v1/spans")).build())
+                            .build();
     }
 
     public OutboundResponseHandler getOutboundResponseHandler() {
@@ -398,6 +413,10 @@ public final class OperationServiceImpl implements InternalOperationService, Met
 
     @Override
     public boolean send(Operation op, Address target) {
+        return sendWithTraceId(op, target, null);
+    }
+
+    public boolean sendWithTraceId(Operation op, Address target, TraceContext traceContext) {
         checkNotNull(target, "Target is required!");
 
         if (thisAddress.equals(target)) {
@@ -405,6 +424,15 @@ public final class OperationServiceImpl implements InternalOperationService, Met
         }
 
         byte[] bytes = serializationService.toBytes(op);
+        if (traceContext != null) {
+            // need 12 more bytes for parentId, traceId, spanId + 1 for sampling boolean
+            int cursor = bytes.length + 1;
+            byte[] traceableBytes = Arrays.copyOf(bytes, bytes.length + 13);
+            traceableBytes[cursor++] = (byte) (traceContext.parentId() >>> 24 | 0xff);
+            traceableBytes[cursor++] = (byte) (traceContext.parentId() >>> 16 | 0xff);
+            traceableBytes[cursor++] = (byte) (traceContext.parentId() >>> 8 | 0xff);
+            traceableBytes[cursor++] = (byte) (traceContext.parentId() | 0xff);
+        }
         int partitionId = op.getPartitionId();
         Packet packet = new Packet(bytes, partitionId).setPacketType(Packet.Type.OPERATION);
 

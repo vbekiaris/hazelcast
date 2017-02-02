@@ -16,6 +16,8 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
+import brave.Tracer;
+import brave.propagation.TraceContext;
 import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.instance.MemberImpl;
@@ -164,6 +166,8 @@ public abstract class Invocation implements OperationResponseHandler {
 
     /** Refer to {@link com.hazelcast.spi.InvocationBuilder#setDoneCallback(Runnable)} for an explanation */
     private final Runnable taskDoneCallback;
+
+    TraceContext traceContext;
 
     Invocation(Context context, Operation op, Runnable taskDoneCallback, int tryCount, long tryPauseMillis,
                long callTimeoutMillis, boolean deserialize) {
@@ -508,6 +512,9 @@ public abstract class Invocation implements OperationResponseHandler {
         if (!context.invocationRegistry.register(this)) {
             return;
         }
+
+        // start a new trace for this Invocation
+        traceContext = context.operationService.tracer.newTrace().name("invocation").start().context();
 
         if (!initInvocationTarget()) {
             return;

@@ -252,7 +252,7 @@
                         -Xms128m -Xmx1G -XX:MaxPermSize=128M
                         -Dhazelcast.phone.home.enabled=false
                         -Dhazelcast.mancenter.enabled=false
-                        -Dhazelcast.logging.type=none
+                        -Dhazelcast.logging.type=log4j2
                         -Dhazelcast.test.use.network=false
                     </argLine>
                     <includes>
@@ -302,7 +302,7 @@
                                         -Xms128m -Xmx1G -XX:MaxPermSize=128M
                                         -Dhazelcast.phone.home.enabled=false
                                         -Dhazelcast.mancenter.enabled=false
-                                        -Dhazelcast.logging.type=none
+                                        -Dhazelcast.logging.type=log4j2
                                         -Dhazelcast.test.use.network=false
                                         -Dhazelcast.test.multiple.jvm=true
                                     </argLine>
@@ -336,7 +336,7 @@
                                         -Xms128m -Xmx1G -XX:MaxPermSize=128M
                                         -Dhazelcast.phone.home.enabled=false
                                         -Dhazelcast.mancenter.enabled=false
-                                        -Dhazelcast.logging.type=none
+                                        -Dhazelcast.logging.type=log4j2
                                         -Dhazelcast.test.use.network=false
                                     </argLine>
                                     <includes>
@@ -424,7 +424,7 @@
                                 -Xms128m -Xmx1G -XX:MaxPermSize=128M
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=false
                                 -Djavax.management.builder.initial=${javax.management.builder.initial}
                                 -DCacheManagerImpl=${CacheManagerImpl}
@@ -458,7 +458,7 @@
                     -Xms128m -Xmx1G -XX:MaxPermSize=128M
                     -Dhazelcast.phone.home.enabled=false
                     -Dhazelcast.mancenter.enabled=false
-                    -Dhazelcast.logging.type=none
+                    -Dhazelcast.logging.type=log4j2
                     -Dhazelcast.test.use.network=false
                     -Djavax.management.builder.initial=${javax.management.builder.initial}
                     -DCacheManagerImpl=${CacheManagerImpl}
@@ -580,7 +580,7 @@
                                 -Xms128m -Xmx1G -XX:MaxPermSize=128M
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=false
                                 -Djavax.management.builder.initial=${javax.management.builder.initial}
                                 -DCacheManagerImpl=${CacheManagerImpl}
@@ -615,7 +615,7 @@
                                 -Xms129m -Xmx1G -XX:MaxPermSize=129M
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=true
                             </argLine>
                             <includes>
@@ -834,7 +834,7 @@
                                 -Xms128m -Xmx1G -XX:MaxPermSize=128M
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=false
                                 -Djavax.management.builder.initial=${javax.management.builder.initial}
                                 -DCacheManagerImpl=${CacheManagerImpl}
@@ -866,7 +866,7 @@
                                 -Xms512m -Xmx2G -XX:MaxPermSize=128M
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=false
                                 -Djavax.management.builder.initial=${javax.management.builder.initial}
                                 -DCacheManagerImpl=${CacheManagerImpl}

@@ -159,6 +159,7 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
         }
 
         executedOperationsCount.incrementAndGet();
+        onBeforeOperationExecution(op);
 
         boolean publishCurrentTask = publishCurrentTask();
 
@@ -185,10 +186,13 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
 
             op.run();
             handleResponse(op);
+            onOperationResponseSent(op);
             afterRun(op);
         } catch (Throwable e) {
+            onOperationException(op, e);
             handleOperationError(op, e);
         } finally {
+            onOperationFinished(op);
             if (publishCurrentTask) {
                 currentTask = null;
             }
@@ -372,6 +376,31 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
         op.logError(e);
     }
 
+    // Tracing hooks
+    protected void onBeforeDeserialize(Packet packet) {
+    }
+
+    protected void onAfterDeserialize(Operation operation) {
+    }
+
+    protected void onDeserializationException(long callId, Packet packet) {
+    }
+
+    protected void onInvalidMember(Operation operation) {
+    }
+
+    protected void onBeforeOperationExecution(Operation operation) {
+    }
+
+    protected void onOperationResponseSent(Operation op) {
+    }
+
+    protected void onOperationFinished(Operation op) {
+    }
+
+    protected void onOperationException(Operation operation, Throwable e) {
+    }
+
     @Override
     public void run(Packet packet) throws Exception {
         boolean publishCurrentTask = publishCurrentTask();
@@ -383,6 +412,7 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
         Connection connection = packet.getConn();
         Address caller = connection.getEndPoint();
         try {
+            onBeforeDeserialize(packet);
             Object object = nodeEngine.toObject(packet);
             Operation op = (Operation) object;
             op.setNodeEngine(nodeEngine);
@@ -390,8 +420,9 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
             setConnection(op, connection);
             setCallerUuidIfNotSet(caller, op);
             setOperationResponseHandler(op);
-
+            onAfterDeserialize(op);
             if (!ensureValidMember(op)) {
+                onInvalidMember(op);
                 return;
             }
 
@@ -404,6 +435,7 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
             long callId = extractOperationCallId(packet);
             outboundResponseHandler.send(new ErrorResponse(throwable, callId, packet.isUrgent()), caller);
             logOperationDeserializationException(throwable, callId);
+            onDeserializationException(callId, packet);
             throw ExceptionUtil.rethrow(throwable);
         } finally {
             if (publishCurrentTask) {
