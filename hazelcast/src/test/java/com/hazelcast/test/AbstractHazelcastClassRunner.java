@@ -192,7 +192,7 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
             for (TestRule rule : testRules) {
                 if (rule instanceof BounceMemberRule) {
                     Statement bounceMembersAfterBefores = ((BounceMemberRule) rule).startBouncing(statement);
-                    return befores.isEmpty() ? statement : new RunBefores(bounceMembersAfterBefores,
+                    return befores.isEmpty() ? bounceMembersAfterBefores : new RunBefores(bounceMembersAfterBefores,
                             befores, target);
                 }
             }

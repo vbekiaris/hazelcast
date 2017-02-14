@@ -3,6 +3,7 @@ package com.hazelcast.ringbuffer.impl;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.RingbufferConfig;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.ringbuffer.OverflowPolicy;
 import com.hazelcast.ringbuffer.Ringbuffer;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -12,6 +13,8 @@ import com.hazelcast.test.annotation.QuickTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -113,6 +116,37 @@ public class RingbufferTTLTest extends HazelcastTestSupport {
         final long head = ringbuffer.headSequence();
         final long tail = ringbuffer.tailSequence();
         final long size = ringbuffer.size();
+
+        assertTrueAllTheTime(new AssertTask() {
+            @Override
+            public void run() throws Exception {
+                assertEquals(head, ringbuffer.headSequence());
+                assertEquals(tail, ringbuffer.tailSequence());
+                assertEquals(size, ringbuffer.size());
+
+                for (long seq = head; seq <= tail; seq++) {
+                    assertEquals("item" + seq, ringbuffer.readOne(seq));
+                }
+            }
+        }, 5);
+    }
+
+    @Test
+    public void whenTTLDisabled_thenNothingRetires_exceptWhenItDoes()
+            throws ExecutionException, InterruptedException {
+        setup(new RingbufferConfig("foo").setTimeToLiveSeconds(0).setCapacity(100));
+
+        for (int k = 0; k < ringbuffer.capacity() * 1000; k++) {
+            long seq = (Long) ringbuffer.addAsync("item" + k, OverflowPolicy.FAIL).get();
+            System.out.println(seq);
+        }
+
+        System.out.println("Cap: " + ringbuffer.capacity() + " / size: " + ringbuffer.size());
+
+        final long head = ringbuffer.headSequence();
+        final long tail = ringbuffer.tailSequence();
+        final long size = ringbuffer.size();
+        System.out.println("Head: " + ringbuffer.headSequence() + ", tail: " + ringbuffer.tailSequence());
 
         assertTrueAllTheTime(new AssertTask() {
             @Override

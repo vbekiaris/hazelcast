@@ -177,7 +177,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
         if (runner == null) {
             return false;
         }
-        runner.cancel();
+        runner.cancel(new RuntimeException("MessageListener properly removed"));
         return true;
     }
 
@@ -241,7 +241,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
                     process(message);
                 } catch (Throwable t) {
                     if (terminate(t)) {
-                        cancel();
+                        cancel(t);
                         return;
                     }
                 }
@@ -306,10 +306,11 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
                         + "Reason: Unhandled exception, message: " + t.getMessage(), t);
             }
 
-            cancel();
+            cancel(t);
         }
 
-        void cancel() {
+        void cancel(Throwable t) {
+            logger.severe("Message listener canceled due to " + t.getMessage(), t);
             cancelled = true;
             runnersMap.remove(id);
         }

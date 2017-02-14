@@ -149,10 +149,8 @@ class ReliableMessageListenerRunner<E> implements ExecutionCallback<ReadResultSe
                     + "Reason: The listener was too slow or the retention period of the message has been violated. "
                     + "head: " + staleSequenceException.getHeadSeq() + " sequence:" + sequence);
         } else if (t instanceof HazelcastInstanceNotActiveException) {
-            if (logger.isFinestEnabled()) {
-                logger.finest("Terminating MessageListener " + listener + " on topic: " + topicName + ". "
-                        + " Reason: HazelcastInstance is shutting down");
-            }
+            logger.warning("Terminating MessageListener " + listener + " on topic: " + topicName + ". "
+                    + " Reason: HazelcastInstance is shutting down");
         } else if (t instanceof DistributedObjectDestroyedException) {
             if (logger.isFinestEnabled()) {
                 logger.finest("Terminating MessageListener " + listener + " on topic: " + topicName + ". "
