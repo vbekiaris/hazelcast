@@ -102,7 +102,7 @@ class ReliableMessageListenerRunner<E> implements ExecutionCallback<ReadResultSe
                 process(message);
             } catch (Throwable t) {
                 if (terminate(t)) {
-                    cancel();
+                    cancel(t);
                     return;
                 }
             }
@@ -161,10 +161,11 @@ class ReliableMessageListenerRunner<E> implements ExecutionCallback<ReadResultSe
                     + "Reason: Unhandled exception, message: " + t.getMessage(), t);
         }
 
-        cancel();
+        cancel(t);
     }
 
-    void cancel() {
+    void cancel(Throwable t) {
+        logger.severe(">>> Listener " + listener + " on topic " + topicName + " cancelled due to " + t.getClass(), t);
         cancelled = true;
         proxy.runnersMap.remove(id);
     }
