@@ -226,7 +226,7 @@ public class ReliableTopicProxy<E> extends AbstractDistributedObject<ReliableTop
         if (runner == null) {
             return false;
         }
-        runner.cancel();
+        runner.cancel(new RuntimeException("Just removed message listener"));
         return true;
     }
 
