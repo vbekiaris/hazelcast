@@ -18,14 +18,13 @@ package com.hazelcast.test.starter.test;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
-import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.starter.HazelcastStarter;
 import org.junit.Test;
 
 import static com.hazelcast.test.HazelcastTestSupport.assertClusterSizeEventually;
 import static org.junit.Assert.assertEquals;
 
-public class RollingUpgradeTest {
+public class PatchLevelCompatibilityTest {
 
     @Test
     public void testAllVersions() {
