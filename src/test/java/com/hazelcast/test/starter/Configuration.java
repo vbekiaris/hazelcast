@@ -1,9 +1,28 @@
+/*
+ * Copyright (c) 2017, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hazelcast.test.starter;
 
+import com.google.common.io.Files;
 import com.hazelcast.config.Config;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,8 +31,10 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static com.hazelcast.test.HazelcastTestSupport.randomString;
+
 public class Configuration {
-    public static final String WORKING_DIRECTORY = System.getProperty("user.home") + "/compatguardian";
+    public static final File WORKING_DIRECTORY = Files.createTempDir();
 
     public static Object configLoader(Config mainConfig, ClassLoader classloader)
             throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException,
