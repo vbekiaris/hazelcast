@@ -20,17 +20,27 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
+import com.hazelcast.test.HazelcastParallelClassRunner;
+import com.hazelcast.test.annotation.NightlyTest;
+import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.starter.Downloader;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+@RunWith(HazelcastParallelClassRunner.class)
+@Category({NightlyTest.class, ParallelTest.class})
 public class DownloaderTest {
+
+    private static final String HAZELCAST_3_6_MEMBER_HASH = "89563f7dab02bd5f592082697c24d167";
+    private static final String HAZELCAST_3_6_CLIENT_HASH = "fd6022e35908b42d24fe10a9c9fdaad5";
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
@@ -42,11 +52,11 @@ public class DownloaderTest {
 
         byte[] memberBytes = Files.toByteArray(files[0]);
         HashCode memberHash = md5Hash.hashBytes(memberBytes);
-        assertEquals("89563f7dab02bd5f592082697c24d167", memberHash.toString());
+        assertEquals(HAZELCAST_3_6_MEMBER_HASH, memberHash.toString());
 
         byte[] clientBytes = Files.toByteArray(files[1]);
         HashCode clientHash = md5Hash.hashBytes(clientBytes);
-        assertEquals("fd6022e35908b42d24fe10a9c9fdaad5", clientHash.toString());
+        assertEquals(HAZELCAST_3_6_CLIENT_HASH, clientHash.toString());
     }
 
 }
