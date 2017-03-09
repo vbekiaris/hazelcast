@@ -128,7 +128,7 @@ public abstract class HazelcastTestSupport {
         if (factory != null) {
             throw new IllegalStateException("Node factory is already created!");
         }
-        return factory = new TestHazelcastInstanceFactory(nodeCount);
+        return factory = new CompatibilityTestHazelcastInstanceFactory(nodeCount);
     }
 
     protected final TestHazelcastInstanceFactory createHazelcastInstanceFactory(String... addresses) {

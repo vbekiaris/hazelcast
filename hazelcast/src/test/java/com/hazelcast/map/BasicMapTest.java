@@ -29,6 +29,8 @@ import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import com.hazelcast.test.annotation.CompatibilityTest;
+import com.hazelcast.test.annotation.MemberVersions;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
 import com.hazelcast.util.Clock;
@@ -62,7 +64,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(HazelcastParallelClassRunner.class)
-@Category({QuickTest.class, ParallelTest.class})
+@Category({QuickTest.class, ParallelTest.class, CompatibilityTest.class})
+@MemberVersions("3.8, 3.8.1")
 public class BasicMapTest extends HazelcastTestSupport {
 
     private static final int INSTANCE_COUNT = 3;

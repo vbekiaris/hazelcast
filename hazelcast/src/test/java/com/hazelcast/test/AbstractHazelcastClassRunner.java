@@ -46,6 +46,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import static com.hazelcast.test.TestEnvironment.isRunningCompatibilityTest;
 import static java.lang.Integer.getInteger;
 
 /**
@@ -63,9 +64,14 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
     private static final boolean THREAD_CONTENTION_INFO_AVAILABLE;
 
     static {
-        TestLoggingUtils.initializeLogging();
-        if (System.getProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK) == null) {
-            System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "false");
+        if (isRunningCompatibilityTest()) {
+            System.out.println("Running compatibility tests.");
+            System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "true");
+        } else {
+            TestLoggingUtils.initializeLogging();
+            if (System.getProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK) == null) {
+                System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "false");
+            }
         }
         System.setProperty("hazelcast.phone.home.enabled", "false");
         System.setProperty("hazelcast.mancenter.enabled", "false");
