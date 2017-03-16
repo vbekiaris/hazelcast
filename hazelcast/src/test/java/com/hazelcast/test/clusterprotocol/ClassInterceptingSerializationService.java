@@ -87,21 +87,18 @@ public class ClassInterceptingSerializationService implements InternalSerializat
 
     @Override
     public void writeObject(ObjectDataOutput out, Object obj) {
-        recordClassName(obj);
         serializationServiceV1.writeObject(out, obj);
     }
 
     @Override
     public <T> T readObject(ObjectDataInput in) {
         T obj = serializationServiceV1.readObject(in);
-        recordClassName(obj);
         return obj;
     }
 
     @Override
     public <T> T readObject(ObjectDataInput in, Class aClass) {
         T obj = serializationServiceV1.readObject(in, aClass);
-        recordClassName(obj);
         return obj;
     }
 
@@ -152,19 +149,16 @@ public class ClassInterceptingSerializationService implements InternalSerializat
 
     @Override
     public byte[] toBytes(Object obj) {
-        recordClassName(obj);
         return serializationServiceV1.toBytes(obj);
     }
 
     @Override
     public byte[] toBytes(int padding, Object obj) {
-        recordClassName(obj);
         return serializationServiceV1.toBytes(padding, obj);
     }
 
     @Override
     public byte[] toBytes(Object obj, PartitioningStrategy strategy) {
-        recordClassName(obj);
         return serializationServiceV1.toBytes(obj, strategy);
     }
 
