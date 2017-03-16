@@ -26,6 +26,7 @@ import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ConnectionManager;
 import com.hazelcast.nio.NodeIOService;
 import com.hazelcast.nio.tcp.FirewallingMockConnectionManager;
+import com.hazelcast.test.TestEnvironment;
 
 import java.nio.channels.ServerSocketChannel;
 import java.util.Collections;
@@ -49,7 +50,11 @@ public class MockNodeContext implements NodeContext {
 
     @Override
     public NodeExtension createNodeExtension(Node node) {
-        return NodeExtensionFactory.create(node);
+        if (TestEnvironment.isInterceptingClusterProtocolClasses()) {
+            return ClassInterceptingNodeExtensionFactory.create(node);
+        } else {
+            return NodeExtensionFactory.create(node);
+        }
     }
 
     public AddressPicker createAddressPicker(Node node) {

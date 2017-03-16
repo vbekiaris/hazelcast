@@ -19,11 +19,16 @@ package com.hazelcast.test;
 public final class TestEnvironment {
 
     public static final String HAZELCAST_TEST_USE_NETWORK = "hazelcast.test.use.network";
+    public static final String HAZELCAST_TEST_INTERCEPT_CLUSTER_PROTOCOL_CLASSES = "hazelcast.test.intercept.cluster.protocol";
 
     private TestEnvironment() {
     }
 
     public static boolean isMockNetwork() {
         return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
+    }
+
+    public static boolean isInterceptingClusterProtocolClasses() {
+        return Boolean.getBoolean(HAZELCAST_TEST_INTERCEPT_CLUSTER_PROTOCOL_CLASSES);
     }
 }
