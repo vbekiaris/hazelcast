@@ -30,12 +30,26 @@ import static org.apache.http.HttpStatus.SC_OK;
 
 public class Downloader {
     private static final String MEMBER_URL = "https://repo1.maven.org/maven2/com/hazelcast/hazelcast/%1$s/hazelcast-%1$s.jar";
-    private static final String CLIENT_URL = "https://repo1.maven.org/maven2/com/hazelcast/hazelcast-client/%1$s/hazelcast-client-%1$s.jar";
+    private static final String MEMBER_TESTS_URL =
+            "https://repo1.maven.org/maven2/com/hazelcast/hazelcast/%1$s/hazelcast-%1$s-tests.jar";
+    private static final String CLIENT_URL =
+            "https://repo1.maven.org/maven2/com/hazelcast/hazelcast-client/%1$s/hazelcast-client-%1$s.jar";
+    private static final String CLIENT_TESTS_URL =
+            "https://repo1.maven.org/maven2/com/hazelcast/hazelcast-client/%1$s/hazelcast-client-%1$s-tests.jar";
 
     public static File[] downloadVersion(String version, File target) {
         File[] files = new File[2];
         files[0] = downloadMember(version, target);
         files[1] = downloadClient(version, target);
+        return files;
+    }
+
+    public static File[] downloadVersionWithTests(String version, File target) {
+        File[] files = new File[4];
+        files[0] = downloadMember(version, target);
+        files[1] = downloadClient(version, target);
+        files[2] = downloadMemberTests(version, target);
+        files[3] = downloadClientTests(version, target);
         return files;
     }
 
@@ -47,6 +61,18 @@ public class Downloader {
 
     private static File downloadMember(String version, File target) {
         String url = constructUrlForMember(version);
+        String filename = extractFilenameFromUrl(url);
+        return downloadFile(url, target, filename);
+    }
+
+    private static File downloadMemberTests(String version, File target) {
+        String url = constructUrlForMemberTests(version);
+        String filename = extractFilenameFromUrl(url);
+        return downloadFile(url, target, filename);
+    }
+
+    private static File downloadClientTests(String version, File target) {
+        String url = constructUrlForClientTests(version);
         String filename = extractFilenameFromUrl(url);
         return downloadFile(url, target, filename);
     }
@@ -90,5 +116,13 @@ public class Downloader {
 
     private static String constructUrlForMember(String version) {
         return String.format(MEMBER_URL, version);
+    }
+
+    private static String constructUrlForClientTests(String version) {
+        return String.format(CLIENT_TESTS_URL, version);
+    }
+
+    private static String constructUrlForMemberTests(String version) {
+        return String.format(MEMBER_TESTS_URL, version);
     }
 }
