@@ -20,23 +20,30 @@ import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IMap;
+import com.hazelcast.test.HazelcastSerialClassRunner;
+import com.hazelcast.test.annotation.NightlyTest;
+import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.starter.HazelcastStarter;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+@RunWith(HazelcastSerialClassRunner.class)
+@Category({NightlyTest.class, ParallelTest.class})
 public class HazelcastStarterTest {
 
     @Test
     public void testMember() throws InterruptedException {
-        HazelcastInstance alwaysRunningMember = HazelcastStarter.startHazelcastVersion("3.7");
+        HazelcastInstance alwaysRunningMember = HazelcastStarter.newHazelcastInstance("3.7");
 
         for (int i = 1; i < 6; i++) {
             String version = "3.7." + i;
             System.out.println("Starting member " + version);
-            HazelcastInstance instance = HazelcastStarter.startHazelcastVersion(version);
+            HazelcastInstance instance = HazelcastStarter.newHazelcastInstance(version);
             System.out.println("Stopping member " + version);
             instance.shutdown();
         }
@@ -49,7 +56,7 @@ public class HazelcastStarterTest {
         Config config = new Config();
         config.setInstanceName("test-name");
 
-        HazelcastInstance alwaysRunningMember = HazelcastStarter.startHazelcastVersion("3.7", config);
+        HazelcastInstance alwaysRunningMember = HazelcastStarter.newHazelcastInstance("3.7", config);
 
         assertEquals(alwaysRunningMember.getName(),"test-name");
         alwaysRunningMember.shutdown();
@@ -57,7 +64,7 @@ public class HazelcastStarterTest {
 
     @Test
     public void testClientLifecycle() throws InterruptedException {
-        HazelcastInstance member = HazelcastStarter.startHazelcastVersion("3.7");
+        HazelcastInstance member = HazelcastStarter.newHazelcastInstance("3.7");
 
         for (int i = 1; i < 6; i++) {
             String version = "3.7." + i;
@@ -72,7 +79,7 @@ public class HazelcastStarterTest {
 
     @Test
     public void testClientMap() throws InterruptedException {
-        HazelcastInstance memberInstance = HazelcastStarter.startHazelcastVersion("3.7");
+        HazelcastInstance memberInstance = HazelcastStarter.newHazelcastInstance("3.7");
         HazelcastInstance clientInstance = HazelcastStarter.startHazelcastClientVersion("3.7.2");
 
         IMap<Integer, Integer> clientMap = clientInstance.getMap("myMap");
@@ -88,7 +95,7 @@ public class HazelcastStarterTest {
 
     @Test
     public void testAdvancedClientMap() throws InterruptedException {
-        HazelcastInstance memberInstance = HazelcastStarter.startHazelcastVersion("3.7");
+        HazelcastInstance memberInstance = HazelcastStarter.newHazelcastInstance("3.7");
         HazelcastInstance clientInstance = HazelcastStarter.startHazelcastClientVersion("3.7.2");
 
         System.out.println("About to terminate the client");
@@ -100,7 +107,7 @@ public class HazelcastStarterTest {
 
     @Test
     public void testClientMap_async() throws InterruptedException, ExecutionException {
-        HazelcastInstance memberInstance = HazelcastStarter.startHazelcastVersion("3.7");
+        HazelcastInstance memberInstance = HazelcastStarter.newHazelcastInstance("3.7");
         HazelcastInstance clientInstance = HazelcastStarter.startHazelcastClientVersion("3.7.2");
 
         IMap<Integer, Integer> clientMap = clientInstance.getMap("myMap");
@@ -116,6 +123,7 @@ public class HazelcastStarterTest {
 
     @Test
     public void testConfigCopy() {
+        // TODO
     }
 
 }
