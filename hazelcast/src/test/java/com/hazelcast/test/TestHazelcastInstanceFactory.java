@@ -49,12 +49,13 @@ public class TestHazelcastInstanceFactory {
 
     private static final AtomicInteger PORTS = new AtomicInteger(5000);
 
+    protected final TestNodeRegistry registry;
+
     private final ConcurrentMap<Integer, Address> addressMap = new ConcurrentHashMap<Integer, Address>();
     private final boolean mockNetwork = TestEnvironment.isMockNetwork();
     private final AtomicInteger nodeIndex = new AtomicInteger();
-
     private final int count;
-    private final TestNodeRegistry registry;
+
 
     public TestHazelcastInstanceFactory() {
         this(0);

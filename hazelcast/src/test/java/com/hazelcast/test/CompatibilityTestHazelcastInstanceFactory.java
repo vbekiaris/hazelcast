@@ -18,6 +18,7 @@ package com.hazelcast.test;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.instance.NodeContext;
 import com.hazelcast.nio.Address;
 import com.hazelcast.test.starter.HazelcastStarter;
 
@@ -122,7 +123,7 @@ public class CompatibilityTestHazelcastInstanceFactory extends TestHazelcastInst
         if (nextVersion == CURRENT_VERSION) {
             return super.newHazelcastInstance((Config) null);
         } else {
-            return HazelcastStarter.startHazelcastVersion(nextVersion);
+            return HazelcastStarter.newHazelcastInstance(nextVersion);
         }
     }
 
@@ -130,12 +131,15 @@ public class CompatibilityTestHazelcastInstanceFactory extends TestHazelcastInst
         String nextVersion = nextVersion();
         if (nextVersion == CURRENT_VERSION) {
             System.setProperty(HAZELCAST_INTERNAL_OVERRIDE_VERSION, "3.8");
-            HazelcastInstance hz = super.newHazelcastInstance((Config) null);
+            HazelcastInstance hz = super.newHazelcastInstance(config);
             System.clearProperty(HAZELCAST_INTERNAL_OVERRIDE_VERSION);
             instances.add(hz);
             return hz;
         } else {
-            HazelcastInstance hz = HazelcastStarter.startHazelcastVersion(nextVersion, config);
+            HazelcastInstance hz;
+            NodeContext nodeContext = TestEnvironment.isMockNetwork() ? registry.createNodeContext(nextAddress())
+                    : null;
+            hz = HazelcastStarter.newHazelcastInstance(nextVersion, config, nodeContext);
             instances.add(hz);
             return hz;
         }

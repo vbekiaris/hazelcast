@@ -31,7 +31,7 @@ public class PatchLevelCompatibilityTest {
         String[] versions = new String[]{"3.7", "3.7.1", "3.7.2", "3.7.3", "3.7.4", "3.7.5"};
         HazelcastInstance[] instances = new HazelcastInstance[versions.length];
         for (int i = 0; i < versions.length; i++) {
-            instances[i] = HazelcastStarter.startHazelcastVersion(versions[i]);
+            instances[i] = HazelcastStarter.newHazelcastInstance(versions[i]);
         }
         assertClusterSizeEventually(6, instances[0]);
         for (HazelcastInstance hz : instances) {
@@ -41,8 +41,8 @@ public class PatchLevelCompatibilityTest {
 
     @Test
     public void unitTestIsTheUI_forRealProgrammers() {
-        HazelcastInstance hz374 = HazelcastStarter.startHazelcastVersion("3.7.4");
-        HazelcastInstance hz375 = HazelcastStarter.startHazelcastVersion("3.7.5");
+        HazelcastInstance hz374 = HazelcastStarter.newHazelcastInstance("3.7.4");
+        HazelcastInstance hz375 = HazelcastStarter.newHazelcastInstance("3.7.5");
 
         IMap<Integer, String> map374 = hz374.getMap("myMap");
         map374.put(42, "GUI = Cheating!");

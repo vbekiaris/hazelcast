@@ -25,13 +25,14 @@ public final class TestEnvironment {
     }
 
     public static boolean isMockNetwork() {
-        return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
+        return true;
+//        return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
     }
 
     /**
      * @return {@code true} when compatibility tests are to be executed on a mixed version cluster
      */
     public static boolean isRunningCompatibilityTest() {
-        return Boolean.getBoolean(EXECUTE_COMPATIBILITY_TESTS);
+        return true;
     }
 }
