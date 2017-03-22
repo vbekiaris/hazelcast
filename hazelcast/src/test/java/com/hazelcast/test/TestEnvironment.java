@@ -25,8 +25,7 @@ public final class TestEnvironment {
     }
 
     public static boolean isMockNetwork() {
-        return true;
-//        return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
+        return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
     }
 
     /**

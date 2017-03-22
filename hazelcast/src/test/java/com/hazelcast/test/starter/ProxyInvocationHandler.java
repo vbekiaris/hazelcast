@@ -16,11 +16,6 @@
 
 package com.hazelcast.test.starter;
 
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.implementation.MethodDelegation;
-import net.bytebuddy.matcher.ElementMatchers;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -163,9 +158,7 @@ class ProxyInvocationHandler implements InvocationHandler {
             newArg = HazelcastProxyFactory
                     .generateProxyForInterface(arg, starterClassLoader, delegateIfaces);
         } else {
-            // proxy class via subclassing the existing class implementation in the target starterClassLoader
-            Class<?> delegateClass = starterClassLoader.loadClass(arg.getClass().getName());
-            newArg = proxyWithSubclass(starterClassLoader, arg, delegateClass);
+            throw new UnsupportedOperationException("Concrete class proxying not implemented yet");
         }
         return newArg;
     }
@@ -181,13 +174,7 @@ class ProxyInvocationHandler implements InvocationHandler {
      */
     private Object proxyWithSubclass(ClassLoader starterClassLoader, Object arg, Class<?> delegateClass)
             throws InstantiationException, IllegalAccessException {
-        return new ByteBuddy().subclass(delegateClass)
-                              .method(ElementMatchers.<MethodDescription>any())
-                              .intercept(MethodDelegation.to(arg))
-                              .make()
-                              .load(starterClassLoader)
-                              .getLoaded()
-                              .newInstance();
+        return null;
     }
 
     private Object invokeMethodDelegate(Method methodDelegate, Object[] args) throws Throwable {
