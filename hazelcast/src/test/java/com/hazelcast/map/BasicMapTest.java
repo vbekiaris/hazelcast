@@ -22,6 +22,7 @@ import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MapEvent;
 import com.hazelcast.query.Predicate;
@@ -70,6 +71,7 @@ public class BasicMapTest extends HazelcastTestSupport {
 
     private static final int INSTANCE_COUNT = 3;
     private static final Random RANDOM = new Random();
+    private static final String LISTENER_MAP_NAME = randomMapName();
 
     HazelcastInstance[] instances;
 
@@ -873,107 +875,38 @@ public class BasicMapTest extends HazelcastTestSupport {
 
     @Test
     public void testMapListenersWithValue() {
-        IMap<Object, Object> map = getInstance().getMap("testMapListenersWithValue");
+        HazelcastInstance instance = getInstance();
+        IMap<Object, Object> map = instance.getMap("testMapListenersWithValue");
 
-        final Object[] addedKey = new Object[1];
-        final Object[] addedValue = new Object[1];
-        final Object[] updatedKey = new Object[1];
-        final Object[] oldValue = new Object[1];
-        final Object[] newValue = new Object[1];
-        final Object[] removedKey = new Object[1];
-        final Object[] removedValue = new Object[1];
-
-        EntryListener<Object, Object> listener = new EntryAdapter<Object, Object>() {
-            @Override
-            public void entryAdded(EntryEvent<Object, Object> event) {
-                addedKey[0] = event.getKey();
-                addedValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryRemoved(EntryEvent<Object, Object> event) {
-                removedKey[0] = event.getKey();
-                removedValue[0] = event.getOldValue();
-            }
-
-            @Override
-            public void entryUpdated(EntryEvent<Object, Object> event) {
-                updatedKey[0] = event.getKey();
-                oldValue[0] = event.getOldValue();
-                newValue[0] = event.getValue();
-            }
-
-            public void entryEvicted(EntryEvent<Object, Object> event) {
-            }
-
-            @Override
-            public void mapEvicted(MapEvent event) {
-            }
-
-            @Override
-            public void mapCleared(MapEvent event) {
-            }
-        };
+        TestListener listener = new TestListener(instance, LISTENER_MAP_NAME);
         map.addEntryListener(listener, true);
 
         map.put("key", "value");
         map.put("key", "value2");
         map.remove("key");
-        sleepSeconds(1);
 
-        assertEquals(addedKey[0], "key");
-        assertEquals(addedValue[0], "value");
-        assertEquals(updatedKey[0], "key");
-        assertEquals(oldValue[0], "value");
-        assertEquals(newValue[0], "value2");
-        assertEquals(removedKey[0], "key");
-        assertEquals(removedValue[0], "value2");
+        final IMap results = instance.getMap(LISTENER_MAP_NAME);
+
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() {
+                assertEquals("key", results.get("addedKey"));
+                assertEquals("value", results.get("addedValue"));
+                assertEquals("key", results.get("updatedKey"));
+                assertEquals("value", results.get("oldValue"));
+                assertEquals("value2", results.get("newValue"));
+                assertEquals("key", results.get("removedKey"));
+                assertEquals("value2", results.get("removedValue"));
+            }
+        });
     }
 
     @Test
     public void testMapQueryListener() {
-        IMap<Object, Object> map = getInstance().getMap(randomMapName());
+        HazelcastInstance instance = getInstance();
+        IMap<Object, Object> map = instance.getMap(randomMapName());
 
-        final Object[] addedKey = new Object[1];
-        final Object[] addedValue = new Object[1];
-        final Object[] updatedKey = new Object[1];
-        final Object[] oldValue = new Object[1];
-        final Object[] newValue = new Object[1];
-        final Object[] removedKey = new Object[1];
-        final Object[] removedValue = new Object[1];
-
-        EntryListener<Object, Object> listener = new EntryAdapter<Object, Object>() {
-            @Override
-            public void entryAdded(EntryEvent<Object, Object> event) {
-                addedKey[0] = event.getKey();
-                addedValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryRemoved(EntryEvent<Object, Object> event) {
-                removedKey[0] = event.getKey();
-                removedValue[0] = event.getOldValue();
-            }
-
-            @Override
-            public void entryUpdated(EntryEvent<Object, Object> event) {
-                updatedKey[0] = event.getKey();
-                oldValue[0] = event.getOldValue();
-                newValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryEvicted(EntryEvent<Object, Object> event) {
-            }
-
-            @Override
-            public void mapEvicted(MapEvent event) {
-            }
-
-            @Override
-            public void mapCleared(MapEvent event) {
-            }
-        };
+        TestListener listener = new TestListener(instance, LISTENER_MAP_NAME);
         map.addEntryListener(listener, new StartsWithPredicate("a"), null, true);
 
         map.put("key1", "abc");
@@ -981,85 +914,28 @@ public class BasicMapTest extends HazelcastTestSupport {
         map.put("key2", "axyz");
         map.remove("key1");
 
+        final IMap results = instance.getMap(LISTENER_MAP_NAME);
+
         assertTrueEventually(new AssertTask() {
             @Override
             public void run() {
-                assertEquals("key1", addedKey[0]);
-                assertEquals("abc", addedValue[0]);
-                assertEquals("key2", updatedKey[0]);
-                assertEquals("bcd", oldValue[0]);
-                assertEquals("axyz", newValue[0]);
-                assertEquals("key1", removedKey[0]);
-                assertEquals("abc", removedValue[0]);
+                assertEquals("key1", results.get("addedKey"));
+                assertEquals("abc", results.get("addedValue"));
+                assertEquals("key2", results.get("updatedKey"));
+                assertEquals("bcd", results.get("oldValue"));
+                assertEquals("axyz", results.get("newValue"));
+                assertEquals("key1", results.get("removedKey"));
+                assertEquals("abc", results.get("removedValue"));
             }
         });
     }
 
-    private static class StartsWithPredicate implements Predicate<Object, Object>, Serializable {
-
-        String pref;
-
-        StartsWithPredicate(String pref) {
-            this.pref = pref;
-        }
-
-        @Override
-        public boolean apply(Map.Entry<Object, Object> mapEntry) {
-            String val = (String) mapEntry.getValue();
-            if (val == null) {
-                return false;
-            }
-            if (val.startsWith(pref)) {
-                return true;
-            }
-            return false;
-        }
-    }
-
     @Test
     public void testMapListenersWithValueAndKeyFiltered() {
-        IMap<Object, Object> map = getInstance().getMap("testMapListenersWithValueAndKeyFiltered");
+        HazelcastInstance instance = getInstance();
+        IMap<Object, Object> map = instance.getMap("testMapListenersWithValueAndKeyFiltered");
 
-        final Object[] addedKey = new Object[1];
-        final Object[] addedValue = new Object[1];
-        final Object[] updatedKey = new Object[1];
-        final Object[] oldValue = new Object[1];
-        final Object[] newValue = new Object[1];
-        final Object[] removedKey = new Object[1];
-        final Object[] removedValue = new Object[1];
-
-        EntryListener<Object, Object> listener = new EntryAdapter<Object, Object>() {
-            @Override
-            public void entryAdded(EntryEvent<Object, Object> event) {
-                addedKey[0] = event.getKey();
-                addedValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryRemoved(EntryEvent<Object, Object> event) {
-                removedKey[0] = event.getKey();
-                removedValue[0] = event.getOldValue();
-            }
-
-            @Override
-            public void entryUpdated(EntryEvent<Object, Object> event) {
-                updatedKey[0] = event.getKey();
-                oldValue[0] = event.getOldValue();
-                newValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryEvicted(EntryEvent<Object, Object> event) {
-            }
-
-            @Override
-            public void mapEvicted(MapEvent event) {
-            }
-
-            @Override
-            public void mapCleared(MapEvent event) {
-            }
-        };
+        TestListener listener = new TestListener(instance, LISTENER_MAP_NAME);
         map.addEntryListener(listener, "key", true);
 
         map.put("keyx", "valuex");
@@ -1070,75 +946,49 @@ public class BasicMapTest extends HazelcastTestSupport {
         map.remove("keyx");
         map.remove("key");
         map.remove("keyz");
-        sleepSeconds(1);
 
-        assertEquals(addedKey[0], "key");
-        assertEquals(addedValue[0], "value");
-        assertEquals(updatedKey[0], "key");
-        assertEquals(oldValue[0], "value");
-        assertEquals(newValue[0], "value2");
-        assertEquals(removedKey[0], "key");
-        assertEquals(removedValue[0], "value2");
+        final IMap results = instance.getMap(LISTENER_MAP_NAME);
+
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() {
+                assertEquals("key", results.get("addedKey"));
+                assertEquals("value", results.get("addedValue"));
+                assertEquals("key", results.get("updatedKey"));
+                assertEquals("value", results.get("oldValue"));
+                assertEquals("value2", results.get("newValue"));
+                assertEquals("key", results.get("removedKey"));
+                assertEquals("value2", results.get("removedValue"));
+            }
+        });
     }
 
     @Test
     public void testMapListenersWithoutValue() {
-        IMap<Object, Object> map = getInstance().getMap("testMapListenersWithoutValue");
+        HazelcastInstance instance = getInstance();
+        IMap<Object, Object> map = instance.getMap("testMapListenersWithoutValue");
 
-        final Object[] addedKey = new Object[1];
-        final Object[] addedValue = new Object[1];
-        final Object[] updatedKey = new Object[1];
-        final Object[] oldValue = new Object[1];
-        final Object[] newValue = new Object[1];
-        final Object[] removedKey = new Object[1];
-        final Object[] removedValue = new Object[1];
-
-        EntryListener<Object, Object> listener = new EntryAdapter<Object, Object>() {
-            @Override
-            public void entryAdded(EntryEvent<Object, Object> event) {
-                addedKey[0] = event.getKey();
-                addedValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryRemoved(EntryEvent<Object, Object> event) {
-                removedKey[0] = event.getKey();
-                removedValue[0] = event.getOldValue();
-            }
-
-            @Override
-            public void entryUpdated(EntryEvent<Object, Object> event) {
-                updatedKey[0] = event.getKey();
-                oldValue[0] = event.getOldValue();
-                newValue[0] = event.getValue();
-            }
-
-            @Override
-            public void entryEvicted(EntryEvent<Object, Object> event) {
-            }
-
-            @Override
-            public void mapEvicted(MapEvent event) {
-            }
-
-            @Override
-            public void mapCleared(MapEvent event) {
-            }
-        };
+        TestListener listener = new TestListener(instance, LISTENER_MAP_NAME);
         map.addEntryListener(listener, false);
 
         map.put("key", "value");
         map.put("key", "value2");
         map.remove("key");
-        sleepSeconds(1);
 
-        assertEquals(addedKey[0], "key");
-        assertEquals(addedValue[0], null);
-        assertEquals(updatedKey[0], "key");
-        assertEquals(oldValue[0], null);
-        assertEquals(newValue[0], null);
-        assertEquals(removedKey[0], "key");
-        assertEquals(removedValue[0], null);
+        final IMap results = instance.getMap(LISTENER_MAP_NAME);
+
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() {
+                assertEquals("key", results.get("addedKey"));
+                assertEquals(null, results.get("addedValue"));
+                assertEquals("key", results.get("updatedKey"));
+                assertEquals(null, results.get("oldValue"));
+                assertEquals(null, results.get("newValue"));
+                assertEquals("key", results.get("removedKey"));
+                assertEquals(null, results.get("removedValue"));
+            }
+        });
     }
 
     @Test
@@ -1584,6 +1434,90 @@ public class BasicMapTest extends HazelcastTestSupport {
         @Override
         public void processBackup(Map.Entry<Integer, Integer> entry) {
             entry.setValue(entry.getValue() + 1);
+        }
+    }
+
+    private static class TestListener extends EntryAdapter<Object, Object> implements
+                                                                            HazelcastInstanceAware {
+
+        private final String resultsMapName;
+        private transient HazelcastInstance instance;
+
+        public TestListener(String resultsMapName) {
+            this.resultsMapName = resultsMapName;
+        }
+
+        public TestListener(HazelcastInstance instance, String resultsMapName) {
+            this.resultsMapName = resultsMapName;
+            this.instance = instance;
+        }
+
+        @Override
+        public void entryAdded(EntryEvent<Object, Object> event) {
+            IMap<Object, Object> resultsMap = instance.getMap(resultsMapName);
+            resultsMap.put("addedKey", event.getKey());
+            if (event.getValue() != null) {
+                resultsMap.put("addedValue", event.getValue());
+            }
+        }
+
+        @Override
+        public void entryRemoved(EntryEvent<Object, Object> event) {
+            IMap<Object, Object> resultsMap = instance.getMap(resultsMapName);
+            resultsMap.put("removedKey", event.getKey());
+            if (event.getOldValue() != null) {
+                resultsMap.put("removedValue", event.getOldValue());
+            }
+        }
+
+        @Override
+        public void entryUpdated(EntryEvent<Object, Object> event) {
+            IMap<Object, Object> resultsMap = instance.getMap(resultsMapName);
+            resultsMap.put("updatedKey", event.getKey());
+            if (event.getOldValue() != null) {
+                resultsMap.put("oldValue", event.getOldValue());
+            }
+            if (event.getValue() != null) {
+                resultsMap.put("newValue", event.getValue());
+            }
+        }
+
+        @Override
+        public void entryEvicted(EntryEvent<Object, Object> event) {
+        }
+
+        @Override
+        public void mapEvicted(MapEvent event) {
+        }
+
+        @Override
+        public void mapCleared(MapEvent event) {
+        }
+
+        @Override
+        public void setHazelcastInstance(HazelcastInstance hazelcastInstance) {
+            this.instance = hazelcastInstance;
+        }
+    }
+
+    private static class StartsWithPredicate implements Predicate<Object, Object>, Serializable {
+
+        String pref;
+
+        StartsWithPredicate(String pref) {
+            this.pref = pref;
+        }
+
+        @Override
+        public boolean apply(Map.Entry<Object, Object> mapEntry) {
+            String val = (String) mapEntry.getValue();
+            if (val == null) {
+                return false;
+            }
+            if (val.startsWith(pref)) {
+                return true;
+            }
+            return false;
         }
     }
 }

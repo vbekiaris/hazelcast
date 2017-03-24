@@ -16,6 +16,7 @@
 
 package com.hazelcast.test.starter;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -30,9 +31,9 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-class ProxyInvocationHandler implements InvocationHandler {
-    private final Object delegate;
+class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
+    private final Object delegate;
 
     ProxyInvocationHandler(Object delegate) {
         this.delegate = delegate;
