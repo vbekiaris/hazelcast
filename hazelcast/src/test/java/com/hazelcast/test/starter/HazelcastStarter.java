@@ -26,10 +26,16 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.test.TestEnvironment.isMockNetwork;
+import static com.hazelcast.util.ExceptionUtil.rethrow;
 
 public class HazelcastStarter {
+
+    private static final ConcurrentMap<String, HazelcastVersionClassloaderFuture> loadedVersions =
+            new ConcurrentHashMap<String, HazelcastVersionClassloaderFuture>();
 
     public static HazelcastInstance newHazelcastInstance(String version) {
         return newHazelcastInstance(version, null);
@@ -48,25 +54,38 @@ public class HazelcastStarter {
 
     public static HazelcastInstance newHazelcastInstance(String version, Config configTemplate,
                                                          NodeContext nodeContextTemplate) {
-        File versionDir = getOrCreateVersionVersionDirectory(version);
-        File[] files;
-        if (isMockNetwork()) {
-            files = Downloader.downloadVersionWithTests(version, versionDir);
-        } else {
-            files = Downloader.downloadVersion(version, versionDir);
+        HazelcastAPIDelegatingClassloader versionClassLoader = null;
+        HazelcastVersionClassloaderFuture future = loadedVersions.get(version);
+
+        if (future != null) {
+            versionClassLoader = future.get();
         }
-        URL[] urls = fileIntoUrls(files);
-        ClassLoader parentClassloader = HazelcastStarter.class.getClassLoader();
-        HazelcastAPIDelegatingClassloader classloader = new HazelcastAPIDelegatingClassloader(urls, parentClassloader);
+
+        future = new HazelcastVersionClassloaderFuture(version);
+        HazelcastVersionClassloaderFuture found = loadedVersions.putIfAbsent(version, future);
+
+        if (found != null) {
+            versionClassLoader = found.get();
+        }
+
+        if (versionClassLoader == null) {
+            try {
+                versionClassLoader = future.get();
+            } catch (Throwable t) {
+                loadedVersions.remove(version, future);
+                throw rethrow(t);
+            }
+        }
+
         ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(null);
         try {
             if (!isMockNetwork()) {
-                return newHazelcastMemberWithNetwork(configTemplate, classloader);
+                return newHazelcastMemberWithNetwork(configTemplate, versionClassLoader);
             } else {
                 String instanceName =  configTemplate != null ? configTemplate.getInstanceName() : null;
                 return newHazelcastMemberWithMockNetwork(configTemplate, instanceName, nodeContextTemplate,
-                        classloader);
+                        versionClassLoader);
             }
         } catch (ClassNotFoundException e) {
             throw Utils.rethrow(e);
@@ -210,5 +229,35 @@ public class HazelcastStarter {
         File versionDir = new File(Configuration.WORKING_DIRECTORY, version);
         versionDir.mkdir();
         return versionDir;
+    }
+
+    private static class HazelcastVersionClassloaderFuture {
+        private final String version;
+
+        private HazelcastAPIDelegatingClassloader classLoader;
+
+        HazelcastVersionClassloaderFuture(String version) {
+            this.version = version;
+        }
+
+        public HazelcastAPIDelegatingClassloader get() {
+            if (classLoader != null) {
+                return classLoader;
+            }
+
+            synchronized (this) {
+                File versionDir = getOrCreateVersionVersionDirectory(version);
+                File[] files;
+                if (isMockNetwork()) {
+                    files = Downloader.downloadVersionWithTests(version, versionDir);
+                } else {
+                    files = Downloader.downloadVersion(version, versionDir);
+                }
+                URL[] urls = fileIntoUrls(files);
+                ClassLoader parentClassloader = HazelcastStarter.class.getClassLoader();
+                classLoader = new HazelcastAPIDelegatingClassloader(urls, parentClassloader);
+                return classLoader;
+            }
+        }
     }
 }

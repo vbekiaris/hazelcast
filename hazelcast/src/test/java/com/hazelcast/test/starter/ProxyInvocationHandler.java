@@ -25,6 +25,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
@@ -110,7 +111,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * @return                  a proxy to delegate
      */
     private Object proxyReturnObject(ClassLoader targetClassLoader, Class<?> returnClass, Object delegate) {
-        Class<?>[] interfaces = getAllInterfaces(returnClass);
+        Class<?>[] interfaces = getAllInterfacesIncludingSelf(returnClass);
         Object resultingProxy = HazelcastProxyFactory
                 .generateProxyForInterface(delegate, targetClassLoader, interfaces);
         printInfoAboutResultProxy(resultingProxy);
@@ -147,7 +148,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      */
     private Object proxyObjectForStarter(ClassLoader starterClassLoader, Object arg)
             throws ClassNotFoundException, InstantiationException, IllegalAccessException {
-        Class<?>[] ifaces = getAllInterfaces(arg.getClass());
+        Class<?>[] ifaces = getAllInterfacesIncludingSelf(arg.getClass());
         Class<?>[] delegateIfaces = new Class<?>[ifaces.length];
         Object newArg;
         if (ifaces.length > 0) {
@@ -222,20 +223,13 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * @param type
      * @return
      */
-    private Class<?>[] getAllInterfaces(Class<?> type) {
+    private Class<?>[] getAllInterfacesIncludingSelf(Class<?> type) {
         Set<Class<?>> interfaces = new HashSet<Class<?>>();
-        interfaces.addAll(Arrays.asList(type.getInterfaces()));
+        interfaces.addAll(Arrays.asList(getAllInterfaces(type)));
         //if the return type itself is an interface then we have to add it
         //to the list of interfaces implemented by the proxy
         if (type.isInterface()) {
             interfaces.add(type);
-        }
-
-        // also traverse superclass hierarchy and append all interfaces implemented by supertypes
-        Class<?> hierarchyIteratingClass = type.getSuperclass();
-        while (hierarchyIteratingClass != null) {
-            interfaces.addAll(Arrays.asList(hierarchyIteratingClass.getInterfaces()));
-            hierarchyIteratingClass = hierarchyIteratingClass.getSuperclass();
         }
         return interfaces.toArray(new Class<?>[0]);
     }
@@ -283,5 +277,30 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         Class<?> returnClass = proxyMethod.getReturnType();
         Class<?> delegateReturnClass = delegateMethod.getReturnType();
         return !(returnClass.equals(delegateReturnClass));
+    }
+
+
+    // copied over from upstream/master/ClassLoaderUtil
+    private static Class<?>[] getAllInterfaces(Class<?> clazz) {
+        Collection<Class<?>> interfaces = new HashSet<Class<?>>();
+        addOwnInterfaces(clazz, interfaces);
+        addInterfacesOfSuperclasses(clazz, interfaces);
+        return interfaces.toArray(new Class<?>[0]);
+    }
+
+    private static void addOwnInterfaces(Class<?> clazz, Collection<Class<?>> allInterfaces) {
+        Class<?>[] interfaces = clazz.getInterfaces();
+        Collections.addAll(allInterfaces, interfaces);
+        for (Class cl : interfaces) {
+            addOwnInterfaces(cl, allInterfaces);
+        }
+    }
+
+    private static void addInterfacesOfSuperclasses(Class<?> clazz, Collection<Class<?>> interfaces) {
+        Class<?> superClass = clazz.getSuperclass();
+        while (superClass != null) {
+            addOwnInterfaces(superClass, interfaces);
+            superClass = superClass.getSuperclass();
+        }
     }
 }
