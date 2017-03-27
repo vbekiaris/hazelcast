@@ -16,6 +16,11 @@
 
 package com.hazelcast.test.starter;
 
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.implementation.InvocationHandlerAdapter;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.matcher.ElementMatchers;
+
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -33,6 +38,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 class ProxyInvocationHandler implements InvocationHandler, Serializable {
+
+    private static final Set<String> JDK_PROXYING_BLACKLIST;
+
+    static {
+        HashSet<String> classNames = new HashSet<String>();
+        classNames.add("com.hazelcast.core.EntryEvent");
+        classNames.add("com.hazelcast.map.impl.DataAwareEntryEvent");
+        JDK_PROXYING_BLACKLIST = classNames;
+    }
 
     private final Object delegate;
 
@@ -151,7 +165,11 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         Class<?>[] ifaces = getAllInterfacesIncludingSelf(arg.getClass());
         Class<?>[] delegateIfaces = new Class<?>[ifaces.length];
         Object newArg;
-        if (ifaces.length > 0) {
+        if (shouldSubclassWithProxy(arg.getClass(), ifaces)) {
+            // proxy class via subclassing the existing class implementation in the target starterClassLoader
+            Class<?> delegateClass = starterClassLoader.loadClass(arg.getClass().getName());
+            newArg = proxyWithSubclass(starterClassLoader, arg, delegateClass);
+        } else {
             for (int j = 0; j < ifaces.length; j++) {
                 Class<?> clazz = ifaces[j];
                 Class<?> delegateInterface = starterClassLoader.loadClass(clazz.getName());
@@ -159,8 +177,6 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             }
             newArg = HazelcastProxyFactory
                     .generateProxyForInterface(arg, starterClassLoader, delegateIfaces);
-        } else {
-            throw new UnsupportedOperationException("Concrete class proxying not implemented yet");
         }
         return newArg;
     }
@@ -176,7 +192,14 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      */
     private Object proxyWithSubclass(ClassLoader starterClassLoader, Object arg, Class<?> delegateClass)
             throws InstantiationException, IllegalAccessException {
-        return null;
+        Class<?> subclass = new ByteBuddy().subclass(delegateClass)
+                              .method(ElementMatchers.isDeclaredBy(delegateClass))
+                              .intercept(InvocationHandlerAdapter.of(new ProxyInvocationHandler(arg)))
+                              .make()
+                              .load(starterClassLoader)
+                              .getLoaded();
+        // todo: construction of subclasses, oh f**k
+        return subclass.newInstance();
     }
 
     private Object invokeMethodDelegate(Method methodDelegate, Object[] args) throws Throwable {
@@ -219,7 +242,26 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
 
     /**
-     * Recursively
+     *
+     * @param delegateClass  class of object to be proxied
+     * @param ifaces         interfaces implemented by delegateClass
+     * @return
+     */
+    private boolean shouldSubclassWithProxy(Class<?> delegateClass, Class<?>[] ifaces) {
+        String className = delegateClass.getName();
+        if (JDK_PROXYING_BLACKLIST.contains(className)) {
+            return true;
+        }
+
+        if (ifaces.length == 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Return all interfaces implemented by {@code type}, along with {@code type} itself if it is an interface
      * @param type
      * @return
      */

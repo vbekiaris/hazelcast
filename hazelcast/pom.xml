@@ -432,5 +432,18 @@
             <version>2.1.4</version>
             <scope>test</scope>
         </dependency>
+        <!-- Required for compatibility testing -->
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+            <version>1.6.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy-agent</artifactId>
+            <version>1.6.12</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

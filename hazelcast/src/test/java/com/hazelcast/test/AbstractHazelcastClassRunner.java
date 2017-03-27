@@ -20,7 +20,15 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.annotation.Repeat;
 import com.hazelcast.test.bounce.BounceMemberRule;
+import com.hazelcast.test.starter.HazelcastAPIDelegatingClassloader;
 import com.hazelcast.util.EmptyStatement;
+import net.bytebuddy.agent.ByteBuddyAgent;
+import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.JavaModule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,6 +42,7 @@ import org.junit.runners.model.Statement;
 import org.junit.runners.model.TestClass;
 
 import java.lang.annotation.Annotation;
+import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -56,6 +65,8 @@ import static java.lang.Integer.getInteger;
  */
 public abstract class AbstractHazelcastClassRunner extends AbstractParameterizedHazelcastClassRunner {
 
+    static final Instrumentation AGENT_INSTRUMENTATION;
+
     private static final int DEFAULT_TEST_TIMEOUT_IN_SECONDS = getInteger("hazelcast.test.defaultTestTimeoutInSeconds", 300);
     private static final boolean THREAD_DUMP_ON_FAILURE;
 
@@ -65,9 +76,30 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
 
     static {
         if (isRunningCompatibilityTest()) {
+            AGENT_INSTRUMENTATION = ByteBuddyAgent.install();
+            new AgentBuilder.Default()
+                    .type(new ElementMatcher<TypeDescription>() {
+                        @Override
+                        public boolean matches(TypeDescription target) {
+                            return (target.getClass().getClassLoader() instanceof HazelcastAPIDelegatingClassloader
+                                    && (target.getName().startsWith("com.hazelcast")));
+                        }
+                    })
+                    .transform(new AgentBuilder.Transformer() {
+                        @Override
+                        public DynamicType.Builder<?> transform(DynamicType.Builder<?> builder,
+                                                                TypeDescription typeDescription,
+                                                                ClassLoader classLoader, JavaModule module) {
+                            int actualModifiers = typeDescription.getActualModifiers(false);
+                            // unset final modifier
+                            int nonFinalModifiers = actualModifiers & ~Opcodes.ACC_FINAL;
+                            return builder.modifiers(nonFinalModifiers);
+                        }
+                    }).installOn(AGENT_INSTRUMENTATION);
             System.out.println("Running compatibility tests.");
             System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "true");
         } else {
+            AGENT_INSTRUMENTATION = null;
             TestLoggingUtils.initializeLogging();
             if (System.getProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK) == null) {
                 System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "false");

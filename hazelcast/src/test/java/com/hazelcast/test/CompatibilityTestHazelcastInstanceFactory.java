@@ -33,7 +33,7 @@ import static com.hazelcast.instance.BuildInfoProvider.HAZELCAST_INTERNAL_OVERRI
  */
 public class CompatibilityTestHazelcastInstanceFactory extends TestHazelcastInstanceFactory {
 
-    private static final String[] VERSIONS = new String[] {"3.8"};
+    private static final String[] VERSIONS = new String[] {"3.8", "3.8", "3.8"};
     private static final String CURRENT_VERSION = "";
 
     // keep track of number of created instances
