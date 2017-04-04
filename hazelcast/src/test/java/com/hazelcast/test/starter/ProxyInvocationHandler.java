@@ -18,10 +18,11 @@ package com.hazelcast.test.starter;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
-import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.matcher.ElementMatchers;
 
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -33,9 +34,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+
+import static com.hazelcast.util.Preconditions.checkHasText;
+import static com.hazelcast.util.Preconditions.checkNotNull;
+import static net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default.IMITATE_SUPER_CLASS;
 
 class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
@@ -64,7 +72,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         Type returnType = method.getGenericReturnType();
         Type delegateReturnType = methodDelegate.getGenericReturnType();
         ClassLoader delegateClassClassLoader = delegateClass.getClassLoader();
-        Object[] newArgs = proxyArgumentsIfNeeded(proxy, args, delegateClassClassLoader);
+        Object[] newArgs = proxyArgumentsIfNeeded(args, delegateClassClassLoader);
         Object delegateResult = invokeMethodDelegate(methodDelegate, newArgs);
         if (!shouldProxy(method, methodDelegate, delegateResult)) {
             return delegateResult;
@@ -132,8 +140,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         return resultingProxy;
     }
 
-    private Object[] proxyArgumentsIfNeeded(Object proxy, Object[] args, ClassLoader delegateClassClassLoader)
-            throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+    private Object[] proxyArgumentsIfNeeded(Object[] args, ClassLoader delegateClassClassLoader)
+            throws ClassNotFoundException, IllegalAccessException, InstantiationException,
+            NoSuchMethodException, InvocationTargetException {
         if (args == null) {
             return null;
         }
@@ -161,7 +170,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * @throws IllegalAccessException
      */
     private Object proxyObjectForStarter(ClassLoader starterClassLoader, Object arg)
-            throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException,
+            NoSuchMethodException, InvocationTargetException {
         Class<?>[] ifaces = getAllInterfacesIncludingSelf(arg.getClass());
         Class<?>[] delegateIfaces = new Class<?>[ifaces.length];
         Object newArg;
@@ -191,15 +201,79 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * @throws IllegalAccessException
      */
     private Object proxyWithSubclass(ClassLoader starterClassLoader, Object arg, Class<?> delegateClass)
-            throws InstantiationException, IllegalAccessException {
-        Class<?> subclass = new ByteBuddy().subclass(delegateClass)
+            throws InstantiationException, IllegalAccessException, NoSuchMethodException,
+            InvocationTargetException, ClassNotFoundException {
+        ByteBuddy bb = new ByteBuddy();
+
+        Class<?> subclass = bb.subclass(delegateClass, IMITATE_SUPER_CLASS)
                               .method(ElementMatchers.isDeclaredBy(delegateClass))
                               .intercept(InvocationHandlerAdapter.of(new ProxyInvocationHandler(arg)))
                               .make()
                               .load(starterClassLoader)
                               .getLoaded();
+
         // todo: construction of subclasses, oh f**k
-        return subclass.newInstance();
+        return constructSubclass(starterClassLoader, subclass, arg);
+    }
+
+    private Object constructSubclass(ClassLoader starterClassLoader, Class<?> subclass, Object delegate)
+            throws IllegalAccessException, InstantiationException, ClassNotFoundException,
+            NoSuchMethodException, InvocationTargetException {
+        String className = delegate.getClass().getName();
+        if (className.equals("com.hazelcast.map.impl.DataAwareEntryEvent")) {
+            return proxyDataAwareEntryEvent(starterClassLoader, subclass, delegate);
+        } else if (className.equals("com.hazelcast.core.LifecycleEvent")) {
+            return proxyLifecycleEvent(starterClassLoader, subclass, delegate);
+        } else {
+            throw new UnsupportedOperationException("Cannot proxy " + delegate.getClass());
+        }
+    }
+
+    private Object proxyDataAwareEntryEvent(ClassLoader starterClassLoader, Class<?> subclass,
+                                            Object delegate)
+            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            InvocationTargetException, InstantiationException {
+        // locate required classes on target class loader
+        Class<?> dataClass = starterClassLoader.loadClass("com.hazelcast.nio.serialization.Data");
+        Class<?> memberClass = starterClassLoader.loadClass("com.hazelcast.core.Member");
+        Class<?> serServiceClass = starterClassLoader.loadClass("com.hazelcast.spi.serialization.SerializationService");
+        Constructor<?> constructor = subclass.getConstructor(memberClass, Integer.TYPE, String.class, dataClass,
+                dataClass, dataClass, dataClass, serServiceClass);
+
+        Object serializationService = getFieldValueReflectively(delegate, "serializationService");
+        Object source = getFieldValueReflectively(delegate, "source");
+        Object member = getFieldValueReflectively(delegate, "member");
+        Object entryEventType = getFieldValueReflectively(delegate, "entryEventType");
+        Integer eventTypeId = (Integer) entryEventType.getClass().getMethod("getType").invoke(entryEventType);
+        Object dataKey = getFieldValueReflectively(delegate, "dataKey");
+        Object dataNewValue = getFieldValueReflectively(delegate, "dataNewValue");
+        Object dataOldValue = getFieldValueReflectively(delegate, "dataOldValue");
+        Object dataMergingValue = getFieldValueReflectively(delegate, "dataMergingValue");
+
+        Object[] args = new Object[] {member, eventTypeId.intValue(), source,
+                                      dataKey, dataNewValue,
+                                      dataOldValue, dataMergingValue,
+                                      serializationService};
+
+        Object[] proxiedArgs = proxyArgumentsIfNeeded(args, starterClassLoader);
+
+        return constructor.newInstance(proxiedArgs);
+    }
+
+    // todo not working atm
+    private Object proxyLifecycleEvent(ClassLoader starterClassLoader, Class<?> subclass,
+                                            Object delegate)
+            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            InvocationTargetException, InstantiationException {
+        // locate required classes on target class loader
+        Class<?> stateClass = starterClassLoader.loadClass("com.hazelcast.core.LifecycleEvent$LifecycleState");
+        Constructor<?> constructor = subclass.getConstructor(stateClass);
+
+        Object state = getFieldValueReflectively(delegate, "state");
+        Object[] args = new Object[] {state};
+        Object[] proxiedArgs = proxyArgumentsIfNeeded(args, starterClassLoader);
+
+        return constructor.newInstance(proxiedArgs);
     }
 
     private Object invokeMethodDelegate(Method methodDelegate, Object[] args) throws Throwable {
@@ -344,5 +418,36 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             addOwnInterfaces(superClass, interfaces);
             superClass = superClass.getSuperclass();
         }
+    }
+
+    private Object getFieldValueReflectively(Object arg, String fieldName)
+            throws IllegalAccessException {
+        checkNotNull(arg, "Argument cannot be null");
+        checkHasText(fieldName, "Field name cannot be null");
+
+        Field field = getAllFieldsByName(arg.getClass()).get(fieldName);
+        if (field == null) {
+            throw new NoSuchFieldError("Field " + fieldName + " does not exist on object " + arg);
+        }
+
+        field.setAccessible(true);
+        return field.get(arg);
+    }
+
+    private static Map<String, Field> getAllFieldsByName(Class<?> clazz) {
+        ConcurrentMap<String, Field> fields = new ConcurrentHashMap<String, Field>();
+        Field[] ownFields = clazz.getDeclaredFields();
+        for (Field field : ownFields) {
+            fields.put(field.getName(), field);
+        }
+        Class<?> superClass = clazz.getSuperclass();
+        while (superClass != null) {
+            ownFields = superClass.getDeclaredFields();
+            for (Field field : ownFields) {
+                fields.putIfAbsent(field.getName(), field);
+            }
+            superClass = superClass.getSuperclass();
+        }
+        return fields;
     }
 }

@@ -81,8 +81,7 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
                     .type(new ElementMatcher<TypeDescription>() {
                         @Override
                         public boolean matches(TypeDescription target) {
-                            return (target.getClass().getClassLoader() instanceof HazelcastAPIDelegatingClassloader
-                                    && (target.getName().startsWith("com.hazelcast")));
+                            return target.getName().startsWith("com.hazelcast");
                         }
                     })
                     .transform(new AgentBuilder.Transformer() {

@@ -18,20 +18,26 @@ package com.hazelcast.cache;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.HazelcastParallelClassRunner;
+import com.hazelcast.test.TestEnvironment;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import com.hazelcast.test.annotation.CompatibilityTest;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 @RunWith(HazelcastParallelClassRunner.class)
-@Category({QuickTest.class, ParallelTest.class})
+@Category({QuickTest.class, ParallelTest.class, CompatibilityTest.class})
 public class CacheBasicServerTest extends CacheBasicAbstractTest {
 
-    TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory();
+    TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(3);
 
     @Override
     protected void onSetup() {
+        if (TestEnvironment.isRunningCompatibilityTest()) {
+            factory.newHazelcastInstance();
+            factory.newHazelcastInstance();
+        }
     }
 
     @Override
