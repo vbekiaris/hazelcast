@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.test.TestEnvironment.isMockNetwork;
+import static com.hazelcast.test.starter.HazelcastProxyFactory.proxyObjectForStarter;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 
 public class HazelcastStarter {
@@ -117,7 +118,7 @@ public class HazelcastStarter {
         Method newHazelcastInstanceMethod = hazelcastClass.getMethod("newHazelcastInstance", configClass);
         Object delegate = newHazelcastInstanceMethod.invoke(null, config);
 
-        return HazelcastProxyFactory.proxy(delegate);
+        return (HazelcastInstance) proxyObjectForStarter(HazelcastStarter.class.getClassLoader(), delegate);
     }
 
     private static HazelcastInstance newHazelcastMemberWithMockNetwork(Config configTemplate,
@@ -139,7 +140,7 @@ public class HazelcastStarter {
                             configClass, String.class, nodeContextClass);
         Object delegate = newHazelcastInstanceMethod.invoke(null, config, instanceName, nodeContext);
 
-        return HazelcastProxyFactory.proxy(delegate);
+        return (HazelcastInstance) proxyObjectForStarter(HazelcastStarter.class.getClassLoader(), delegate);
     }
 
     private static Object getConfig(Config configTemplate, HazelcastAPIDelegatingClassloader classloader,
@@ -165,8 +166,7 @@ public class HazelcastStarter {
             Class<?> defaultNodeContextClass = classloader.loadClass("com.hazelcast.instance.DefaultNodeContext");
             nodeContext = defaultNodeContextClass.newInstance();
         } else {
-            Class<?> nodeContextClass = classloader.loadClass("com.hazelcast.instance.NodeContext");
-            nodeContext = HazelcastProxyFactory.generateProxyForInterface(nodeContextTemplate, classloader, nodeContextClass);
+            nodeContext = proxyObjectForStarter(classloader, nodeContextTemplate);
         }
         return nodeContext;
     }
@@ -189,7 +189,7 @@ public class HazelcastStarter {
 
             Method newHazelcastInstanceMethod = hazelcastClass.getMethod("newHazelcastClient", configClass);
             Object delegate = newHazelcastInstanceMethod.invoke(null, config);
-            return HazelcastProxyFactory.proxy(delegate);
+            return (HazelcastInstance) proxyObjectForStarter(HazelcastStarter.class.getClassLoader(), delegate);
 
         } catch (ClassNotFoundException e) {
             throw Utils.rethrow(e);

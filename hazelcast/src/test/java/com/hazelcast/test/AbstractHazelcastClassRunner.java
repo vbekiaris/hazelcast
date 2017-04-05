@@ -94,7 +94,8 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
                             int nonFinalModifiers = actualModifiers & ~Opcodes.ACC_FINAL;
                             return builder.modifiers(nonFinalModifiers);
                         }
-                    }).installOn(AGENT_INSTRUMENTATION);
+                    })
+                    .installOn(AGENT_INSTRUMENTATION);
             System.out.println("Running compatibility tests.");
             System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "true");
         } else {
