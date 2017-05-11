@@ -25,7 +25,6 @@ import com.hazelcast.instance.NodeExtensionFactory;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ConnectionManager;
 import com.hazelcast.nio.NodeIOService;
-import com.hazelcast.nio.tcp.FirewallingConnectionManager;
 import com.hazelcast.nio.tcp.FirewallingMockConnectionManager;
 import com.hazelcast.test.TestEnvironment;
 import com.hazelcast.test.compatibility.ClassRecordingNodeExtension;
