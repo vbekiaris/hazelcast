@@ -12,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package com.hazelcast.test.mocknetwork;
@@ -26,7 +25,9 @@ import com.hazelcast.instance.NodeExtensionFactory;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ConnectionManager;
 import com.hazelcast.nio.NodeIOService;
-import com.hazelcast.nio.tcp.FirewallingMockConnectionManager;
+import com.hazelcast.nio.tcp.FirewallingConnectionManager;
+import com.hazelcast.test.TestEnvironment;
+import com.hazelcast.test.compatibility.ClassRecordingNodeExtension;
 
 import java.nio.channels.ServerSocketChannel;
 import java.util.Collections;
@@ -50,7 +51,12 @@ public class MockNodeContext implements NodeContext {
 
     @Override
     public NodeExtension createNodeExtension(Node node) {
-        return NodeExtensionFactory.create(node);
+        NodeExtension nodeExtension = NodeExtensionFactory.create(node);
+        if (TestEnvironment.isRecordingSerializedClassNames()) {
+            return new ClassRecordingNodeExtension(nodeExtension);
+        } else {
+            return nodeExtension;
+        }
     }
 
     public AddressPicker createAddressPicker(Node node) {

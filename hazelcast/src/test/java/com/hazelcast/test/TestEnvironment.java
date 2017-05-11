@@ -19,11 +19,22 @@ package com.hazelcast.test;
 public final class TestEnvironment {
 
     public static final String HAZELCAST_TEST_USE_NETWORK = "hazelcast.test.use.network";
+    // if defined, should indicate an existing path where files will be created to dump the names of classes
+    // which were actually serialized/deserialized during test suite execution. One file per JVM is created.
+    public static final String RECORD_SERIALIZED_CLASS_NAMES = "hazelcast.test.record.serialized.class.names";
 
     private TestEnvironment() {
     }
 
     public static boolean isMockNetwork() {
         return !Boolean.getBoolean(HAZELCAST_TEST_USE_NETWORK);
+    }
+
+    public static boolean isRecordingSerializedClassNames() {
+        return System.getProperty(RECORD_SERIALIZED_CLASS_NAMES) != null;
+    }
+
+    public static String getSerializedClassNamesPath() {
+        return System.getProperty(RECORD_SERIALIZED_CLASS_NAMES);
     }
 }
