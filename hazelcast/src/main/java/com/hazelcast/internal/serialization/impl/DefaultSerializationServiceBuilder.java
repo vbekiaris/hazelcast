@@ -36,6 +36,7 @@ import com.hazelcast.nio.serialization.PortableFactory;
 import com.hazelcast.nio.serialization.Serializer;
 import com.hazelcast.nio.serialization.SerializerHook;
 import com.hazelcast.spi.properties.GroupProperty;
+import com.hazelcast.test.compatibility.ClassRecordingSerializationService;
 
 import java.nio.ByteOrder;
 import java.util.HashMap;
@@ -264,7 +265,7 @@ public class DefaultSerializationServiceBuilder
     protected InternalSerializationService createSerializationService(InputOutputFactory inputOutputFactory) {
         switch (version) {
             case 1:
-                SerializationServiceV1 serializationServiceV1 = new SerializationServiceV1(inputOutputFactory, version,
+                SerializationServiceV1 serializationServiceV1 = new ClassRecordingSerializationService(inputOutputFactory, version,
                         portableVersion, classLoader, dataSerializableFactories, portableFactories, managedContext,
                         partitioningStrategy, initialOutputBufferSize, new BufferPoolFactoryImpl(), enableCompression,
                         enableSharedObject);

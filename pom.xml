@@ -253,6 +253,7 @@
                         -Dhazelcast.phone.home.enabled=false
                         -Dhazelcast.mancenter.enabled=false
                         -Dhazelcast.test.use.network=false
+			-Dhazelcast.test.record.serialized.class.names=/Users/bekiarisv/tmp/class-recorder
                     </argLine>
                     <includes>
                         <include>**/**.java</include>

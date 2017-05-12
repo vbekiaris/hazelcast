@@ -103,12 +103,12 @@ public abstract class AbstractSerializationService implements InternalSerializat
 
     //region Serialization Service
     @Override
-    public final <B extends Data> B toData(Object obj) {
+    public <B extends Data> B toData(Object obj) {
         return toData(obj, globalPartitioningStrategy);
     }
 
     @Override
-    public final <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
+    public <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
         if (obj == null) {
             return null;
         }
@@ -158,7 +158,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T toObject(final Object object) {
+    public <T> T toObject(final Object object) {
         if (!(object instanceof Data)) {
             return (T) object;
         }
@@ -195,7 +195,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T toObject(final Object object, Class aClass) {
+    public <T> T toObject(final Object object, Class aClass) {
         if (!(object instanceof Data)) {
             return (T) object;
         }
@@ -238,7 +238,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final void writeObject(final ObjectDataOutput out, final Object obj) {
+    public void writeObject(final ObjectDataOutput out, final Object obj) {
         if (obj instanceof Data) {
             throw new HazelcastSerializationException(
                     "Cannot write a Data instance! " + "Use #writeData(ObjectDataOutput out, Data data) instead.");
@@ -253,7 +253,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T readObject(final ObjectDataInput in) {
+    public <T> T readObject(final ObjectDataInput in) {
         try {
             final int typeId = in.readInt();
             final SerializerAdapter serializer = serializerFor(typeId);
@@ -274,7 +274,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T readObject(final ObjectDataInput in, Class aClass) {
+    public <T> T readObject(final ObjectDataInput in, Class aClass) {
         try {
             final int typeId = in.readInt();
             final SerializerAdapter serializer = serializerFor(typeId);
