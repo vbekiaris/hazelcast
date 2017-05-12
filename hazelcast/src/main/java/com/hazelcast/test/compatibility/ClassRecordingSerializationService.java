@@ -99,6 +99,9 @@ public class ClassRecordingSerializationService extends SerializationServiceV1 {
         if (klass.isPrimitive())
             return;
 
+        if (klass.getName().contains("Test") || klass.getName().contains(".test"))
+            return;
+
         CLASS_NAMES.add(klass.getName());
     }
 
