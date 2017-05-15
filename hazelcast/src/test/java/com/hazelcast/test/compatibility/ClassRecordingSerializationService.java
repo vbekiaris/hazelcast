@@ -56,6 +56,8 @@ import static java.lang.String.format;
 public class ClassRecordingSerializationService implements InternalSerializationService {
 
     public static final String FILE_NAME = TestEnvironment.getSerializedClassNamesPath() + randomString();
+    public static final String SAMPLES_FILE_SUFFIX = ".samples";
+    public static final String INDEX_FILE_SUFFIX = ".index";
 
     private static final int MAX_SERIALIZED_SAMPLES_PER_CLASS = 3;
     private static final SortedSet<String> CLASS_NAMES = new ConcurrentSkipListSet<String>();
@@ -247,10 +249,10 @@ public class ClassRecordingSerializationService implements InternalSerialization
             FileOutputStream serializedSamplesOutput = null;
             FileWriter indexOutput = null;
             try {
-                serializedSamplesOutput = new FileOutputStream(FILE_NAME + "-samples");
+                serializedSamplesOutput = new FileOutputStream(FILE_NAME + SAMPLES_FILE_SUFFIX);
                 FileChannel samplesOutputChannel = serializedSamplesOutput.getChannel();
                 // index file format: className,startOfSample1,lengthOfSample1,startOfSample2,lengthOfSample2,...
-                indexOutput = new FileWriter(FILE_NAME + "-index");
+                indexOutput = new FileWriter(FILE_NAME + INDEX_FILE_SUFFIX);
 
                 for (Map.Entry<String, List<byte[]>> entry : SERIALIZED_SAMPLES_PER_CLASS_NAME.entrySet()) {
                     if (entry.getValue().isEmpty()) {
