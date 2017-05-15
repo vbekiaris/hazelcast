@@ -28,11 +28,19 @@ import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.PortableReader;
 import com.hazelcast.test.TestEnvironment;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.util.List;
+import java.util.Map;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.hazelcast.test.HazelcastTestSupport.randomString;
 import static com.hazelcast.util.StringUtil.LINE_SEPARATOR;
@@ -49,7 +57,10 @@ public class ClassRecordingSerializationService implements InternalSerialization
 
     public static final String FILE_NAME = TestEnvironment.getSerializedClassNamesPath() + randomString();
 
+    private static final int MAX_SERIALIZED_SAMPLES_PER_CLASS = 3;
     private static final SortedSet<String> CLASS_NAMES = new ConcurrentSkipListSet<String>();
+    private static final ConcurrentMap<String, List<byte[]>> SERIALIZED_SAMPLES_PER_CLASS_NAME =
+            new ConcurrentHashMap<String, List<byte[]>>(1000);
 
     private final InternalSerializationService delegate;
 
@@ -112,6 +123,38 @@ public class ClassRecordingSerializationService implements InternalSerialization
     }
 
     @Override
+    public <T> T toObject(Object data) {
+        return (T) recordClassForObject(delegate.toObject(data));
+    }
+
+    @Override
+    public <T> T toObject(Object data, Class klazz) {
+        recordClass(klazz);
+        return (T) recordClassForObject(delegate.toObject(data, klazz));
+    }
+
+    @Override
+    public byte[] toBytes(Object obj) {
+        recordClassForObject(obj);
+        byte[] bytes = delegate.toBytes(obj);
+        addSerializedSample(obj, bytes);
+        return bytes;
+    }
+
+    @Override
+    public byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
+        recordClassForObject(obj);
+        byte[] bytes =  delegate.toBytes(obj, leftPadding, insertPartitionHash);
+        addSerializedSample(obj, bytes);
+        return bytes;
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return delegate.getClassLoader();
+    }
+
+    @Override
     public BufferObjectDataInput createObjectDataInput(byte[] data) {
         return delegate.createObjectDataInput(data);
     }
@@ -127,36 +170,8 @@ public class ClassRecordingSerializationService implements InternalSerialization
     }
 
     @Override
-    public <T> T toObject(Object data) {
-        return (T) recordClassForObject(delegate.toObject(data));
-    }
-
-    @Override
-    public ClassLoader getClassLoader() {
-        return delegate.getClassLoader();
-    }
-
-    @Override
-    public <T> T toObject(Object data, Class klazz) {
-        recordClass(klazz);
-        return (T) recordClassForObject(delegate.toObject(data, klazz));
-    }
-
-    @Override
     public ManagedContext getManagedContext() {
         return delegate.getManagedContext();
-    }
-
-    @Override
-    public byte[] toBytes(Object obj) {
-        recordClassForObject(obj);
-        return delegate.toBytes(obj);
-    }
-
-    @Override
-    public byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
-        recordClassForObject(obj);
-        return delegate.toBytes(obj, leftPadding, insertPartitionHash);
     }
 
     @Override
@@ -195,6 +210,15 @@ public class ClassRecordingSerializationService implements InternalSerialization
         delegate.dispose();
     }
 
+    private void addSerializedSample(Object obj, byte[] bytes) {
+        String className = obj.getClass().getName();
+        SERIALIZED_SAMPLES_PER_CLASS_NAME.putIfAbsent(className, new CopyOnWriteArrayList<byte[]>());
+        List<byte[]> samples = SERIALIZED_SAMPLES_PER_CLASS_NAME.get(className);
+        if (samples.size() < MAX_SERIALIZED_SAMPLES_PER_CLASS) {
+            samples.add(bytes);
+        }
+    }
+
     public static class ClassNamesPersister implements Runnable {
         @Override
         public void run() {
@@ -219,6 +243,49 @@ public class ClassRecordingSerializationService implements InternalSerialization
                 }
             }
             System.out.println(format("Recorded class names were persisted to %s", FILE_NAME));
+
+            FileOutputStream serializedSamplesOutput = null;
+            FileWriter indexOutput = null;
+            try {
+                serializedSamplesOutput = new FileOutputStream(FILE_NAME + "-samples");
+                FileChannel samplesOutputChannel = serializedSamplesOutput.getChannel();
+                // index file format: className,startOfSample1,lengthOfSample1,startOfSample2,lengthOfSample2,...
+                indexOutput = new FileWriter(FILE_NAME + "-index");
+
+                for (Map.Entry<String, List<byte[]>> entry : SERIALIZED_SAMPLES_PER_CLASS_NAME.entrySet()) {
+                    if (entry.getValue().isEmpty()) {
+                        continue;
+                    }
+                    List<byte[]> samples = entry.getValue();
+                    indexOutput.write(entry.getKey());
+                    for (int i = 0; i < samples.size(); i++) {
+                        byte[] sample = samples.get(i);
+                        indexOutput.write("," + samplesOutputChannel.position() + "," + sample.length);
+                        serializedSamplesOutput.write(sample);
+                    }
+                    indexOutput.write(LINE_SEPARATOR);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (indexOutput != null) {
+                    try {
+                        indexOutput.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (serializedSamplesOutput != null) {
+                    try {
+                        serializedSamplesOutput.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
         }
     }
 }
