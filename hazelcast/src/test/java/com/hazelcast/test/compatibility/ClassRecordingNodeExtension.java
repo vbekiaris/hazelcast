@@ -21,9 +21,9 @@ import com.hazelcast.hotrestart.HotRestartService;
 import com.hazelcast.hotrestart.InternalHotRestartService;
 import com.hazelcast.instance.NodeExtension;
 import com.hazelcast.internal.cluster.impl.JoinMessage;
-import com.hazelcast.internal.networking.ChannelFactory;
-import com.hazelcast.internal.networking.ChannelInboundHandler;
-import com.hazelcast.internal.networking.ChannelOutboundHandler;
+import com.hazelcast.internal.networking.ReadHandler;
+import com.hazelcast.internal.networking.SocketChannelWrapperFactory;
+import com.hazelcast.internal.networking.WriteHandler;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.memory.MemoryStats;
 import com.hazelcast.nio.Address;
@@ -109,18 +109,18 @@ public class ClassRecordingNodeExtension implements NodeExtension {
     }
 
     @Override
-    public ChannelFactory getSocketChannelWrapperFactory() {
+    public SocketChannelWrapperFactory getSocketChannelWrapperFactory() {
         return nodeExtension.getSocketChannelWrapperFactory();
     }
 
     @Override
-    public ChannelInboundHandler createInboundHandler(TcpIpConnection connection, IOService ioService) {
-        return nodeExtension.createInboundHandler(connection, ioService);
+    public ReadHandler createReadHandler(TcpIpConnection connection, IOService ioService) {
+        return nodeExtension.createReadHandler(connection, ioService);
     }
 
     @Override
-    public ChannelOutboundHandler createOutboundHandler(TcpIpConnection connection, IOService ioService) {
-        return nodeExtension.createOutboundHandler(connection, ioService);
+    public WriteHandler createWriteHandler(TcpIpConnection connection, IOService ioService) {
+        return nodeExtension.createWriteHandler(connection, ioService);
     }
 
     @Override

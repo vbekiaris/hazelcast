@@ -965,7 +965,7 @@
                                 -Dhazelcast.phone.home.enabled=false
                                 -Dhazelcast.mancenter.enabled=false
                                 -Dhazelcast.test.use.network=false
-                                -Dhazelcast.test.record.serialized.class.names=${target.dir}/serialized-objects-${project.version}
+                                -Dhazelcast.test.record.serialized.class.names=${target.dir}/serialized-objects-${project.version}-
                             </argLine>
                             <includes>
                                 <include>**/**.java</include>
@@ -973,6 +973,8 @@
                             <excludes>
                                 <exclude>**/jsr/**.java</exclude>
                                 <exclude>**/client/**Request.*</exclude>
+                                <!-- code triggered by UserCodeDeploymentSmokeTest casts to SerializationServiceV1 and fails -->
+                                <exclude>**/UserCodeDeploymentSmokeTest.java</exclude>
                             </excludes>
                             <groups>com.hazelcast.test.annotation.QuickTest</groups>
                             <excludedGroups>
