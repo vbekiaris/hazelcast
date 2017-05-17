@@ -973,8 +973,11 @@
                             <excludes>
                                 <exclude>**/jsr/**.java</exclude>
                                 <exclude>**/client/**Request.*</exclude>
-                                <!-- code triggered by UserCodeDeploymentSmokeTest casts to SerializationServiceV1 and fails -->
+                                <!-- code triggered by UserCodeDeploymentSmokeTest and OperationRunnerImplTest -->
+                                <!-- casts to SerializationServiceV1 and fails when Node is configured with the -->
+                                <!-- wrapper ClassRecordingSerializationService -->
                                 <exclude>**/UserCodeDeploymentSmokeTest.java</exclude>
+                                <exclude>**/OperationRunnerImplTest.java</exclude>
                             </excludes>
                             <groups>com.hazelcast.test.annotation.QuickTest</groups>
                             <excludedGroups>
