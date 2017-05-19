@@ -74,13 +74,20 @@ public class ClassRecordingSerializationService implements InternalSerialization
         this.delegate = delegate;
     }
 
-    // record the class of given object, then return it
     private static <T> T recordClassForObject(T obj) {
+        return recordClassForObject(obj, null);
+    }
+
+    // record the class of given object, then return it
+    private static <T> T recordClassForObject(T obj, byte[] serializedObject) {
         if (obj == null)
             return null;
 
         Class<?> klass = obj.getClass();
         recordClass(klass);
+        if (serializedObject != null && shouldAddSerializedSample(obj)) {
+            addSerializedSample(obj, serializedObject);
+        }
         return obj;
     }
 
@@ -97,14 +104,16 @@ public class ClassRecordingSerializationService implements InternalSerialization
 
     @Override
     public <B extends Data> B toData(Object obj) {
-        recordClassForObject(obj);
-        return delegate.toData(obj);
+        B data = delegate.toData(obj);
+        recordClassForObject(obj, data.toByteArray());
+        return data;
     }
 
     @Override
     public <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
-        recordClassForObject(obj);
-        return delegate.toData(obj, strategy);
+        B data = delegate.toData(obj, strategy);
+        recordClassForObject(obj, data.toByteArray());
+        return data;
     }
 
     @Override
@@ -139,7 +148,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public byte[] toBytes(Object obj) {
         recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(obj);
-        addSerializedSample(obj, bytes);
         return bytes;
     }
 
@@ -147,7 +155,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public byte[] toBytes(int padding, Object obj) {
         recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(padding, obj);
-        addSerializedSample(obj, bytes);
         return bytes;
     }
 
@@ -155,7 +162,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public byte[] toBytes(Object obj, PartitioningStrategy strategy) {
         recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(obj, strategy);
-        addSerializedSample(obj, bytes);
         return bytes;
     }
 
@@ -163,7 +169,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public byte[] toBytes(int padding, Object obj, PartitioningStrategy strategy) {
         recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(padding, obj, strategy);
-        addSerializedSample(obj, bytes);
         return bytes;
     }
 
@@ -228,13 +233,25 @@ public class ClassRecordingSerializationService implements InternalSerialization
         delegate.dispose();
     }
 
-    private void addSerializedSample(Object obj, byte[] bytes) {
+    private static void addSerializedSample(Object obj, byte[] bytes) {
         String className = obj.getClass().getName();
         SERIALIZED_SAMPLES_PER_CLASS_NAME.putIfAbsent(className, new CopyOnWriteArrayList<byte[]>());
         List<byte[]> samples = SERIALIZED_SAMPLES_PER_CLASS_NAME.get(className);
         if (samples.size() < MAX_SERIALIZED_SAMPLES_PER_CLASS) {
             samples.add(bytes);
         }
+    }
+
+    private static boolean shouldAddSerializedSample(Object obj) {
+        String className = obj.getClass().getName();
+        List<byte[]> existingSamples = SERIALIZED_SAMPLES_PER_CLASS_NAME.get(className);
+        if (existingSamples == null) {
+            return true;
+        }
+        if (existingSamples.size() < MAX_SERIALIZED_SAMPLES_PER_CLASS) {
+            return true;
+        }
+        return false;
     }
 
     public static class ClassNamesPersister implements Runnable {
