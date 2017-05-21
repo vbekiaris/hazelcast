@@ -105,14 +105,14 @@ public class ClassRecordingSerializationService implements InternalSerialization
     @Override
     public <B extends Data> B toData(Object obj) {
         B data = delegate.toData(obj);
-        recordClassForObject(obj, data.toByteArray());
+        recordClassForObject(obj, data == null ? null : data.toByteArray());
         return data;
     }
 
     @Override
     public <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
         B data = delegate.toData(obj, strategy);
-        recordClassForObject(obj, data.toByteArray());
+        recordClassForObject(obj, data == null ? null : data.toByteArray());
         return data;
     }
 
