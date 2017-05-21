@@ -146,29 +146,29 @@ public class ClassRecordingSerializationService implements InternalSerialization
 
     @Override
     public byte[] toBytes(Object obj) {
-        recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(obj);
+        recordClassForObject(obj, bytes);
         return bytes;
     }
 
     @Override
     public byte[] toBytes(int padding, Object obj) {
-        recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(padding, obj);
+        recordClassForObject(obj, bytes);
         return bytes;
     }
 
     @Override
     public byte[] toBytes(Object obj, PartitioningStrategy strategy) {
-        recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(obj, strategy);
+        recordClassForObject(obj, bytes);
         return bytes;
     }
 
     @Override
     public byte[] toBytes(int padding, Object obj, PartitioningStrategy strategy) {
-        recordClassForObject(obj);
         byte[] bytes = delegate.toBytes(padding, obj, strategy);
+        recordClassForObject(obj, bytes);
         return bytes;
     }
 
