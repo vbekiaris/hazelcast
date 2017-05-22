@@ -60,7 +60,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public static final String INDEX_FILE_SUFFIX = ".index";
 
     private static final int MAX_SERIALIZED_SAMPLES_PER_CLASS = 3;
-    private static final SortedSet<String> CLASS_NAMES = new ConcurrentSkipListSet<String>();
     private static final ConcurrentMap<String, List<byte[]>> SERIALIZED_SAMPLES_PER_CLASS_NAME =
             new ConcurrentHashMap<String, List<byte[]>>(1000);
 
@@ -83,23 +82,10 @@ public class ClassRecordingSerializationService implements InternalSerialization
         if (obj == null)
             return null;
 
-        Class<?> klass = obj.getClass();
-        recordClass(klass);
         if (serializedObject != null && shouldAddSerializedSample(obj)) {
             addSerializedSample(obj, serializedObject);
         }
         return obj;
-    }
-
-    private static void recordClass(Class<?> klass) {
-        if (klass.isArray()) {
-            klass = klass.getComponentType();
-        }
-
-        if (klass.isPrimitive())
-            return;
-
-        CLASS_NAMES.add(klass.getName());
     }
 
     @Override
@@ -129,7 +115,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
 
     @Override
     public <T> T readObject(ObjectDataInput in, Class aClass) {
-        recordClass(aClass);
         return (T) recordClassForObject(delegate.readObject(in, aClass));
     }
 
@@ -140,7 +125,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
 
     @Override
     public <T> T toObject(Object data, Class klazz) {
-        recordClass(klazz);
         return (T) recordClassForObject(delegate.toObject(data, klazz));
     }
 
@@ -243,7 +227,15 @@ public class ClassRecordingSerializationService implements InternalSerialization
     }
 
     private static boolean shouldAddSerializedSample(Object obj) {
-        String className = obj.getClass().getName();
+        Class klass = obj.getClass();
+        if (klass.isPrimitive()) {
+            return false;
+        }
+
+        String className = klass.getName();
+        if (className.toLowerCase().contains("test")) {
+            return false;
+        }
         List<byte[]> existingSamples = SERIALIZED_SAMPLES_PER_CLASS_NAME.get(className);
         if (existingSamples == null) {
             return true;
@@ -257,28 +249,6 @@ public class ClassRecordingSerializationService implements InternalSerialization
     public static class ClassNamesPersister implements Runnable {
         @Override
         public void run() {
-            System.out.println(format("Persisting %d recorded serialized class names to %s",
-                    CLASS_NAMES.size(), FILE_NAME));
-
-            FileWriter fileWriter = null;
-            try {
-                fileWriter = new FileWriter(FILE_NAME);
-                for (String className : CLASS_NAMES) {
-                    fileWriter.write(className + LINE_SEPARATOR);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                if (fileWriter != null) {
-                    try {
-                        fileWriter.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-            System.out.println(format("Recorded class names were persisted to %s", FILE_NAME));
-
             FileOutputStream serializedSamplesOutput = null;
             FileWriter indexOutput = null;
             try {
