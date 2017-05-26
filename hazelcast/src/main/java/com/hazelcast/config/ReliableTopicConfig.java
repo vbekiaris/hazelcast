@@ -16,9 +16,13 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.annotation.Beta;
 import com.hazelcast.topic.TopicOverloadPolicy;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -43,7 +47,7 @@ import static com.hazelcast.util.Preconditions.checkPositive;
  * messages.
  */
 @Beta
-public class ReliableTopicConfig {
+public class ReliableTopicConfig implements IdentifiedDataSerializable {
 
     /**
      * The default read batch size.
@@ -282,6 +286,36 @@ public class ReliableTopicConfig {
      */
     public ReliableTopicConfig getAsReadOnly() {
         return new ReliableTopicConfigReadOnly(this);
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.RELIABLE_TOPIC_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeObject(executor);
+        out.writeInt(readBatchSize);
+        out.writeUTF(name);
+        out.writeBoolean(statisticsEnabled);
+        MapConfig.writeNullableList(listenerConfigs, out);
+        out.writeUTF(topicOverloadPolicy.name());
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        executor = in.readObject();
+        readBatchSize = in.readInt();
+        name = in.readUTF();
+        statisticsEnabled = in.readBoolean();
+        listenerConfigs = MapConfig.readNullableList(in);
+        topicOverloadPolicy = TopicOverloadPolicy.valueOf(in.readUTF());
     }
 
     static class ReliableTopicConfigReadOnly extends ReliableTopicConfig {

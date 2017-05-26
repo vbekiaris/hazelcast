@@ -16,8 +16,12 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.query.QueryConstants;
 
+import java.io.IOException;
 import java.util.regex.Pattern;
 
 import static com.hazelcast.util.Preconditions.checkHasText;
@@ -29,14 +33,14 @@ import static java.lang.String.format;
  *
  * @see com.hazelcast.query.extractor.ValueExtractor
  */
-public class MapAttributeConfig {
+public class MapAttributeConfig implements IdentifiedDataSerializable {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9_]*$");
 
     private String name;
     private String extractor;
 
-    private MapAttributeConfigReadOnly readOnly;
+    private transient MapAttributeConfigReadOnly readOnly;
 
     /**
      * Creates an empty MapAttributeConfig.
@@ -152,5 +156,27 @@ public class MapAttributeConfig {
                 + "name='" + name + '\''
                 + "extractor='" + extractor + '\''
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.MAP_ATTRIBUTE_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeUTF(extractor);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        extractor = in.readUTF();
     }
 }

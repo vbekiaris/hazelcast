@@ -21,8 +21,12 @@ import com.hazelcast.map.eviction.LRUEvictionPolicy;
 import com.hazelcast.map.eviction.MapEvictionPolicy;
 import com.hazelcast.map.eviction.RandomEvictionPolicy;
 import com.hazelcast.map.merge.PutIfAbsentMapMergePolicy;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.partition.IPartition;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +39,7 @@ import static com.hazelcast.util.Preconditions.isNotNull;
 /**
  * Contains the configuration for an {@link com.hazelcast.core.IMap}.
  */
-public class MapConfig {
+public class MapConfig implements IdentifiedDataSerializable {
 
     /**
      * The number of minimum backup counter
@@ -104,9 +108,9 @@ public class MapConfig {
 
     private int asyncBackupCount = MIN_BACKUP_COUNT;
 
-    private int evictionPercentage = DEFAULT_EVICTION_PERCENTAGE;
+    private transient int evictionPercentage = DEFAULT_EVICTION_PERCENTAGE;
 
-    private long minEvictionCheckMillis = DEFAULT_MIN_EVICTION_CHECK_MILLIS;
+    private transient long minEvictionCheckMillis = DEFAULT_MIN_EVICTION_CHECK_MILLIS;
 
     private int timeToLiveSeconds = DEFAULT_TTL_SECONDS;
 
@@ -150,12 +154,12 @@ public class MapConfig {
 
     private HotRestartConfig hotRestartConfig = new HotRestartConfig();
 
-    private MapConfigReadOnly readOnly;
+    private transient MapConfigReadOnly readOnly;
 
     // we use these 2 flags to detect a conflict between (deprecated) #setOptimizeQueries()
     // and #setCacheDeserializedValues()
-    private boolean optimizeQueryExplicitlyInvoked;
-    private boolean setCacheDeserializedValuesExplicitlyInvoked;
+    private transient boolean optimizeQueryExplicitlyInvoked;
+    private transient boolean setCacheDeserializedValuesExplicitlyInvoked;
 
 
     public MapConfig(String name) {
@@ -955,5 +959,99 @@ public class MapConfig {
                 + ", queryCacheConfigs=" + queryCacheConfigs
                 + ", cacheDeserializedValues=" + cacheDeserializedValues
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.MAP_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeInt(backupCount);
+        out.writeInt(asyncBackupCount);
+        out.writeInt(timeToLiveSeconds);
+        out.writeInt(maxIdleSeconds);
+        out.writeObject(maxSizeConfig);
+        out.writeUTF(evictionPolicy.name());
+        out.writeObject(mapEvictionPolicy);
+        out.writeObject(mapStoreConfig);
+        out.writeObject(nearCacheConfig);
+        out.writeBoolean(readBackupData);
+        out.writeUTF(cacheDeserializedValues.name());
+        out.writeUTF(mergePolicy);
+        out.writeUTF(inMemoryFormat.name());
+        out.writeObject(wanReplicationRef);
+        writeNullableList(entryListenerConfigs, out);
+        writeNullableList(partitionLostListenerConfigs, out);
+        writeNullableList(mapIndexConfigs, out);
+        writeNullableList(mapAttributeConfigs, out);
+        writeNullableList(queryCacheConfigs, out);
+        out.writeBoolean(statisticsEnabled);
+        out.writeObject(partitioningStrategyConfig);
+        out.writeUTF(quorumName);
+        out.writeObject(hotRestartConfig);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        backupCount = in.readInt();
+        asyncBackupCount = in.readInt();
+        timeToLiveSeconds = in.readInt();
+        maxIdleSeconds = in.readInt();
+        maxSizeConfig = in.readObject();
+        evictionPolicy = EvictionPolicy.valueOf(in.readUTF());
+        mapEvictionPolicy = in.readObject();
+        mapStoreConfig = in.readObject();
+        nearCacheConfig = in.readObject();
+        readBackupData = in.readBoolean();
+        cacheDeserializedValues = CacheDeserializedValues.valueOf(in.readUTF());
+        mergePolicy = in.readUTF();
+        inMemoryFormat = InMemoryFormat.valueOf(in.readUTF());
+        wanReplicationRef = in.readObject();
+        entryListenerConfigs = readNullableList(in);
+        partitionLostListenerConfigs = readNullableList(in);
+        mapIndexConfigs = readNullableList(in);
+        mapAttributeConfigs = readNullableList(in);
+        queryCacheConfigs = readNullableList(in);
+        statisticsEnabled = in.readBoolean();
+        partitioningStrategyConfig = in.readObject();
+        quorumName = in.readUTF();
+        hotRestartConfig = in.readObject();
+    }
+
+    //todo: move elsewhere
+    public static <T> void writeNullableList(List<T> list, ObjectDataOutput out) throws IOException {
+        if (list == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            out.writeInt(list.size());
+            for (T item : list) {
+                out.writeObject(item);
+            }
+        }
+    }
+
+    //todo: move elsewhere
+    public static <T> List<T> readNullableList(ObjectDataInput in) throws IOException {
+        boolean notNull = in.readBoolean();
+        List<T> list = null;
+        if (notNull) {
+            int size = in.readInt();
+            list = new ArrayList<T>(size);
+            for (int i = 0; i < size; i++) {
+                T item = in.readObject();
+                list.add(item);
+            }
+        }
+        return list;
     }
 }

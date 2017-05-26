@@ -16,6 +16,11 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +32,8 @@ import static com.hazelcast.util.Preconditions.checkBackupCount;
  *
  * @param <T> Type of Collection such as List, Set
  */
-public abstract class CollectionConfig<T extends CollectionConfig> {
+public abstract class CollectionConfig<T extends CollectionConfig>
+        implements IdentifiedDataSerializable {
 
     /**
      * Default maximum size for the Configuration.
@@ -211,5 +217,30 @@ public abstract class CollectionConfig<T extends CollectionConfig> {
      */
     public void addItemListenerConfig(ItemListenerConfig itemListenerConfig) {
         getItemListenerConfigs().add(itemListenerConfig);
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        MapConfig.writeNullableList(listenerConfigs, out);
+        out.writeInt(backupCount);
+        out.writeInt(asyncBackupCount);
+        out.writeInt(maxSize);
+        out.writeBoolean(statisticsEnabled);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        listenerConfigs = MapConfig.readNullableList(in);
+        backupCount = in.readInt();
+        asyncBackupCount = in.readInt();
+        maxSize = in.readInt();
+        statisticsEnabled = in.readBoolean();
     }
 }

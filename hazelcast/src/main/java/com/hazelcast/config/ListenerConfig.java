@@ -16,6 +16,12 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.EventListener;
 
 import static com.hazelcast.util.Preconditions.checkHasText;
@@ -25,7 +31,7 @@ import static com.hazelcast.util.Preconditions.isNotNull;
  * Contains the configuration for an {@link EventListener}. The configuration contains either the classname
  * of the EventListener implementation, or the actual EventListener instance.
  */
-public class ListenerConfig {
+public class ListenerConfig implements IdentifiedDataSerializable {
 
     protected String className;
 
@@ -164,5 +170,27 @@ public class ListenerConfig {
     @Override
     public int hashCode() {
         return className != null ? className.hashCode() : 0;
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.LISTENER_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(className);
+        out.writeObject(implementation);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        className = in.readUTF();
+        implementation = in.readObject();
     }
 }

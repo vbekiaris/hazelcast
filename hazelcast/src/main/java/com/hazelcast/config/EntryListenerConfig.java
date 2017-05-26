@@ -28,7 +28,10 @@ import com.hazelcast.map.listener.EntryUpdatedListener;
 import com.hazelcast.map.listener.MapClearedListener;
 import com.hazelcast.map.listener.MapEvictedListener;
 import com.hazelcast.map.listener.MapListener;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
 
+import java.io.IOException;
 import java.util.EventListener;
 
 import static com.hazelcast.util.Preconditions.isNotNull;
@@ -248,5 +251,24 @@ public class EntryListenerConfig extends ListenerConfig {
         result = 31 * result + (local ? 1 : 0);
         result = 31 * result + (includeValue ? 1 : 0);
         return result;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.ENTRY_LISTENER_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        super.writeData(out);
+        out.writeBoolean(local);
+        out.writeBoolean(includeValue);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        super.readData(in);
+        local = in.readBoolean();
+        includeValue = in.readBoolean();
     }
 }

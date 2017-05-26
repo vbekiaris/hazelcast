@@ -16,6 +16,12 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +31,7 @@ import static com.hazelcast.util.Preconditions.checkBackupCount;
 /**
  * Configuration for MultiMap.
  */
-public class MultiMapConfig {
+public class MultiMapConfig implements IdentifiedDataSerializable {
 
     /**
      * The default number of synchronous backups for this MultiMap.
@@ -298,5 +304,53 @@ public class MultiMapConfig {
                 + ", backupCount=" + backupCount
                 + ", asyncBackupCount=" + asyncBackupCount
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.MULTIMAP_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeUTF(valueCollectionType);
+        if (listenerConfigs == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            out.writeInt(listenerConfigs.size());
+            for (ListenerConfig listenerConfig : listenerConfigs) {
+                out.writeObject(listenerConfig);
+            }
+        }
+        out.writeBoolean(binary);
+        out.writeInt(backupCount);
+        out.writeInt(asyncBackupCount);
+        out.writeBoolean(statisticsEnabled);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        valueCollectionType = in.readUTF();
+        boolean hasListenerConfig = in.readBoolean();
+        if (hasListenerConfig) {
+            int configSize = in.readInt();
+            listenerConfigs = new ArrayList<EntryListenerConfig>(configSize);
+            for (int i = 0; i < configSize; i++) {
+                EntryListenerConfig listenerConfig = in.readObject();
+                listenerConfigs.add(listenerConfig);
+            }
+        }
+        binary = in.readBoolean();
+        backupCount = in.readInt();
+        asyncBackupCount = in.readInt();
+        statisticsEnabled = in.readBoolean();
     }
 }

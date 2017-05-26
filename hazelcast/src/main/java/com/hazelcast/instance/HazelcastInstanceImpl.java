@@ -55,6 +55,7 @@ import com.hazelcast.core.ReplicatedMap;
 import com.hazelcast.durableexecutor.DurableExecutorService;
 import com.hazelcast.durableexecutor.impl.DistributedDurableExecutorService;
 import com.hazelcast.executor.impl.DistributedExecutorService;
+import com.hazelcast.internal.dynamicconfig.DynamicConfig;
 import com.hazelcast.internal.jmx.ManagementService;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.logging.ILogger;
@@ -332,7 +333,8 @@ public class HazelcastInstanceImpl implements HazelcastInstance, SerializationSe
 
     @Override
     public Config getConfig() {
-        return node.getConfig();
+        Config nodeConfig = node.getConfig();
+        return new DynamicConfig(nodeConfig, this);
     }
 
     @Override

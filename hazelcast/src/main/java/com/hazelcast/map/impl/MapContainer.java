@@ -21,6 +21,7 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.WanReplicationRef;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.core.PartitioningStrategy;
+import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.map.eviction.MapEvictionPolicy;
 import com.hazelcast.map.impl.eviction.EvictionChecker;
@@ -95,9 +96,10 @@ public class MapContainer {
      * in the method comment {@link com.hazelcast.spi.PostJoinAwareService#getPostJoinOperation()}
      * Otherwise undesired situations, like deadlocks, may appear.
      */
-    public MapContainer(final String name, final Config config, final MapServiceContext mapServiceContext) {
+    public MapContainer(final String name, final Config config, final ConfigurationService configurationService,
+                        final MapServiceContext mapServiceContext) {
         this.name = name;
-        this.mapConfig = config.findMapConfig(name);
+        this.mapConfig = configurationService.getMapConfig(name);
         this.mapServiceContext = mapServiceContext;
         NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         this.partitioningStrategy = createPartitioningStrategy();

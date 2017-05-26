@@ -18,8 +18,12 @@ package com.hazelcast.config;
 
 import com.hazelcast.cache.BuiltInCacheMergePolicies;
 import com.hazelcast.cache.merge.PassThroughCacheMergePolicy;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.partition.IPartition;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +37,7 @@ import static com.hazelcast.util.Preconditions.isNotNull;
  * CacheConfig depends on the JCache API. If the JCache API is not in the classpath,
  * you can use CacheSimpleConfig as a communicator between the code and CacheConfig.
  */
-public class CacheSimpleConfig {
+public class CacheSimpleConfig implements IdentifiedDataSerializable {
 
     /**
      * The minimum number of backups.
@@ -94,7 +98,7 @@ public class CacheSimpleConfig {
     private EvictionConfig evictionConfig = new EvictionConfig();
     private WanReplicationRef wanReplicationRef;
 
-    private CacheSimpleConfig readOnly;
+    private transient CacheSimpleConfig readOnly;
 
     private String quorumName;
 
@@ -677,13 +681,78 @@ public class CacheSimpleConfig {
         this.disablePerEntryInvalidationEvents = disablePerEntryInvalidationEvents;
     }
 
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.SIMPLE_CACHE_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeUTF(keyType);
+        out.writeUTF(valueType);
+        out.writeBoolean(statisticsEnabled);
+        out.writeBoolean(managementEnabled);
+        out.writeBoolean(readThrough);
+        out.writeBoolean(writeThrough);
+        out.writeUTF(cacheLoaderFactory);
+        out.writeUTF(cacheWriterFactory);
+        out.writeUTF(cacheLoader);
+        out.writeUTF(cacheWriter);
+        out.writeObject(expiryPolicyFactoryConfig);
+        MapConfig.writeNullableList(cacheEntryListeners, out);
+        out.writeInt(asyncBackupCount);
+        out.writeInt(backupCount);
+        out.writeUTF(inMemoryFormat.name());
+        out.writeObject(evictionConfig);
+        out.writeObject(wanReplicationRef);
+        out.writeUTF(quorumName);
+        MapConfig.writeNullableList(partitionLostListenerConfigs, out);
+        out.writeUTF(mergePolicy);
+        out.writeObject(hotRestartConfig);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        keyType = in.readUTF();
+        valueType = in.readUTF();
+        statisticsEnabled = in.readBoolean();
+        managementEnabled = in.readBoolean();
+        readThrough = in.readBoolean();
+        writeThrough = in.readBoolean();
+        cacheLoaderFactory = in.readUTF();
+        cacheWriterFactory = in.readUTF();
+        cacheLoader = in.readUTF();
+        cacheWriter = in.readUTF();
+        expiryPolicyFactoryConfig = in.readObject();
+        cacheEntryListeners = MapConfig.readNullableList(in);
+        asyncBackupCount = in.readInt();
+        backupCount = in.readInt();
+        inMemoryFormat = InMemoryFormat.valueOf(in.readUTF());
+        evictionConfig = in.readObject();
+        wanReplicationRef = in.readObject();
+        quorumName = in.readUTF();
+        partitionLostListenerConfigs = MapConfig.readNullableList(in);
+        mergePolicy = in.readUTF();
+        hotRestartConfig = in.readObject();
+    }
+
     /**
      * Represents configuration for "ExpiryPolicyFactory".
      */
-    public static class ExpiryPolicyFactoryConfig {
+    public static class ExpiryPolicyFactoryConfig implements IdentifiedDataSerializable {
 
-        private final String className;
-        private final TimedExpiryPolicyFactoryConfig timedExpiryPolicyFactoryConfig;
+        private String className;
+        private TimedExpiryPolicyFactoryConfig timedExpiryPolicyFactoryConfig;
+
+        public ExpiryPolicyFactoryConfig() {
+        }
 
         public ExpiryPolicyFactoryConfig(String className) {
             this.className = className;
@@ -703,13 +772,38 @@ public class CacheSimpleConfig {
             return timedExpiryPolicyFactoryConfig;
         }
 
+        @Override
+        public int getFactoryId() {
+            return ConfigDataSerializerHook.F_ID;
+        }
+
+        @Override
+        public int getId() {
+            return ConfigDataSerializerHook.SIMPLE_CACHE_CONFIG_EXPIRY_POLICY_FACTORY_CONFIG;
+        }
+
+        @Override
+        public void writeData(ObjectDataOutput out) throws IOException {
+            out.writeUTF(className);
+            out.writeObject(timedExpiryPolicyFactoryConfig);
+        }
+
+        @Override
+        public void readData(ObjectDataInput in) throws IOException {
+            className = in.readUTF();
+            timedExpiryPolicyFactoryConfig = in.readObject();
+        }
+
         /**
          * Represents configuration for time based "ExpiryPolicyFactory" with duration and time unit.
          */
-        public static class TimedExpiryPolicyFactoryConfig {
+        public static class TimedExpiryPolicyFactoryConfig implements IdentifiedDataSerializable {
 
-            private final ExpiryPolicyType expiryPolicyType;
-            private final DurationConfig durationConfig;
+            private ExpiryPolicyType expiryPolicyType;
+            private DurationConfig durationConfig;
+
+            public TimedExpiryPolicyFactoryConfig() {
+            }
 
             public TimedExpiryPolicyFactoryConfig(ExpiryPolicyType expiryPolicyType,
                                                   DurationConfig durationConfig) {
@@ -723,6 +817,28 @@ public class CacheSimpleConfig {
 
             public DurationConfig getDurationConfig() {
                 return durationConfig;
+            }
+
+            @Override
+            public int getFactoryId() {
+                return ConfigDataSerializerHook.F_ID;
+            }
+
+            @Override
+            public int getId() {
+                return ConfigDataSerializerHook.SIMPLE_CACHE_CONFIG_TIMED_EXPIRY_POLICY_FACTORY_CONFIG;
+            }
+
+            @Override
+            public void writeData(ObjectDataOutput out) throws IOException {
+                out.writeUTF(expiryPolicyType.name());
+                out.writeObject(durationConfig);
+            }
+
+            @Override
+            public void readData(ObjectDataInput in) throws IOException {
+                expiryPolicyType = ExpiryPolicyType.valueOf(in.readUTF());
+                durationConfig = in.readObject();
             }
 
             /**
@@ -757,10 +873,14 @@ public class CacheSimpleConfig {
          * Represents duration configuration with duration amount and time unit
          * for the "TimedExpiryPolicyFactoryConfig".
          */
-        public static class DurationConfig {
+        public static class DurationConfig implements IdentifiedDataSerializable {
 
-            private final long durationAmount;
-            private final TimeUnit timeUnit;
+            private long durationAmount;
+            private TimeUnit timeUnit;
+
+            public DurationConfig() {
+
+            }
 
             public DurationConfig(long durationAmount, TimeUnit timeUnit) {
                 this.durationAmount = durationAmount;
@@ -773,6 +893,28 @@ public class CacheSimpleConfig {
 
             public TimeUnit getTimeUnit() {
                 return timeUnit;
+            }
+
+            @Override
+            public int getFactoryId() {
+                return ConfigDataSerializerHook.F_ID;
+            }
+
+            @Override
+            public int getId() {
+                return ConfigDataSerializerHook.SIMPLE_CACHE_CONFIG_DURATION_CONFIG;
+            }
+
+            @Override
+            public void writeData(ObjectDataOutput out) throws IOException {
+                out.writeLong(durationAmount);
+                out.writeUTF(timeUnit.name());
+            }
+
+            @Override
+            public void readData(ObjectDataInput in) throws IOException {
+                durationAmount = in.readLong();
+                timeUnit = TimeUnit.valueOf(in.readUTF());
             }
         }
     }

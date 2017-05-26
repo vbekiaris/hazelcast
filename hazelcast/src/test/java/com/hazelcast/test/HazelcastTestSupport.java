@@ -74,6 +74,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.hazelcast.internal.partition.TestPartitionUtils.getPartitionServiceState;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
@@ -871,6 +872,15 @@ public abstract class HazelcastTestSupport {
             @Override
             public void run() throws Exception {
                 assertEquals(value, task.call());
+            }
+        });
+    }
+
+    public static void assertEqualsEventually(final int expected, final AtomicInteger value) {
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() throws Exception {
+                assertEquals(expected, value.get());
             }
         });
     }

@@ -16,6 +16,11 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +30,7 @@ import static com.hazelcast.util.Preconditions.checkBackupCount;
 /**
  * Contains the configuration for an {@link com.hazelcast.core.IQueue}.
  */
-public class QueueConfig {
+public class QueueConfig implements IdentifiedDataSerializable {
 
     /**
      * Default value for the maximum size of the Queue.
@@ -56,7 +61,7 @@ public class QueueConfig {
     private QueueStoreConfig queueStoreConfig;
     private boolean statisticsEnabled = true;
     private String quorumName;
-    private QueueConfigReadOnly readOnly;
+    private transient QueueConfigReadOnly readOnly;
 
     public QueueConfig() {
     }
@@ -316,5 +321,41 @@ public class QueueConfig {
                 + ", queueStoreConfig=" + queueStoreConfig
                 + ", statisticsEnabled=" + statisticsEnabled
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.QUEUE_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        MapConfig.writeNullableList(listenerConfigs, out);
+        out.writeInt(backupCount);
+        out.writeInt(asyncBackupCount);
+        out.writeInt(maxSize);
+        out.writeInt(emptyQueueTtl);
+        out.writeObject(queueStoreConfig);
+        out.writeBoolean(statisticsEnabled);
+        out.writeUTF(quorumName);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        listenerConfigs = MapConfig.readNullableList(in);
+        backupCount = in.readInt();
+        asyncBackupCount = in.readInt();
+        maxSize = in.readInt();
+        emptyQueueTtl = in.readInt();
+        queueStoreConfig = in.readObject();
+        statisticsEnabled = in.readBoolean();
+        quorumName = in.readUTF();
     }
 }

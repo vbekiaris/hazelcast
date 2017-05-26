@@ -43,7 +43,7 @@ class MapRemoteService implements RemoteService {
 
     @Override
     public DistributedObject createDistributedObject(String name) {
-        MapConfig mapConfig = nodeEngine.getConfig().findMapConfig(name);
+        MapConfig mapConfig = nodeEngine.getConfigurationService().getMapConfig(name);
         checkMapConfig(mapConfig);
 
         if (mapConfig.isNearCacheEnabled()) {

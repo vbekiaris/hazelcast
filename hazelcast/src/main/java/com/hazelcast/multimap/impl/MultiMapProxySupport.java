@@ -49,7 +49,7 @@ public abstract class MultiMapProxySupport extends AbstractDistributedObject<Mul
 
     protected MultiMapProxySupport(MultiMapService service, NodeEngine nodeEngine, String name) {
         super(nodeEngine, service);
-        this.config = nodeEngine.getConfig().findMultiMapConfig(name);
+        this.config = nodeEngine.getConfigurationService().getMultiMapConfig(name);
         this.name = name;
 
         lockSupport = new LockProxySupport(new DistributedObjectNamespace(MultiMapService.SERVICE_NAME, name),

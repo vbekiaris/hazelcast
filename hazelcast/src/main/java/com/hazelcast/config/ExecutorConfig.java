@@ -16,10 +16,16 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
+
 /**
  * Contains the configuration for an {@link com.hazelcast.core.IExecutorService}.
  */
-public class ExecutorConfig {
+public class ExecutorConfig implements IdentifiedDataSerializable {
 
     /**
      * The number of executor threads per Member for the Executor based on this configuration.
@@ -39,7 +45,7 @@ public class ExecutorConfig {
 
     private boolean statisticsEnabled = true;
 
-    private ExecutorConfigReadOnly readOnly;
+    private transient ExecutorConfigReadOnly readOnly;
 
     public ExecutorConfig() {
     }
@@ -163,5 +169,31 @@ public class ExecutorConfig {
                 + ", poolSize=" + poolSize
                 + ", queueCapacity=" + queueCapacity
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.EXECUTOR_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeInt(poolSize);
+        out.writeInt(queueCapacity);
+        out.writeBoolean(statisticsEnabled);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        poolSize = in.readInt();
+        queueCapacity = in.readInt();
+        statisticsEnabled = in.readBoolean();
     }
 }

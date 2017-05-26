@@ -21,6 +21,7 @@ import com.hazelcast.config.InMemoryFormat;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapStoreConfig;
 import com.hazelcast.core.IMap;
+import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.mapstore.AbstractMapDataStore;
 import com.hazelcast.map.impl.mapstore.MapStoreContext;
@@ -417,9 +418,9 @@ public class WriteBehindStore extends AbstractMapDataStore<Data, Object> {
         MapServiceContext mapServiceContext = mapStoreContext.getMapServiceContext();
         NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
 
-        Config config = nodeEngine.getConfig();
+        ConfigurationService configService = nodeEngine.getConfigurationService();
         String mapName = mapStoreContext.getMapName();
-        MapConfig mapConfig = config.findMapConfig(mapName);
+        MapConfig mapConfig = configService.getMapConfig(mapName);
         return mapConfig.getInMemoryFormat();
     }
 

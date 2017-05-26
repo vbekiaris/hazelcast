@@ -16,7 +16,12 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.annotation.Beta;
+
+import java.io.IOException;
 
 import static com.hazelcast.config.InMemoryFormat.NATIVE;
 import static com.hazelcast.util.Preconditions.checkAsyncBackupCount;
@@ -34,7 +39,7 @@ import static com.hazelcast.util.Preconditions.checkPositive;
  * in the cluster and its backup in another member in the cluster.
  */
 @Beta
-public class RingbufferConfig {
+public class RingbufferConfig implements IdentifiedDataSerializable {
 
     /**
      * Default value of capacity of the RingBuffer.
@@ -321,6 +326,38 @@ public class RingbufferConfig {
      */
     public RingbufferConfig getAsReadOnly() {
         return new RingbufferConfigReadonly(this);
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.RINGBUFFER_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeInt(capacity);
+        out.writeInt(backupCount);
+        out.writeInt(asyncBackupCount);
+        out.writeInt(timeToLiveSeconds);
+        out.writeUTF(inMemoryFormat.name());
+        out.writeObject(ringbufferStoreConfig);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        capacity = in.readInt();
+        backupCount = in.readInt();
+        asyncBackupCount = in.readInt();
+        timeToLiveSeconds = in.readInt();
+        inMemoryFormat = InMemoryFormat.valueOf(in.readUTF());
+        ringbufferStoreConfig = in.readObject();
     }
 
     /**

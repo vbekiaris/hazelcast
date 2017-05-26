@@ -69,7 +69,7 @@ public class NodeQueryCacheContext implements QueryCacheContext {
         this.mapServiceContext = mapServiceContext;
         this.queryCacheScheduler = new NodeQueryCacheScheduler(mapServiceContext);
         this.queryCacheEventService = new NodeQueryCacheEventService(mapServiceContext);
-        this.queryCacheConfigurator = new NodeQueryCacheConfigurator(nodeEngine.getConfig(),
+        this.queryCacheConfigurator = new NodeQueryCacheConfigurator(nodeEngine.getConfigurationService(),
                 nodeEngine.getConfigClassLoader(), queryCacheEventService);
         this.invokerWrapper = new NodeInvokerWrapper(nodeEngine.getOperationService());
         // init these in the end

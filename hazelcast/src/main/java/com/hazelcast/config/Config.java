@@ -61,7 +61,7 @@ public class Config {
 
     private NetworkConfig networkConfig = new NetworkConfig();
 
-    private ConfigPatternMatcher configPatternMatcher = new MatchingPointConfigPatternMatcher();
+    private static ConfigPatternMatcher configPatternMatcher = new MatchingPointConfigPatternMatcher();
 
     private final Map<String, MapConfig> mapConfigs = new ConcurrentHashMap<String, MapConfig>();
 
@@ -1338,7 +1338,7 @@ public class Config {
         return this;
     }
 
-    <T> T lookupByPattern(Map<String, T> configPatterns, String itemName) {
+    public static <T> T lookupByPattern(Map<String, T> configPatterns, String itemName) {
         T candidate = configPatterns.get(itemName);
         if (candidate != null) {
             return candidate;

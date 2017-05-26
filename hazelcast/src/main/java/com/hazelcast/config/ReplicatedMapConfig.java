@@ -16,8 +16,12 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.replicatedmap.merge.PutIfAbsentMapMergePolicy;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,7 +29,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Contains the configuration for an {@link com.hazelcast.core.ReplicatedMap}
  */
-public class ReplicatedMapConfig {
+public class ReplicatedMapConfig implements IdentifiedDataSerializable {
 
     /**
      * Default value of concurrency level
@@ -49,10 +53,14 @@ public class ReplicatedMapConfig {
     public static final String DEFAULT_MERGE_POLICY = PutIfAbsentMapMergePolicy.class.getName();
 
     private String name;
-    private int concurrencyLevel = DEFAULT_CONCURRENCY_LEVEL;
-    private long replicationDelayMillis = DEFAULT_REPLICATION_DELAY_MILLIS;
+    // concurrencyLevel is deprecated and it's not used anymore
+    // it's left just for backwards compatibility -> it's transient
+    private transient int concurrencyLevel = DEFAULT_CONCURRENCY_LEVEL;
+    // replicationDelayMillis is deprecated, unused and hence transient
+    private transient long replicationDelayMillis = DEFAULT_REPLICATION_DELAY_MILLIS;
     private InMemoryFormat inMemoryFormat = DEFAULT_IN_MEMORY_FORMAT;
-    private ScheduledExecutorService replicatorExecutorService;
+    // replicatorExecutorService is deprecated, unused and hence transient
+    private transient ScheduledExecutorService replicatorExecutorService;
     private boolean asyncFillup = DEFAULT_ASNYC_FILLUP;
     private boolean statisticsEnabled = true;
     private String mergePolicy = DEFAULT_MERGE_POLICY;
@@ -323,5 +331,35 @@ public class ReplicatedMapConfig {
                 + ", statisticsEnabled=" + statisticsEnabled
                 + ", mergePolicy='" + mergePolicy + '\''
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.REPLICATED_MAP_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeUTF(inMemoryFormat.name());
+        out.writeBoolean(asyncFillup);
+        out.writeBoolean(statisticsEnabled);
+        out.writeUTF(mergePolicy);
+        MapConfig.writeNullableList(listenerConfigs, out);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        name = in.readUTF();
+        inMemoryFormat = InMemoryFormat.valueOf(in.readUTF());
+        asyncFillup = in.readBoolean();
+        statisticsEnabled = in.readBoolean();
+        mergePolicy = in.readUTF();
+        listenerConfigs = MapConfig.readNullableList(in);
     }
 }

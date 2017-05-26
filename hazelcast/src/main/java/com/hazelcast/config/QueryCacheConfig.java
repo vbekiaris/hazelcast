@@ -16,6 +16,11 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +35,7 @@ import static com.hazelcast.util.Preconditions.checkPositive;
  *
  * @since 3.5
  */
-public class QueryCacheConfig {
+public class QueryCacheConfig implements IdentifiedDataSerializable {
 
     /**
      * By default, after reaching this minimum size, node immediately sends buffered events to {@code QueryCache}.
@@ -120,7 +125,7 @@ public class QueryCacheConfig {
 
     private List<MapIndexConfig> indexConfigs;
 
-    private QueryCacheConfigReadOnly readOnly;
+    private transient QueryCacheConfigReadOnly readOnly;
 
     public QueryCacheConfig() {
     }
@@ -443,5 +448,47 @@ public class QueryCacheConfig {
                 + ", entryListenerConfigs=" + entryListenerConfigs
                 + ", indexConfigs=" + indexConfigs
                 + '}';
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.QUERY_CACHE_CONFIG;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        out.writeInt(batchSize);
+        out.writeInt(bufferSize);
+        out.writeInt(delaySeconds);
+        out.writeBoolean(includeValue);
+        out.writeBoolean(populate);
+        out.writeBoolean(coalesce);
+        out.writeUTF(inMemoryFormat.name());
+        out.writeUTF(name);
+        out.writeObject(predicateConfig);
+        out.writeObject(evictionConfig);
+        MapConfig.writeNullableList(entryListenerConfigs, out);
+        MapConfig.writeNullableList(indexConfigs, out);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        batchSize = in.readInt();
+        bufferSize = in.readInt();
+        delaySeconds = in.readInt();
+        includeValue = in.readBoolean();
+        populate = in.readBoolean();
+        coalesce = in.readBoolean();
+        inMemoryFormat = InMemoryFormat.valueOf(in.readUTF());
+        name = in.readUTF();
+        predicateConfig = in.readObject();
+        evictionConfig = in.readObject();
+        entryListenerConfigs = MapConfig.readNullableList(in);
+        indexConfigs = MapConfig.readNullableList(in);
     }
 }

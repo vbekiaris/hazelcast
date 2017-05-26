@@ -19,6 +19,7 @@ package com.hazelcast.map.impl.querycache.subscriber;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.QueryCacheConfig;
+import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.map.impl.querycache.QueryCacheConfigurator;
 import com.hazelcast.map.impl.querycache.QueryCacheEventService;
 
@@ -32,17 +33,17 @@ import java.util.List;
  */
 public class NodeQueryCacheConfigurator extends AbstractQueryCacheConfigurator {
 
-    private final Config config;
+    private final ConfigurationService configService;
 
-    public NodeQueryCacheConfigurator(Config config, ClassLoader configClassLoader,
+    public NodeQueryCacheConfigurator(ConfigurationService configService, ClassLoader configClassLoader,
                                       QueryCacheEventService eventService) {
         super(configClassLoader, eventService);
-        this.config = config;
+        this.configService = configService;
     }
 
     @Override
     public QueryCacheConfig getOrCreateConfiguration(String mapName, String cacheName) {
-        MapConfig mapConfig = config.getMapConfig(mapName);
+        MapConfig mapConfig = configService.getMapConfig(mapName);
 
         List<QueryCacheConfig> queryCacheConfigs = mapConfig.getQueryCacheConfigs();
         Iterator<QueryCacheConfig> iterator = queryCacheConfigs.iterator();
@@ -61,7 +62,7 @@ public class NodeQueryCacheConfigurator extends AbstractQueryCacheConfigurator {
 
     @Override
     public QueryCacheConfig getOrNull(String mapName, String cacheName) {
-        MapConfig mapConfig = config.getMapConfig(mapName);
+        MapConfig mapConfig = configService.getMapConfig(mapName);
 
         List<QueryCacheConfig> queryCacheConfigs = mapConfig.getQueryCacheConfigs();
         Iterator<QueryCacheConfig> iterator = queryCacheConfigs.iterator();
@@ -76,7 +77,7 @@ public class NodeQueryCacheConfigurator extends AbstractQueryCacheConfigurator {
 
     @Override
     public void removeConfiguration(String mapName, String cacheName) {
-        MapConfig mapConfig = config.getMapConfig(mapName);
+        MapConfig mapConfig = configService.getMapConfig(mapName);
         List<QueryCacheConfig> queryCacheConfigs = mapConfig.getQueryCacheConfigs();
         if (queryCacheConfigs == null || queryCacheConfigs.isEmpty()) {
             return;

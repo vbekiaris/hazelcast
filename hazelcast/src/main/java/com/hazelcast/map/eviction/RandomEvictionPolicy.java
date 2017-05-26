@@ -16,12 +16,18 @@
 
 package com.hazelcast.map.eviction;
 
+import com.hazelcast.config.ConfigDataSerializerHook;
 import com.hazelcast.core.EntryView;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 
 /**
  * Random eviction policy for an {@link com.hazelcast.core.IMap IMap}
  */
-public class RandomEvictionPolicy extends MapEvictionPolicy {
+public class RandomEvictionPolicy extends MapEvictionPolicy implements IdentifiedDataSerializable {
 
     /**
      * Random eviction policy instance.
@@ -31,5 +37,25 @@ public class RandomEvictionPolicy extends MapEvictionPolicy {
     @Override
     public int compare(EntryView entryView1, EntryView entryView2) {
         return 0;
+    }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.RANDOM_EVICTION_POLICY;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        //no-op
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        //no-op
     }
 }

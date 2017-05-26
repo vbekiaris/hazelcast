@@ -107,7 +107,7 @@ public class MultiMapService implements ManagedService, RemoteService, Fragmente
                         @Override
                         public LockStoreInfo createNew(final ObjectNamespace key) {
                             String name = key.getObjectName();
-                            final MultiMapConfig multiMapConfig = nodeEngine.getConfig().findMultiMapConfig(name);
+                            final MultiMapConfig multiMapConfig = nodeEngine.getConfigurationService().getMultiMapConfig(name);
 
                             return new LockStoreInfo() {
                                 @Override

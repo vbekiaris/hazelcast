@@ -16,12 +16,18 @@
 
 package com.hazelcast.map.eviction;
 
+import com.hazelcast.config.ConfigDataSerializerHook;
 import com.hazelcast.core.EntryView;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 
 /**
  * LFU eviction policy for an {@link com.hazelcast.core.IMap IMap}
  */
-public class LFUEvictionPolicy extends MapEvictionPolicy {
+public class LFUEvictionPolicy extends MapEvictionPolicy implements IdentifiedDataSerializable {
 
     /**
      * LFU eviction policy instance.
@@ -34,4 +40,25 @@ public class LFUEvictionPolicy extends MapEvictionPolicy {
         long hits2 = entryView2.getHits();
         return (hits1 < hits2) ? -1 : ((hits1 == hits2) ? 0 : 1);
     }
+
+    @Override
+    public int getFactoryId() {
+        return ConfigDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return ConfigDataSerializerHook.LFU_EVICTION_POLICY;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        //no-op
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        //no-op
+    }
+
 }
