@@ -48,11 +48,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class contains methods be notable for the Queue.
- * such as pool,peek,clear..
- */
-
-/**
  * The {@code QueueContainer} contains the actual queue and provides functionalities such as :
  * <ul>
  * <li>queue functionalities</li>
@@ -543,31 +538,10 @@ public class QueueContainer implements IdentifiedDataSerializable {
                 throw new HazelcastException(e);
             }
         }
-        long current = Clock.currentTimeMillis();
-        for (int i = 0; i < maxSizeParam; i++) {
-            final QueueItem item = getItemQueue().poll();
-            //For Stats
-            age(item, current);
-        }
         if (maxSizeParam != 0) {
             scheduleEvictionIfEmpty();
         }
         return map;
-    }
-
-    public void mapDrainIterator(int maxSize, Map map) {
-        Iterator<QueueItem> iter = getItemQueue().iterator();
-        for (int i = 0; i < maxSize; i++) {
-            QueueItem item = iter.next();
-            if (store.isEnabled() && item.getData() == null) {
-                try {
-                    load(item);
-                } catch (Exception e) {
-                    throw new HazelcastException(e);
-                }
-            }
-            map.put(item.getItemId(), item.getData());
-        }
     }
 
     public void drainFromBackup(Set<Long> itemIdSet) {
@@ -991,5 +965,23 @@ public class QueueContainer implements IdentifiedDataSerializable {
 
     void setId(long itemId) {
         idGenerator = Math.max(itemId + 1, idGenerator);
+    }
+
+    private void mapDrainIterator(int maxSize, Map map) {
+        Iterator<QueueItem> iter = getItemQueue().iterator();
+        long current = Clock.currentTimeMillis();
+        for (int i = 0; i < maxSize; i++) {
+            QueueItem item = iter.next();
+            if (store.isEnabled() && item.getData() == null) {
+                try {
+                    load(item);
+                } catch (Exception e) {
+                    throw new HazelcastException(e);
+                }
+            }
+            map.put(item.getItemId(), item.getData());
+            iter.remove();
+            age(item, current);
+        }
     }
 }
