@@ -1,15 +1,13 @@
 package com.hazelcast.internal.dynamicconfig;
 
 import com.hazelcast.config.ConfigDataSerializerHook;
-import com.hazelcast.config.MultiMapConfig;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.Operation;
 
 import java.io.IOException;
 
-public class AddDynamicConfigOperation extends Operation implements IdentifiedDataSerializable {
+public class AddDynamicConfigOperation extends AbstractDynamicConfigOperation {
 
     private IdentifiedDataSerializable config;
 
@@ -38,12 +36,8 @@ public class AddDynamicConfigOperation extends Operation implements IdentifiedDa
     }
 
     @Override
-    public int getFactoryId() {
-        return ConfigDataSerializerHook.F_ID;
-    }
-
-    @Override
     public int getId() {
         return ConfigDataSerializerHook.ADD_DYNAMIC_CONFIG_OP;
     }
+
 }

@@ -128,6 +128,7 @@ public class EntryListenerConfig extends ListenerConfig {
 
     /**
      * Wraps a MapListener into an EntryListener.
+     * // todo this must become serializable
      */
     public static class MapListenerToEntryListenerAdapter implements EntryListener, HazelcastInstanceAware {
 

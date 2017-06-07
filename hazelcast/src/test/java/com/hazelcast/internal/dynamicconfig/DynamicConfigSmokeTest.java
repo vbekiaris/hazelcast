@@ -20,6 +20,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RunWith(HazelcastSerialClassRunner.class)
@@ -95,8 +96,8 @@ public class DynamicConfigSmokeTest extends HazelcastTestSupport {
         assertEqualsEventually(3, DummyListener.addedCounter);
     }
 
-    public static class DummyListener implements EntryListener {
-        private static final AtomicInteger addedCounter = new AtomicInteger();
+    public static class DummyListener implements EntryListener, Serializable {
+        public static final AtomicInteger addedCounter = new AtomicInteger();
 
         @Override
         public void entryAdded(EntryEvent event) {

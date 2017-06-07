@@ -1034,6 +1034,10 @@ public class Config {
         return semaphoreConfigs.values();
     }
 
+    public Map<String, SemaphoreConfig> getSemaphoreConfigsAsMap() {
+        return semaphoreConfigs;
+    }
+
     public Config setSemaphoreConfigs(Map<String, SemaphoreConfig> semaphoreConfigs) {
         this.semaphoreConfigs.clear();
         this.semaphoreConfigs.putAll(semaphoreConfigs);

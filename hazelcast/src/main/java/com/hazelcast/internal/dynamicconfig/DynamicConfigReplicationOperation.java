@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class DynamicConfigReplicationOperation extends Operation implements IdentifiedDataSerializable {
+public class DynamicConfigReplicationOperation extends AbstractDynamicConfigOperation {
 
     private IdentifiedDataSerializable[] configs;
 
@@ -52,11 +52,6 @@ public class DynamicConfigReplicationOperation extends Operation implements Iden
         for (int i = 0; i < size; i++) {
             configs[i] = in.readObject();
         }
-    }
-
-    @Override
-    public int getFactoryId() {
-        return ConfigDataSerializerHook.F_ID;
     }
 
     @Override
