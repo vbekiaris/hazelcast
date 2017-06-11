@@ -266,11 +266,11 @@ public class Config {
             defConfig = new MapConfig();
             defConfig.setName("default");
             initDefaultMaxSizeForOnHeapMaps(defConfig.getNearCacheConfig());
-            addMapConfig(defConfig);
+            mapConfigs.put(defConfig.getName(), defConfig);
         }
         config = new MapConfig(defConfig);
         config.setName(name);
-        addMapConfig(config);
+        mapConfigs.put(config.getName(), config);
         return config;
     }
 

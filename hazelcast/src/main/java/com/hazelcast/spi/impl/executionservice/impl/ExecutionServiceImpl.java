@@ -89,7 +89,7 @@ public final class ExecutionServiceImpl implements InternalExecutionService {
             new ConstructorFunction<String, ManagedExecutorService>() {
                 @Override
                 public ManagedExecutorService createNew(String name) {
-                    ExecutorConfig config = nodeEngine.getConfig().findExecutorConfig(name);
+                    ExecutorConfig config = nodeEngine.getConfig().getExecutorConfig(name);
                     int queueCapacity = config.getQueueCapacity() <= 0 ? Integer.MAX_VALUE : config.getQueueCapacity();
                     return createExecutor(name, config.getPoolSize(), queueCapacity, ExecutorType.CACHED);
                 }

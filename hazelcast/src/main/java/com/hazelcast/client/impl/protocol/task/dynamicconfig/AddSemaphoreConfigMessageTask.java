@@ -19,16 +19,11 @@ package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddSemaphoreConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddSetConfigCodec;
-import com.hazelcast.config.ItemListenerConfig;
 import com.hazelcast.config.SemaphoreConfig;
-import com.hazelcast.config.SetConfig;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.dynamicconfig.AddDynamicConfigOperationFactory;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.spi.OperationFactory;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class AddSemaphoreConfigMessageTask
         extends AbstractAddConfigMessageTask<DynamicConfigAddSemaphoreConfigCodec.RequestParameters> {

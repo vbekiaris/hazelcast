@@ -105,7 +105,7 @@ public class TopicService implements ManagedService, RemoteService, EventPublish
 
     @Override
     public ITopic createDistributedObject(String name) {
-        TopicConfig topicConfig = nodeEngine.getConfig().findTopicConfig(name);
+        TopicConfig topicConfig = nodeEngine.getConfigurationService().getTopicConfig(name);
 
         if (topicConfig.isGlobalOrderingEnabled()) {
             return new TotalOrderedTopicProxy(name, nodeEngine, this);

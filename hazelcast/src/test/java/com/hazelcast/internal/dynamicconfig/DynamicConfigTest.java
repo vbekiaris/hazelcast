@@ -333,7 +333,7 @@ public class DynamicConfigTest extends HazelcastTestSupport {
                 configOnCluster.getProperties());
     }
 
-    private ConfigurationService getConfigurationService() {
+    private ClusterWideConfigurationService getConfigurationService() {
         return getNodeEngineImpl(members[members.length - 1]).getConfigurationService();
     }
 

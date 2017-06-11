@@ -32,6 +32,8 @@ import com.hazelcast.internal.cluster.ClusterStateListener;
 import com.hazelcast.internal.cluster.ClusterVersionListener;
 import com.hazelcast.internal.cluster.impl.JoinMessage;
 import com.hazelcast.internal.cluster.impl.VersionMismatchException;
+import com.hazelcast.internal.dynamicconfig.DynamicConfigListener;
+import com.hazelcast.internal.dynamicconfig.EmptyDynamicConfigListener;
 import com.hazelcast.internal.management.TimedMemberStateFactory;
 import com.hazelcast.internal.networking.ChannelFactory;
 import com.hazelcast.internal.networking.ChannelInboundHandler;
@@ -342,5 +344,10 @@ public class DefaultNodeExtension implements NodeExtension {
     @Override
     public TimedMemberStateFactory createTimedMemberStateFactory(HazelcastInstanceImpl instance) {
         return new TimedMemberStateFactory(instance);
+    }
+
+    @Override
+    public DynamicConfigListener createDynamicConfigListener() {
+        return new EmptyDynamicConfigListener();
     }
 }

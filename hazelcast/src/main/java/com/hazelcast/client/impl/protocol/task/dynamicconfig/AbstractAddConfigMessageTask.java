@@ -17,13 +17,11 @@
 package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
-import com.hazelcast.client.impl.protocol.codec.MapSizeCodec;
 import com.hazelcast.client.impl.protocol.task.AbstractCallableMessageTask;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
 import com.hazelcast.config.ItemListenerConfig;
 import com.hazelcast.config.ListenerConfig;
 import com.hazelcast.instance.Node;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
+import com.hazelcast.internal.dynamicconfig.ClusterWideConfigurationService;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.spi.OperationFactory;
 import com.hazelcast.util.InvocationUtil;
@@ -32,7 +30,7 @@ import java.security.Permission;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.hazelcast.internal.dynamicconfig.ConfigurationService.CONFIG_PUBLISH_MAX_ATTEMPT_COUNT;
+import static com.hazelcast.internal.dynamicconfig.ClusterWideConfigurationService.CONFIG_PUBLISH_MAX_ATTEMPT_COUNT;
 
 /**
  * Base implementation for dynamic add***Config methods.
@@ -52,7 +50,7 @@ public abstract class AbstractAddConfigMessageTask<P> extends AbstractCallableMe
 
     @Override
     public String getServiceName() {
-        return ConfigurationService.SERVICE_NAME;
+        return ClusterWideConfigurationService.SERVICE_NAME;
     }
 
     @Override

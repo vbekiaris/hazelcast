@@ -19,7 +19,6 @@ package com.hazelcast.map.impl.querycache.subscriber;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.QueryCacheConfig;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.map.impl.querycache.QueryCacheConfigurator;
 import com.hazelcast.map.impl.querycache.QueryCacheEventService;
 
@@ -33,9 +32,9 @@ import java.util.List;
  */
 public class NodeQueryCacheConfigurator extends AbstractQueryCacheConfigurator {
 
-    private final ConfigurationService configService;
+    private final Config configService;
 
-    public NodeQueryCacheConfigurator(ConfigurationService configService, ClassLoader configClassLoader,
+    public NodeQueryCacheConfigurator(Config configService, ClassLoader configClassLoader,
                                       QueryCacheEventService eventService) {
         super(configClassLoader, eventService);
         this.configService = configService;

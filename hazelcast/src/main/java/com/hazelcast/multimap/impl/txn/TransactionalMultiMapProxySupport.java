@@ -63,7 +63,7 @@ public abstract class TransactionalMultiMapProxySupport<K, V>
     TransactionalMultiMapProxySupport(NodeEngine nodeEngine, MultiMapService service, String name, Transaction tx) {
         super(nodeEngine, service, tx);
         this.name = name;
-        this.config = nodeEngine.getConfigurationService().getMultiMapConfig(name);
+        this.config = nodeEngine.getConfig().getMultiMapConfig(name);
         this.operationService = nodeEngine.getOperationService();
         this.partitionService = nodeEngine.getPartitionService();
     }

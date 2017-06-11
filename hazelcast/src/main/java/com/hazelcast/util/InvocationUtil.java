@@ -38,6 +38,11 @@ import static java.lang.String.format;
  * Utility methods for invocations
  */
 public final class InvocationUtil {
+    private static final int WARMUP_SLEEPING_TIME_MILLIS = 10;
+
+    private InvocationUtil() {
+
+    }
 
     public static void invokeOnStableCluster(NodeEngine nodeEngine, OperationFactory operationFactory,
                                                  MemberSelector memberSelector, int retriesCount) {
@@ -66,7 +71,7 @@ public final class InvocationUtil {
         for (Partition partition : ps.getPartitions()) {
             while (partition.getOwner() == null) {
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(WARMUP_SLEEPING_TIME_MILLIS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new HazelcastException("Thread interrupted while initializing a partition table", e);

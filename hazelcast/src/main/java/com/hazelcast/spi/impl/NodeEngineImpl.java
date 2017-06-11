@@ -19,7 +19,7 @@ package com.hazelcast.spi.impl;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
+import com.hazelcast.internal.dynamicconfig.ClusterWideConfigurationService;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.cluster.ClusterService;
@@ -36,6 +36,7 @@ import com.hazelcast.internal.diagnostics.SlowOperationPlugin;
 import com.hazelcast.internal.diagnostics.StoreLatencyPlugin;
 import com.hazelcast.internal.diagnostics.SystemLogPlugin;
 import com.hazelcast.internal.diagnostics.SystemPropertiesPlugin;
+import com.hazelcast.internal.dynamicconfig.DynamicConfigListener;
 import com.hazelcast.internal.management.ManagementCenterService;
 import com.hazelcast.internal.metrics.MetricsRegistry;
 import com.hazelcast.internal.metrics.ProbeLevel;
@@ -121,7 +122,7 @@ public class NodeEngineImpl implements NodeEngine {
     private final LoggingServiceImpl loggingService;
     private final Diagnostics diagnostics;
     private final UserCodeDeploymentService userCodeDeploymentService;
-    private final ConfigurationService configurationService;
+    private final ClusterWideConfigurationService configurationService;
 
     @SuppressWarnings("checkstyle:executablestatementcount")
     public NodeEngineImpl(final Node node) {
@@ -137,7 +138,8 @@ public class NodeEngineImpl implements NodeEngine {
         this.eventService = new EventServiceImpl(this);
         this.operationParker = new OperationParkerImpl(this);
         this.userCodeDeploymentService = new UserCodeDeploymentService();
-        this.configurationService = new ConfigurationService(this);
+        DynamicConfigListener dynamicConfigListener = node.getNodeExtension().createDynamicConfigListener();
+        this.configurationService = new ClusterWideConfigurationService(this, dynamicConfigListener);
         ClassLoader configClassLoader = node.getConfigClassLoader();
         if (configClassLoader instanceof UserCodeDeploymentClassLoader) {
             ((UserCodeDeploymentClassLoader) configClassLoader).setUserCodeDeploymentService(userCodeDeploymentService);
@@ -158,7 +160,7 @@ public class NodeEngineImpl implements NodeEngine {
         serviceManager.registerService(InternalOperationService.SERVICE_NAME, operationService);
         serviceManager.registerService(OperationParker.SERVICE_NAME, operationParker);
         serviceManager.registerService(UserCodeDeploymentService.SERVICE_NAME, userCodeDeploymentService);
-        serviceManager.registerService(ConfigurationService.SERVICE_NAME, configurationService);
+        serviceManager.registerService(ClusterWideConfigurationService.SERVICE_NAME, configurationService);
     }
 
     private PacketHandler newJetPacketHandler() {
@@ -256,7 +258,7 @@ public class NodeEngineImpl implements NodeEngine {
         return diagnostics;
     }
 
-    public ConfigurationService getConfigurationService() {
+    public ClusterWideConfigurationService getConfigurationService() {
         return configurationService;
     }
 

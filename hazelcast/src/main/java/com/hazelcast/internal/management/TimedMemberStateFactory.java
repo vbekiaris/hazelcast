@@ -32,7 +32,6 @@ import com.hazelcast.instance.HazelcastInstanceImpl;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.cluster.ClusterService;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.internal.management.dto.ClientEndPointDTO;
 import com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO;
 import com.hazelcast.internal.partition.InternalPartitionService;
@@ -217,14 +216,13 @@ public class TimedMemberStateFactory {
         int count = 0;
         //todo: we should be using (dynamic) ConfigService here instead of static Config object
         Config config = instance.getConfig();
-        ConfigurationService configurationService = instance.node.nodeEngine.getConfigurationService();
         Set<String> longInstanceNames = new HashSet<String>(maxVisibleInstanceCount);
         for (StatisticsAwareService service : services) {
             if (count < maxVisibleInstanceCount) {
                 if (service instanceof MapService) {
-                    count = handleMap(memberState, count, configurationService, ((MapService) service).getStats(), longInstanceNames);
+                    count = handleMap(memberState, count, config, ((MapService) service).getStats(), longInstanceNames);
                 } else if (service instanceof MultiMapService) {
-                    count = handleMultimap(memberState, count, configurationService, ((MultiMapService) service).getStats(), longInstanceNames);
+                    count = handleMultimap(memberState, count, config, ((MultiMapService) service).getStats(), longInstanceNames);
                 } else if (service instanceof QueueService) {
                     count = handleQueue(memberState, count, config, ((QueueService) service).getStats(), longInstanceNames);
                 } else if (service instanceof TopicService) {
@@ -269,7 +267,7 @@ public class TimedMemberStateFactory {
             String name = entry.getKey();
             if (count >= maxVisibleInstanceCount) {
                 break;
-            } else if (config.findExecutorConfig(name).isStatisticsEnabled()) {
+            } else if (config.getExecutorConfig(name).isStatisticsEnabled()) {
                 LocalExecutorStats stats = entry.getValue();
                 memberState.putLocalExecutorStats(name, stats);
                 longInstanceNames.add("e:" + name);
@@ -279,7 +277,7 @@ public class TimedMemberStateFactory {
         return count;
     }
 
-    private int handleMultimap(MemberStateImpl memberState, int count, ConfigurationService config, Map<String, LocalMultiMapStats> multiMaps,
+    private int handleMultimap(MemberStateImpl memberState, int count, Config config, Map<String, LocalMultiMapStats> multiMaps,
                                Set<String> longInstanceNames) {
         for (Map.Entry<String, LocalMultiMapStats> entry : multiMaps.entrySet()) {
             String name = entry.getKey();
@@ -311,13 +309,13 @@ public class TimedMemberStateFactory {
         return count;
     }
 
-    private int handleTopic(MemberStateImpl memberState, int count, Config config, Map<String, LocalTopicStats> topics,
-                            Set<String> longInstanceNames) {
+    private int handleTopic(MemberStateImpl memberState, int count, Config config,
+                            Map<String, LocalTopicStats> topics, Set<String> longInstanceNames) {
         for (Map.Entry<String, LocalTopicStats> entry : topics.entrySet()) {
             String name = entry.getKey();
             if (count >= maxVisibleInstanceCount) {
                 break;
-            } else if (config.findTopicConfig(name).isStatisticsEnabled()) {
+            } else if (config.getTopicConfig(name).isStatisticsEnabled()) {
                 LocalTopicStats stats = entry.getValue();
                 memberState.putLocalTopicStats(name, stats);
                 longInstanceNames.add("t:" + name);
@@ -343,7 +341,7 @@ public class TimedMemberStateFactory {
         return count;
     }
 
-    private int handleMap(MemberStateImpl memberState, int count, ConfigurationService config, Map<String, LocalMapStats> maps,
+    private int handleMap(MemberStateImpl memberState, int count, Config config, Map<String, LocalMapStats> maps,
                           Set<String> longInstanceNames) {
         for (Map.Entry<String, LocalMapStats> entry : maps.entrySet()) {
             String name = entry.getKey();

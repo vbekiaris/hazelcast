@@ -58,7 +58,7 @@ public class TopicMBean extends HazelcastMBean<ITopic> {
     @ManagedAnnotation("config")
     public String getConfig() {
         Config config = service.instance.getConfig();
-        TopicConfig topicConfig = config.findTopicConfig(managedObject.getName());
+        TopicConfig topicConfig = config.getTopicConfig(managedObject.getName());
         return topicConfig.toString();
     }
 }

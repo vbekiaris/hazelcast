@@ -203,7 +203,7 @@ public class DistributedExecutorService implements ManagedService, RemoteService
         if (cfg != null) {
             return cfg;
         } else {
-            cfg = nodeEngine.getConfig().findExecutorConfig(name);
+            cfg = nodeEngine.getConfigurationService().getExecutorConfig(name);
             ExecutorConfig executorConfig = executorConfigCache.putIfAbsent(name, cfg);
             return executorConfig == null ? cfg : executorConfig;
         }

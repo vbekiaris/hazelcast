@@ -21,7 +21,6 @@ import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.PartitioningStrategyConfig;
 import com.hazelcast.core.PartitioningStrategy;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.event.MapEventPublisher;
@@ -112,8 +111,7 @@ class MapServiceContextImpl implements MapServiceContext {
         public MapContainer createNew(String mapName) {
             final MapServiceContext mapServiceContext = getService().getMapServiceContext();
             final Config config = nodeEngine.getConfig();
-            final ConfigurationService configurationService = nodeEngine.getConfigurationService();
-            return new MapContainer(mapName, config, configurationService, mapServiceContext);
+            return new MapContainer(mapName, config, mapServiceContext);
         }
     };
     /**

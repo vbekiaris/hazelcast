@@ -1,286 +1,108 @@
+/*
+ * Copyright (c) 2008-2017, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hazelcast.internal.dynamicconfig;
 
+import com.hazelcast.config.CacheSimpleConfig;
 import com.hazelcast.config.CardinalityEstimatorConfig;
-import com.hazelcast.config.Config;
 import com.hazelcast.config.DurableExecutorConfig;
 import com.hazelcast.config.ExecutorConfig;
 import com.hazelcast.config.ListConfig;
 import com.hazelcast.config.LockConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MultiMapConfig;
+import com.hazelcast.config.QueueConfig;
+import com.hazelcast.config.ReliableTopicConfig;
 import com.hazelcast.config.ReplicatedMapConfig;
 import com.hazelcast.config.RingbufferConfig;
 import com.hazelcast.config.ScheduledExecutorConfig;
 import com.hazelcast.config.SemaphoreConfig;
 import com.hazelcast.config.SetConfig;
 import com.hazelcast.config.TopicConfig;
-import com.hazelcast.internal.cluster.ClusterVersionListener;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.CoreService;
-import com.hazelcast.spi.ManagedService;
-import com.hazelcast.spi.MigrationAwareService;
-import com.hazelcast.spi.NodeEngine;
-import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.PartitionMigrationEvent;
-import com.hazelcast.spi.PartitionReplicationEvent;
-import com.hazelcast.spi.PostJoinAwareService;
-import com.hazelcast.version.Version;
 
 import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
-import static com.hazelcast.internal.cluster.Versions.V3_8;
-import static com.hazelcast.util.InvocationUtil.invokeOnStableCluster;
+public interface ConfigurationService {
+    MultiMapConfig getMultiMapConfig(String name);
 
-public class ConfigurationService implements PostJoinAwareService, MigrationAwareService,
-        CoreService, ClusterVersionListener, ManagedService {
-    public static final String SERVICE_NAME = "configuration-service";
-    public static final int CONFIG_PUBLISH_MAX_ATTEMPT_COUNT = 100;
+    MapConfig getMapConfig(String name);
 
-    private NodeEngine nodeEngine;
-    private ConcurrentMap<String, MultiMapConfig> multiMapConfigs = new ConcurrentHashMap<String, MultiMapConfig>();
-    private ConcurrentMap<String, MapConfig> mapConfigs = new ConcurrentHashMap<String, MapConfig>();
-    private ConcurrentMap<String, CardinalityEstimatorConfig> cardinalityEstimatorConfigs =
-            new ConcurrentHashMap<String, CardinalityEstimatorConfig>();
-    private ConcurrentMap<String, RingbufferConfig> ringbufferConfigs = new ConcurrentHashMap<String, RingbufferConfig>();
-    private ConcurrentMap<String, LockConfig> lockConfigs = new ConcurrentHashMap<String, LockConfig>();
-    private ConcurrentMap<String, ListConfig> listConfigs = new ConcurrentHashMap<String, ListConfig>();
-    private ConcurrentMap<String, SetConfig> setConfigs = new ConcurrentHashMap<String, SetConfig>();
-    private ConcurrentMap<String, ReplicatedMapConfig> replicatedMapConfigs =
-            new ConcurrentHashMap<String, ReplicatedMapConfig>();
-    private ConcurrentMap<String, TopicConfig> topicConfigs = new ConcurrentHashMap<String, TopicConfig>();
-    private ConcurrentMap<String, ExecutorConfig> executorConfigs = new ConcurrentHashMap<String, ExecutorConfig>();
-    private ConcurrentMap<String, DurableExecutorConfig> durableExecutorConfigs =
-            new ConcurrentHashMap<String, DurableExecutorConfig>();
-    private ConcurrentMap<String, ScheduledExecutorConfig> scheduledExecutorConfigs =
-            new ConcurrentHashMap<String, ScheduledExecutorConfig>();
-    private ConcurrentMap<String, SemaphoreConfig> semaphoreConfigs = new ConcurrentHashMap<String, SemaphoreConfig>();
+    Map<String, MapConfig> getMapConfigs();
 
-    private Config staticConfig;
-    private volatile Version version;
+    TopicConfig getTopicConfig(String name);
 
-    public ConfigurationService(NodeEngine nodeEngine) {
-        this.nodeEngine = nodeEngine;
-        this.staticConfig = nodeEngine.getConfig();
-    }
+    CardinalityEstimatorConfig getCardinalityEstimatorConfig(String name);
 
-    @Override
-    public Operation getPostJoinOperation() {
-        return null;
-    }
+    ExecutorConfig getExecutorConfig(String name);
 
-    public MultiMapConfig getMultiMapConfig(String name) {
-        Map<String, MultiMapConfig> staticMultiMapConfigs = staticConfig.getMultiMapConfigs();
-        MultiMapConfig multiMapConfig = Config.lookupByPattern(staticMultiMapConfigs, name);
-        if (multiMapConfig == null) {
-            multiMapConfig = multiMapConfigs.get(name);
-        }
-        if (multiMapConfig == null) {
-            multiMapConfig = staticConfig.getMultiMapConfig(name);
-        }
-        return multiMapConfig;
-    }
+    ScheduledExecutorConfig getScheduledExecutorConfig(String name);
 
-    public MapConfig getMapConfig(String name) {
-        Map<String, MapConfig> staticMapConfigs = staticConfig.getMapConfigs();
-        MapConfig mapConfig = Config.lookupByPattern(staticMapConfigs, name);
-        if (mapConfig == null) {
-            mapConfig = mapConfigs.get(name);
-        }
-        if (mapConfig == null) {
-            mapConfig = staticConfig.getMapConfig(name);
-        }
-        return mapConfig;
-    }
+    DurableExecutorConfig getDurableExecutorConfig(String name);
 
-    public CardinalityEstimatorConfig getCardinalityEstimatorConfig(String name) {
-        Map<String, CardinalityEstimatorConfig> staticConfigs = staticConfig.getCardinalityEstimatorConfigs();
-        CardinalityEstimatorConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = cardinalityEstimatorConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getCardinalityEstimatorConfig(name);
-        }
-        return config;
-    }
+    SemaphoreConfig getSemaphoreConfig(String name);
 
-    public ExecutorConfig getExecutorConfig(String name) {
-        Map<String, ExecutorConfig> staticConfigs = staticConfig.getExecutorConfigs();
-        ExecutorConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = executorConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getExecutorConfig(name);
-        }
-        return config;
-    }
+    RingbufferConfig getRingbufferConfig(String name);
 
-    public ScheduledExecutorConfig getScheduledExecutorConfig(String name) {
-        Map<String, ScheduledExecutorConfig> staticConfigs = staticConfig.getScheduledExecutorConfigs();
-        ScheduledExecutorConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = scheduledExecutorConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getScheduledExecutorConfig(name);
-        }
-        return config;
-    }
+    LockConfig getLockConfig(String name);
 
-    public DurableExecutorConfig getDurableExecutorConfig(String name) {
-        Map<String, DurableExecutorConfig> staticConfigs = staticConfig.getDurableExecutorConfigs();
-        DurableExecutorConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = durableExecutorConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getDurableExecutorConfig(name);
-        }
-        return config;
-    }
+    Map<String, LockConfig> getLockConfigs();
 
-    public SemaphoreConfig getSemaphoreConfig(String name) {
-        Map<String, SemaphoreConfig> staticConfigs = staticConfig.getSemaphoreConfigsAsMap();
-        SemaphoreConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = semaphoreConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getSemaphoreConfig(name);
-        }
-        return config;
-    }
+    ListConfig getListConfig(String name);
 
-    public RingbufferConfig getRingbufferConfig(String name) {
-        Map<String, RingbufferConfig> staticConfigs = staticConfig.getRingbufferConfigs();
-        RingbufferConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = ringbufferConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getRingbufferConfig(name);
-        }
-        return config;
-    }
+    void registerLocally(IdentifiedDataSerializable config);
 
-    public LockConfig getLockConfig(String name) {
-        Map<String, LockConfig> staticConfigs = staticConfig.getLockConfigs();
-        LockConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = lockConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getLockConfig(name);
-        }
-        return config;
-    }
+    void broadcastConfig(IdentifiedDataSerializable config);
 
-    public ListConfig getListConfig(String name) {
-        Map<String, ListConfig> staticConfigs = staticConfig.getListConfigs();
-        ListConfig config = Config.lookupByPattern(staticConfigs, name);
-        if (config == null) {
-            config = listConfigs.get(name);
-        }
-        if (config == null) {
-            config = staticConfig.getListConfig(name);
-        }
-        return config;
-    }
+    QueueConfig getQueueConfig(String name);
 
-    public void registerLocally(IdentifiedDataSerializable config) {
-        if (config instanceof MultiMapConfig) {
-            MultiMapConfig multiMapConfig = (MultiMapConfig) config;
-            multiMapConfigs.putIfAbsent(multiMapConfig.getName(), multiMapConfig);
-        } else if (config instanceof MapConfig) {
-            MapConfig mapConfig = (MapConfig) config;
-            mapConfigs.putIfAbsent(mapConfig.getName(), mapConfig);
-        } else if (config instanceof CardinalityEstimatorConfig) {
-            CardinalityEstimatorConfig cardinalityEstimatorConfig = (CardinalityEstimatorConfig) config;
-            cardinalityEstimatorConfigs.putIfAbsent(cardinalityEstimatorConfig.getName(), cardinalityEstimatorConfig);
-        } else if (config instanceof RingbufferConfig) {
-            RingbufferConfig ringbufferConfig = (RingbufferConfig) config;
-            ringbufferConfigs.putIfAbsent(ringbufferConfig.getName(), ringbufferConfig);
-        } else if (config instanceof LockConfig) {
-            LockConfig lockConfig = (LockConfig) config;
-            lockConfigs.putIfAbsent(lockConfig.getName(), lockConfig);
-        } else if (config instanceof ListConfig) {
-            ListConfig listConfig = (ListConfig) config;
-            listConfigs.putIfAbsent(listConfig.getName(), listConfig);
-        } else if (config instanceof SetConfig) {
-            SetConfig setConfig = (SetConfig) config;
-            setConfigs.putIfAbsent(setConfig.getName(), setConfig);
-        } else if (config instanceof ReplicatedMapConfig) {
-            ReplicatedMapConfig replicatedMapConfig = (ReplicatedMapConfig) config;
-            replicatedMapConfigs.putIfAbsent(replicatedMapConfig.getName(), replicatedMapConfig);
-        } else if (config instanceof TopicConfig) {
-            TopicConfig topicConfig = (TopicConfig) config;
-            topicConfigs.putIfAbsent(topicConfig.getName(), topicConfig);
-        } else if (config instanceof ExecutorConfig) {
-            ExecutorConfig executorConfig = (ExecutorConfig) config;
-            executorConfigs.putIfAbsent(executorConfig.getName(), executorConfig);
-        } else if (config instanceof DurableExecutorConfig) {
-            DurableExecutorConfig durableExecutorConfig = (DurableExecutorConfig) config;
-            durableExecutorConfigs.putIfAbsent(durableExecutorConfig.getName(), durableExecutorConfig);
-        } else if (config instanceof ScheduledExecutorConfig) {
-            ScheduledExecutorConfig scheduledExecutorConfig = (ScheduledExecutorConfig) config;
-            scheduledExecutorConfigs.putIfAbsent(scheduledExecutorConfig.getName(), scheduledExecutorConfig);
-        } else if (config instanceof SemaphoreConfig) {
-            SemaphoreConfig semaphoreConfig = (SemaphoreConfig) config;
-            semaphoreConfigs.putIfAbsent(semaphoreConfig.getName(), semaphoreConfig);
-        } else {
-            throw new UnsupportedOperationException("Unsupported config type: " + config);
-        }
-    }
+    Map<String, QueueConfig> getQueueConfigs();
 
-    public void broadcastConfig(IdentifiedDataSerializable config) {
-        invokeOnStableCluster(nodeEngine, new AddDynamicConfigOperationFactory(config), null,
-                CONFIG_PUBLISH_MAX_ATTEMPT_COUNT);
-    }
+    Map<String, ListConfig> getListConfigs();
 
-    @Override
-    public Operation prepareReplicationOperation(PartitionReplicationEvent event) {
-        if (version.isLessOrEqual(V3_8)) {
-            return null;
-        }
-        return new DynamicConfigReplicationOperation(multiMapConfigs, mapConfigs);
-    }
+    SetConfig getSetConfig(String name);
 
-    @Override
-    public void beforeMigration(PartitionMigrationEvent event) {
-        //no-op
-    }
+    Map<String, SetConfig> getSetConfigs();
 
-    @Override
-    public void commitMigration(PartitionMigrationEvent event) {
-        //no-op
-    }
+    Map<String, MultiMapConfig> getMultiMapConfigs();
 
-    @Override
-    public void rollbackMigration(PartitionMigrationEvent event) {
-        //no-op
-    }
+    ReplicatedMapConfig getReplicatedMapConfig(String name);
 
-    @Override
-    public void onClusterVersionChange(Version newVersion) {
-        version = newVersion;
-    }
+    Map<String, ReplicatedMapConfig> getReplicatedMapConfigs();
 
-    @Override
-    public void init(NodeEngine nodeEngine, Properties properties) {
-        //no-op
-    }
+    Map<String, RingbufferConfig> getRingbufferConfigs();
 
-    @Override
-    public void reset() {
-        multiMapConfigs.clear();
-    }
+    Map<String, TopicConfig> getTopicConfigs();
 
-    @Override
-    public void shutdown(boolean terminate) {
-        //no-op
-    }
+    ReliableTopicConfig getReliableTopicConfig(String name);
+
+    Map<String, ReliableTopicConfig> getReliableTopicConfigs();
+
+    Map<String, ExecutorConfig> getExecutorConfigs();
+
+    Map<String, DurableExecutorConfig> getDurableExecutorConfigs();
+
+    Map<String, ScheduledExecutorConfig> getScheduledExecutorConfigs();
+
+    Map<String, CardinalityEstimatorConfig> getCardinalityEstimatorConfigs();
+
+    Map<String, SemaphoreConfig> getSemaphoreConfigs();
+
+    CacheSimpleConfig getCacheConfig(String name);
+
+    Map<String,CacheSimpleConfig> getCacheSimpleConfigs();
 }
+

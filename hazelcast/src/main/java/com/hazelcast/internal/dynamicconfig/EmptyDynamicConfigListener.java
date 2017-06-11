@@ -16,19 +16,28 @@
 
 package com.hazelcast.internal.dynamicconfig;
 
-import com.hazelcast.config.ConfigDataSerializerHook;
-import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.Operation;
+import com.hazelcast.config.CacheSimpleConfig;
+import com.hazelcast.config.MapConfig;
 
-public abstract class AbstractDynamicConfigOperation extends Operation implements IdentifiedDataSerializable {
+
+/**
+ * Empty implementation of {@link DynamicConfigListener}
+ *
+ */
+public class EmptyDynamicConfigListener implements DynamicConfigListener {
 
     @Override
-    public int getFactoryId() {
-        return ConfigDataSerializerHook.F_ID;
+    public void onConfigRegistered(MapConfig configObject) {
+        //intentionally no-op
     }
 
     @Override
-    public String getServiceName() {
-        return ClusterWideConfigurationService.SERVICE_NAME;
+    public void onConfigRegistered(CacheSimpleConfig configObject) {
+        //intentionally no-op
+    }
+
+    @Override
+    public void onServiceInitialized(ClusterWideConfigurationService configurationService) {
+        //intentionally no-op
     }
 }

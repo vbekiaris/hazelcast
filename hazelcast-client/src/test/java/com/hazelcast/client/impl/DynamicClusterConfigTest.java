@@ -22,11 +22,10 @@ import com.hazelcast.config.EntryListenerConfig;
 import com.hazelcast.config.MultiMapConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.MultiMap;
-import com.hazelcast.internal.dynamicconfig.ConfigurationService;
+import com.hazelcast.internal.dynamicconfig.ClusterWideConfigurationService;
 import com.hazelcast.internal.dynamicconfig.DynamicConfigSmokeTest;
 import com.hazelcast.test.HazelcastTestSupport;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -53,14 +52,14 @@ public class DynamicClusterConfigTest extends HazelcastTestSupport {
 
         MultiMapConfig dynamicMultimapConfig = new MultiMapConfig(mapName);
         dynamicMultimapConfig.setBackupCount(3);
-        dynamicMultimapConfig.addEntryListenerConfig(new EntryListenerConfig(new DynamicConfigSmokeTest.DummyListener(), true, true));
+        dynamicMultimapConfig.addEntryListenerConfig(new EntryListenerConfig(new DynamicConfigSmokeTest.DummyEntryListener(), true, true));
         Config dynamicConfig1 = client.getConfig();
         dynamicConfig1.addMultiMapConfig(dynamicMultimapConfig);
 
         MultiMap<String, String> multiMap = members[0].getMultiMap(mapName);
         multiMap.put("foo", "1");
 
-        ConfigurationService configurationService = getNodeEngineImpl(members[0]).getService(ConfigurationService.SERVICE_NAME);
+        ClusterWideConfigurationService configurationService = getNodeEngineImpl(members[0]).getService(ClusterWideConfigurationService.SERVICE_NAME);
         MultiMapConfig dynamicallyAddedConfig = configurationService.getMultiMapConfig(mapName);
         assertEquals(3, dynamicallyAddedConfig.getBackupCount());
     }

@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 
+/**
+ * Classes related to Dynamic Configuration.
+ */
 package com.hazelcast.internal.dynamicconfig;
-
-import com.hazelcast.config.ConfigDataSerializerHook;
-import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.Operation;
-
-public abstract class AbstractDynamicConfigOperation extends Operation implements IdentifiedDataSerializable {
-
-    @Override
-    public int getFactoryId() {
-        return ConfigDataSerializerHook.F_ID;
-    }
-
-    @Override
-    public String getServiceName() {
-        return ClusterWideConfigurationService.SERVICE_NAME;
-    }
-}
