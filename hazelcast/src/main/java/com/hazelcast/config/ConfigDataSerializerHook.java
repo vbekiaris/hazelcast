@@ -81,12 +81,9 @@ public final class ConfigDataSerializerHook implements DataSerializerHook {
     public static final int SIMPLE_CACHE_CONFIG_EXPIRY_POLICY_FACTORY_CONFIG = 39;
     public static final int SIMPLE_CACHE_CONFIG_TIMED_EXPIRY_POLICY_FACTORY_CONFIG = 40;
     public static final int SIMPLE_CACHE_CONFIG_DURATION_CONFIG = 41;
+    public static final int QUORUM_CONFIG = 42;
 
-
-
-
-
-    private static final int LEN = SIMPLE_CACHE_CONFIG_DURATION_CONFIG + 1;
+    private static final int LEN = QUORUM_CONFIG + 1;
 
     @Override
     public int getFactoryId() {
@@ -345,6 +342,13 @@ public final class ConfigDataSerializerHook implements DataSerializerHook {
                     @Override
                     public IdentifiedDataSerializable createNew(Integer arg) {
                         return new CacheSimpleConfig.ExpiryPolicyFactoryConfig.DurationConfig();
+                    }
+                };
+        constructors[QUORUM_CONFIG] =
+                new ConstructorFunction<Integer, IdentifiedDataSerializable>() {
+                    @Override
+                    public IdentifiedDataSerializable createNew(Integer arg) {
+                        return new QuorumConfig();
                     }
                 };
 

@@ -17,43 +17,46 @@
 package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
-import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddSetConfigCodec;
-import com.hazelcast.config.ItemListenerConfig;
-import com.hazelcast.config.SetConfig;
+import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddReliableTopicConfigCodec;
+import com.hazelcast.config.ListenerConfig;
+import com.hazelcast.config.ReliableTopicConfig;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.dynamicconfig.AddDynamicConfigOperationFactory;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.spi.OperationFactory;
+import com.hazelcast.topic.TopicOverloadPolicy;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 
-public class AddSetConfigMessageTask
-        extends AbstractAddConfigMessageTask<DynamicConfigAddSetConfigCodec.RequestParameters> {
+public class AddReliableTopicConfigMessageTask
+        extends AbstractAddConfigMessageTask<DynamicConfigAddReliableTopicConfigCodec.RequestParameters> {
 
-    public AddSetConfigMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
+    public AddReliableTopicConfigMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
     }
 
     @Override
-    protected DynamicConfigAddSetConfigCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
-        return DynamicConfigAddSetConfigCodec.decodeRequest(clientMessage);
+    protected DynamicConfigAddReliableTopicConfigCodec.RequestParameters decodeClientMessage(ClientMessage clientMessage) {
+        return DynamicConfigAddReliableTopicConfigCodec.decodeRequest(clientMessage);
     }
 
     @Override
     protected ClientMessage encodeResponse(Object response) {
-        return DynamicConfigAddSetConfigCodec.encodeResponse();
+        return DynamicConfigAddReliableTopicConfigCodec.encodeResponse();
     }
 
     @Override
     protected OperationFactory getOperationFactory() {
-        SetConfig config = new SetConfig(parameters.name);
-        config.setAsyncBackupCount(parameters.asyncBackupCount);
-        config.setBackupCount(parameters.backupCount);
-        config.setMaxSize(parameters.maxSize);
+        ReliableTopicConfig config = new ReliableTopicConfig(parameters.name);
         config.setStatisticsEnabled(parameters.statisticsEnabled);
+        config.setReadBatchSize(parameters.readBatchSize);
+        config.setTopicOverloadPolicy(TopicOverloadPolicy.valueOf(parameters.topicOverloadPolicy));
+        Executor executor = serializationService.toObject(parameters.executor);
+        config.setExecutor(executor);
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            List<ItemListenerConfig> itemListenerConfigs = (List<ItemListenerConfig>) adaptListenerConfigs(parameters.listenerConfigs);
-            config.setItemListenerConfigs(itemListenerConfigs);
+            config.setMessageListenerConfigs(
+                    (List<ListenerConfig>) adaptListenerConfigs(parameters.listenerConfigs));
         }
         return new AddDynamicConfigOperationFactory(config);
     }

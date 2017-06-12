@@ -75,7 +75,8 @@ public class AddQueueConfigMessageTask
             config.setQueueStoreConfig(storeConfig);
         }
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            List<ItemListenerConfig> itemListenerConfigs = adaptItemListenerConfigs(parameters.listenerConfigs);
+            List<ItemListenerConfig> itemListenerConfigs =
+                    (List<ItemListenerConfig>) adaptListenerConfigs(parameters.listenerConfigs);
             config.setItemListenerConfigs(itemListenerConfigs);
         }
         return new AddDynamicConfigOperationFactory(config);

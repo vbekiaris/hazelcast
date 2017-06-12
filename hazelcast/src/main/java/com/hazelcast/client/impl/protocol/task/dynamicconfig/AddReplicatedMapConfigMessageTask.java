@@ -18,6 +18,7 @@ package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddReplicatedMapConfigCodec;
+import com.hazelcast.config.EntryListenerConfig;
 import com.hazelcast.config.InMemoryFormat;
 import com.hazelcast.config.ReplicatedMapConfig;
 import com.hazelcast.instance.Node;
@@ -50,7 +51,9 @@ public class AddReplicatedMapConfigMessageTask
         config.setMergePolicy(parameters.mergePolicy);
         config.setStatisticsEnabled(parameters.statisticsEnabled);
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            // todo handle listenerConfigs / entryListenerConfigs here?
+            for (ListenerConfigHolder holder : parameters.listenerConfigs) {
+                config.addEntryListenerConfig((EntryListenerConfig) holder.asListenerConfig(serializationService));
+            }
         }
         return new AddDynamicConfigOperationFactory(config);
     }

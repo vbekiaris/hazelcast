@@ -17,22 +17,26 @@
 package com.hazelcast.client.impl;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
+import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddCacheConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddCardinalityEstimatorConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddDurableExecutorConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddExecutorConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddListConfigCodec;
-import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddListenerConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddLockConfigCodec;
+import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddMapConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddMultiMapConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddQueueConfigCodec;
+import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddReliableTopicConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddReplicatedMapConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddRingbufferConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddScheduledExecutorConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddSemaphoreConfigCodec;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddTopicConfigCodec;
-import com.hazelcast.client.impl.protocol.task.dynamicconfig.EntryListenerConfigHolder;
-import com.hazelcast.client.impl.protocol.task.dynamicconfig.ItemListenerConfigHolder;
+import com.hazelcast.client.impl.protocol.task.dynamicconfig.EvictionConfigHolder;
 import com.hazelcast.client.impl.protocol.task.dynamicconfig.ListenerConfigHolder;
+import com.hazelcast.client.impl.protocol.task.dynamicconfig.MapStoreConfigHolder;
+import com.hazelcast.client.impl.protocol.task.dynamicconfig.NearCacheConfigHolder;
+import com.hazelcast.client.impl.protocol.task.dynamicconfig.QueryCacheConfigHolder;
 import com.hazelcast.client.impl.protocol.task.dynamicconfig.QueueStoreConfigHolder;
 import com.hazelcast.client.impl.protocol.task.dynamicconfig.RingbufferStoreConfigHolder;
 import com.hazelcast.client.spi.impl.ClientInvocation;
@@ -42,11 +46,9 @@ import com.hazelcast.config.CardinalityEstimatorConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.ConfigPatternMatcher;
 import com.hazelcast.config.DurableExecutorConfig;
-import com.hazelcast.config.EntryListenerConfig;
 import com.hazelcast.config.ExecutorConfig;
 import com.hazelcast.config.GroupConfig;
 import com.hazelcast.config.HotRestartPersistenceConfig;
-import com.hazelcast.config.ItemListenerConfig;
 import com.hazelcast.config.JobTrackerConfig;
 import com.hazelcast.config.ListConfig;
 import com.hazelcast.config.ListenerConfig;
@@ -58,6 +60,7 @@ import com.hazelcast.config.MultiMapConfig;
 import com.hazelcast.config.NativeMemoryConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.PartitionGroupConfig;
+import com.hazelcast.config.QueryCacheConfig;
 import com.hazelcast.config.QueueConfig;
 import com.hazelcast.config.QuorumConfig;
 import com.hazelcast.config.ReliableTopicConfig;
@@ -74,6 +77,7 @@ import com.hazelcast.config.TopicConfig;
 import com.hazelcast.config.UserCodeDeploymentConfig;
 import com.hazelcast.config.WanReplicationConfig;
 import com.hazelcast.core.ManagedContext;
+import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.serialization.SerializationService;
 
 import java.io.File;
@@ -102,17 +106,59 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addMapConfig(MapConfig mapConfig) {
-        return super.addMapConfig(mapConfig);
+        List<ListenerConfigHolder> listenerConfigs = adaptListenerConfigs(mapConfig.getEntryListenerConfigs());
+        List<ListenerConfigHolder> partitionLostListenerConfigs =
+                adaptListenerConfigs(mapConfig.getPartitionLostListenerConfigs());
+        List<QueryCacheConfigHolder> queryCacheConfigHolders = null;
+        if (mapConfig.getQueryCacheConfigs() != null && !mapConfig.getQueryCacheConfigs().isEmpty()) {
+            queryCacheConfigHolders = new ArrayList<QueryCacheConfigHolder>(mapConfig.getQueryCacheConfigs().size());
+            for (QueryCacheConfig config : mapConfig.getQueryCacheConfigs()) {
+                queryCacheConfigHolders.add(QueryCacheConfigHolder.of(config, serializationService));
+            }
+        }
+
+        String partitioningStrategyClassName = mapConfig.getPartitioningStrategyConfig() == null
+                ? null : mapConfig.getPartitioningStrategyConfig().getPartitioningStrategyClass();
+        Data partitioningStrategy = mapConfig.getPartitioningStrategyConfig() == null
+                ? null : serializationService.toData(mapConfig.getPartitioningStrategyConfig().getPartitioningStrategy());
+
+        ClientMessage request = DynamicConfigAddMapConfigCodec.encodeRequest(mapConfig.getName(),
+                mapConfig.getBackupCount(), mapConfig.getAsyncBackupCount(), mapConfig.getTimeToLiveSeconds(),
+                mapConfig.getMaxIdleSeconds(), mapConfig.getEvictionPolicy().name(), mapConfig.isReadBackupData(),
+                mapConfig.getCacheDeserializedValues().name(), mapConfig.getMergePolicy(), mapConfig.getInMemoryFormat().name(),
+                listenerConfigs, partitionLostListenerConfigs, mapConfig.isStatisticsEnabled(), mapConfig.getQuorumName(),
+                serializationService.toData(mapConfig.getMapEvictionPolicy()),
+                mapConfig.getMaxSizeConfig().getMaxSizePolicy().name(), mapConfig.getMaxSizeConfig().getSize(),
+                MapStoreConfigHolder.of(mapConfig.getMapStoreConfig(), serializationService),
+                NearCacheConfigHolder.of(mapConfig.getNearCacheConfig(), serializationService),
+                mapConfig.getWanReplicationRef(), mapConfig.getMapIndexConfigs(), mapConfig.getMapAttributeConfigs(),
+                queryCacheConfigHolders, partitioningStrategyClassName, partitioningStrategy, mapConfig.getHotRestartConfig());
+        invoke(request);
+        return this;
     }
 
     @Override
     public Config addCacheConfig(CacheSimpleConfig cacheConfig) {
-        return super.addCacheConfig(cacheConfig);
+        List<ListenerConfigHolder> partitionLostListenerConfigs =
+                adaptListenerConfigs(cacheConfig.getPartitionLostListenerConfigs());
+        ClientMessage request = DynamicConfigAddCacheConfigCodec.encodeRequest(cacheConfig.getName(), cacheConfig.getKeyType(),
+                cacheConfig.getValueType(), cacheConfig.isStatisticsEnabled(), cacheConfig.isManagementEnabled(),
+                cacheConfig.isReadThrough(), cacheConfig.isWriteThrough(), cacheConfig.getCacheLoaderFactory(),
+                cacheConfig.getCacheWriterFactory(), cacheConfig.getCacheLoader(), cacheConfig.getCacheWriter(),
+                cacheConfig.getBackupCount(), cacheConfig.getAsyncBackupCount(), cacheConfig.getInMemoryFormat().name(),
+                cacheConfig.getQuorumName(), cacheConfig.getMergePolicy(), cacheConfig.isDisablePerEntryInvalidationEvents(),
+                partitionLostListenerConfigs, cacheConfig.getExpiryPolicyFactoryConfig().getClassName(),
+                cacheConfig.getExpiryPolicyFactoryConfig().getTimedExpiryPolicyFactoryConfig(),
+                cacheConfig.getCacheEntryListeners(),
+                EvictionConfigHolder.of(cacheConfig.getEvictionConfig(), serializationService),
+                cacheConfig.getWanReplicationRef(), cacheConfig.getHotRestartConfig());
+        invoke(request);
+        return this;
     }
 
     @Override
     public Config addQueueConfig(QueueConfig queueConfig) {
-        List<ItemListenerConfigHolder> listenerConfigs = adaptItemListenerConfigs(queueConfig.getItemListenerConfigs());
+        List<ListenerConfigHolder> listenerConfigs = adaptListenerConfigs(queueConfig.getItemListenerConfigs());
         QueueStoreConfigHolder queueStoreConfigHolder = QueueStoreConfigHolder.of(queueConfig.getQueueStoreConfig(),
                 serializationService);
         ClientMessage request = DynamicConfigAddQueueConfigCodec.encodeRequest(queueConfig.getName(), listenerConfigs,
@@ -132,7 +178,7 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addListConfig(ListConfig listConfig) {
-        List<ItemListenerConfigHolder> listenerConfigs = adaptItemListenerConfigs(listConfig.getItemListenerConfigs());
+        List<ListenerConfigHolder> listenerConfigs = adaptListenerConfigs(listConfig.getItemListenerConfigs());
         ClientMessage request = DynamicConfigAddListConfigCodec.encodeRequest(listConfig.getName(), listenerConfigs,
                 listConfig.getBackupCount(), listConfig.getAsyncBackupCount(), listConfig.getMaxSize(), listConfig.isStatisticsEnabled());
         invoke(request);
@@ -141,7 +187,7 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addSetConfig(SetConfig setConfig) {
-        List<ItemListenerConfigHolder> listenerConfigs = adaptItemListenerConfigs(setConfig.getItemListenerConfigs());
+        List<ListenerConfigHolder> listenerConfigs = adaptListenerConfigs(setConfig.getItemListenerConfigs());
         ClientMessage request = DynamicConfigAddListConfigCodec.encodeRequest(setConfig.getName(), listenerConfigs,
                 setConfig.getBackupCount(), setConfig.getAsyncBackupCount(), setConfig.getMaxSize(), setConfig.isStatisticsEnabled());
         invoke(request);
@@ -150,8 +196,7 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addMultiMapConfig(MultiMapConfig multiMapConfig) {
-        List<EntryListenerConfigHolder> listenerConfigHolders =
-                adaptEntryListenerConfigs(multiMapConfig.getEntryListenerConfigs());
+        List<ListenerConfigHolder> listenerConfigHolders = adaptListenerConfigs(multiMapConfig.getEntryListenerConfigs());
 
         ClientMessage request = DynamicConfigAddMultiMapConfigCodec.encodeRequest(
                 multiMapConfig.getName(), multiMapConfig.getValueCollectionType().toString(),
@@ -164,7 +209,6 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addReplicatedMapConfig(ReplicatedMapConfig replicatedMapConfig) {
-        // todo clarify listener config hierarchy
         List<ListenerConfigHolder> listenerConfigHolders = adaptListenerConfigs(replicatedMapConfig.getListenerConfigs());
 
         ClientMessage request = DynamicConfigAddReplicatedMapConfigCodec.encodeRequest(
@@ -204,8 +248,14 @@ public class DynamicClusterConfig extends Config {
     }
 
     @Override
-    public Config addReliableTopicConfig(ReliableTopicConfig topicConfig) {
-        return super.addReliableTopicConfig(topicConfig);
+    public Config addReliableTopicConfig(ReliableTopicConfig config) {
+        List<ListenerConfigHolder> listenerConfigHolders = adaptListenerConfigs(config.getMessageListenerConfigs());
+        Data executorData = serializationService.toData(config.getExecutor());
+        ClientMessage request = DynamicConfigAddReliableTopicConfigCodec.encodeRequest(config.getName(),
+                listenerConfigHolders, config.getReadBatchSize(), config.isStatisticsEnabled(),
+                config.getTopicOverloadPolicy().name(), executorData);
+        invoke(request);
+        return this;
     }
 
     @Override
@@ -255,7 +305,7 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addWanReplicationConfig(WanReplicationConfig wanReplicationConfig) {
-        return super.addWanReplicationConfig(wanReplicationConfig);
+        throw new UnsupportedOperationException("Dynamically adding WAN replication config is not supported");
     }
 
     @Override
@@ -265,15 +315,12 @@ public class DynamicClusterConfig extends Config {
 
     @Override
     public Config addQuorumConfig(QuorumConfig quorumConfig) {
-        return super.addQuorumConfig(quorumConfig);
+        throw new UnsupportedOperationException("Dynamically adding quorum configuration is not supported");
     }
 
     @Override
     public Config addListenerConfig(ListenerConfig listenerConfig) {
-        ListenerConfigHolder listenerConfigHolder = ListenerConfigHolder.of(listenerConfig, serializationService);
-        ClientMessage request = DynamicConfigAddListenerConfigCodec.encodeRequest(listenerConfigHolder);
-        invoke(request);
-        return this;
+        throw new UnsupportedOperationException("Dynamically adding listener configuration is not supported");
     }
 
     @Override
@@ -897,7 +944,7 @@ public class DynamicClusterConfig extends Config {
         }
     }
 
-    private List<ListenerConfigHolder> adaptListenerConfigs(List<ListenerConfig> listenerConfigs) {
+    private List<ListenerConfigHolder> adaptListenerConfigs(List<? extends ListenerConfig> listenerConfigs) {
         List<ListenerConfigHolder> listenerConfigHolders = null;
         if (listenerConfigs != null && !listenerConfigs.isEmpty()) {
             listenerConfigHolders = new ArrayList<ListenerConfigHolder>();
@@ -908,26 +955,4 @@ public class DynamicClusterConfig extends Config {
         return listenerConfigHolders;
     }
 
-    private List<ItemListenerConfigHolder> adaptItemListenerConfigs(List<ItemListenerConfig> listenerConfigs) {
-        List<ItemListenerConfigHolder> listenerConfigHolders = null;
-        if (listenerConfigs != null && !listenerConfigs.isEmpty()) {
-            listenerConfigHolders = new ArrayList<ItemListenerConfigHolder>();
-            for (ItemListenerConfig listenerConfig : listenerConfigs) {
-                listenerConfigHolders.add(ItemListenerConfigHolder.of(listenerConfig, instance.getSerializationService()));
-            }
-        }
-        return listenerConfigHolders;
-    }
-
-    private List<EntryListenerConfigHolder> adaptEntryListenerConfigs(List<EntryListenerConfig> entryListenerConfigs) {
-        List<EntryListenerConfigHolder> listenerConfigHolders = null;
-        if (entryListenerConfigs != null && !entryListenerConfigs.isEmpty()) {
-            listenerConfigHolders = new ArrayList<EntryListenerConfigHolder>(entryListenerConfigs.size());
-            for (EntryListenerConfig entryListenerConfig : entryListenerConfigs) {
-                listenerConfigHolders.add(EntryListenerConfigHolder.of(entryListenerConfig,
-                        instance.getSerializationService()));
-            }
-        }
-        return listenerConfigHolders;
-    }
 }

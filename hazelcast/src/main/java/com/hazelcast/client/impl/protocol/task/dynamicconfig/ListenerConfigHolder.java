@@ -16,25 +16,59 @@
 
 package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 
+import com.hazelcast.cache.impl.event.CachePartitionLostListener;
+import com.hazelcast.config.CachePartitionLostListenerConfig;
+import com.hazelcast.config.EntryListenerConfig;
+import com.hazelcast.config.ItemListenerConfig;
 import com.hazelcast.config.ListenerConfig;
+import com.hazelcast.config.MapPartitionLostListenerConfig;
+import com.hazelcast.config.QuorumListenerConfig;
+import com.hazelcast.core.EntryListener;
+import com.hazelcast.core.ItemListener;
+import com.hazelcast.map.listener.MapPartitionLostListener;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.quorum.QuorumListener;
 import com.hazelcast.spi.serialization.SerializationService;
 
 import java.util.EventListener;
 
 public class ListenerConfigHolder {
 
-    protected final String className;
-    protected final Data listenerImplementation;
+    public static final int TYPE_LISTENER_CONFIG = 0;
+    public static final int TYPE_ITEM_LISTENER_CONFIG = 1;
+    public static final int TYPE_ENTRY_LISTENER_CONFIG = 2;
+    public static final int TYPE_QUORUM_LISTENER_CONFIG = 3;
+    public static final int TYPE_CACHE_PARTITION_LOST_LISTENER_CONFIG = 4;
+    public static final int TYPE_MAP_PARTITION_LOST_LISTENER_CONFIG = 5;
 
-    public ListenerConfigHolder(String className) {
-        this.className = className;
-        this.listenerImplementation = null;
+    private final String className;
+    private final Data listenerImplementation;
+    private final boolean includeValue;
+    private final boolean local;
+    private final int listenerType;
+
+    public ListenerConfigHolder(int listenerType, String className) {
+        this(listenerType, className, true, false);
     }
 
-    public ListenerConfigHolder(Data listenerImplementation) {
+    public ListenerConfigHolder(int listenerType, Data listenerImplementation) {
+        this(listenerType, listenerImplementation, true, false);
+    }
+
+    public ListenerConfigHolder(int listenerType, String className, boolean includeValue, boolean local) {
+        this.listenerType = listenerType;
+        this.className = className;
+        this.listenerImplementation = null;
+        this.includeValue = includeValue;
+        this.local = local;
+    }
+
+    public ListenerConfigHolder(int listenerType, Data listenerImplementation, boolean includeValue, boolean local) {
+        this.listenerType = listenerType;
         this.className = null;
         this.listenerImplementation = listenerImplementation;
+        this.includeValue = includeValue;
+        this.local = local;
     }
 
     public String getClassName() {
@@ -45,14 +79,66 @@ public class ListenerConfigHolder {
         return listenerImplementation;
     }
 
-    public ListenerConfig asListenerConfig(SerializationService serializationService) {
+    public int getListenerType() {
+        return listenerType;
+    }
+
+    public boolean isIncludeValue() {
+        return includeValue;
+    }
+
+    public boolean isLocal() {
+        return local;
+    }
+
+    public <T extends ListenerConfig> T asListenerConfig(SerializationService serializationService) {
         validate();
+        ListenerConfig listenerConfig = null;
         if (className != null) {
-            return new ListenerConfig(className);
+            switch (listenerType) {
+                case TYPE_LISTENER_CONFIG:
+                    listenerConfig = new ListenerConfig(className);
+                    break;
+                case TYPE_ITEM_LISTENER_CONFIG:
+                    listenerConfig = new ItemListenerConfig(className, includeValue);
+                    break;
+                case TYPE_ENTRY_LISTENER_CONFIG:
+                    listenerConfig = new EntryListenerConfig(className, local, includeValue);
+                    break;
+                case TYPE_QUORUM_LISTENER_CONFIG:
+                    listenerConfig = new QuorumListenerConfig(className);
+                    break;
+                case TYPE_CACHE_PARTITION_LOST_LISTENER_CONFIG:
+                    listenerConfig = new CachePartitionLostListenerConfig(className);
+                    break;
+                case TYPE_MAP_PARTITION_LOST_LISTENER_CONFIG:
+                    listenerConfig = new MapPartitionLostListenerConfig(className);
+                    break;
+            }
         } else {
             EventListener eventListener = serializationService.toObject(listenerImplementation);
-            return new ListenerConfig(eventListener);
+            switch (listenerType) {
+                case TYPE_LISTENER_CONFIG:
+                    listenerConfig = new ListenerConfig(eventListener);
+                    break;
+                case TYPE_ITEM_LISTENER_CONFIG:
+                    listenerConfig = new ItemListenerConfig((ItemListener) eventListener, includeValue);
+                    break;
+                case TYPE_ENTRY_LISTENER_CONFIG:
+                    listenerConfig = new EntryListenerConfig((EntryListener) eventListener, local, includeValue);
+                    break;
+                case TYPE_QUORUM_LISTENER_CONFIG:
+                    listenerConfig = new QuorumListenerConfig((QuorumListener) eventListener);
+                    break;
+                case TYPE_CACHE_PARTITION_LOST_LISTENER_CONFIG:
+                    listenerConfig = new CachePartitionLostListenerConfig((CachePartitionLostListener) eventListener);
+                    break;
+                case TYPE_MAP_PARTITION_LOST_LISTENER_CONFIG:
+                    listenerConfig = new MapPartitionLostListenerConfig((MapPartitionLostListener) eventListener);
+                    break;
+            }
         }
+        return (T) listenerConfig;
     }
 
     void validate() {
@@ -62,11 +148,30 @@ public class ListenerConfigHolder {
     }
 
     public static ListenerConfigHolder of(ListenerConfig config, SerializationService serializationService) {
+        int listenerType = listenerTypeOf(config);
         if (config.getClassName() != null) {
-            return new ListenerConfigHolder(config.getClassName());
+            return new ListenerConfigHolder(listenerType, config.getClassName(), config.isIncludeValue(),
+                    config.isLocal());
         } else {
             Data implementationData = serializationService.toData(config.getImplementation());
-            return  new ListenerConfigHolder(implementationData);
+            return  new ListenerConfigHolder(listenerType, implementationData, config.isIncludeValue(),
+                    config.isLocal());
+        }
+    }
+
+    private static int listenerTypeOf(ListenerConfig config) {
+        if (config instanceof ItemListenerConfig) {
+            return TYPE_ITEM_LISTENER_CONFIG;
+        } else if (config instanceof CachePartitionLostListenerConfig) {
+            return TYPE_CACHE_PARTITION_LOST_LISTENER_CONFIG;
+        } else if (config instanceof QuorumListenerConfig) {
+            return TYPE_QUORUM_LISTENER_CONFIG;
+        } else if (config instanceof EntryListenerConfig) {
+            return TYPE_ENTRY_LISTENER_CONFIG;
+        } else if (config instanceof MapPartitionLostListenerConfig) {
+            return TYPE_MAP_PARTITION_LOST_LISTENER_CONFIG;
+        } else {
+            return TYPE_LISTENER_CONFIG;
         }
     }
 }

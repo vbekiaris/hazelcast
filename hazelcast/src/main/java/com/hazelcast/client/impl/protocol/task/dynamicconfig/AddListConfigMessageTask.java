@@ -52,7 +52,8 @@ public class AddListConfigMessageTask
         config.setMaxSize(parameters.maxSize);
         config.setStatisticsEnabled(parameters.statisticsEnabled);
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            List<ItemListenerConfig> itemListenerConfigs = adaptItemListenerConfigs(parameters.listenerConfigs);
+            List<ItemListenerConfig> itemListenerConfigs =
+                    (List<ItemListenerConfig>) adaptListenerConfigs(parameters.listenerConfigs);
             config.setItemListenerConfigs(itemListenerConfigs);
         }
         return new AddDynamicConfigOperationFactory(config);

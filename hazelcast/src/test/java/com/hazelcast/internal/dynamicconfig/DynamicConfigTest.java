@@ -16,15 +16,24 @@
 
 package com.hazelcast.internal.dynamicconfig;
 
+import com.hazelcast.config.CacheDeserializedValues;
 import com.hazelcast.config.CardinalityEstimatorConfig;
 import com.hazelcast.config.DurableExecutorConfig;
 import com.hazelcast.config.EntryListenerConfig;
+import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.ExecutorConfig;
+import com.hazelcast.config.HotRestartConfig;
 import com.hazelcast.config.InMemoryFormat;
 import com.hazelcast.config.ItemListenerConfig;
 import com.hazelcast.config.ListConfig;
+import com.hazelcast.config.ListenerConfig;
 import com.hazelcast.config.LockConfig;
+import com.hazelcast.config.MapAttributeConfig;
+import com.hazelcast.config.MapConfig;
+import com.hazelcast.config.MapIndexConfig;
+import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.config.MultiMapConfig;
+import com.hazelcast.config.ReplicatedMapConfig;
 import com.hazelcast.config.RingbufferConfig;
 import com.hazelcast.config.RingbufferStoreConfig;
 import com.hazelcast.config.ScheduledExecutorConfig;
@@ -55,6 +64,7 @@ import static com.hazelcast.config.MultiMapConfig.ValueCollectionType.LIST;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+// todo tests still missing
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
 public class DynamicConfigTest extends HazelcastTestSupport {
@@ -104,7 +114,7 @@ public class DynamicConfigTest extends HazelcastTestSupport {
         assertEquals(multiMapConfig.isStatisticsEnabled(), configOnCluster.isStatisticsEnabled());
         assertEquals(multiMapConfig.isBinary(), configOnCluster.isBinary());
         assertEquals(multiMapConfig.getValueCollectionType(), configOnCluster.getValueCollectionType());
-        assertEquals(multiMapConfig.getEntryListenerConfigs().get(0),
+        assertListenerConfigEquals(multiMapConfig.getEntryListenerConfigs().get(0),
                 configOnCluster.getEntryListenerConfigs().get(0));
     }
 
@@ -130,7 +140,7 @@ public class DynamicConfigTest extends HazelcastTestSupport {
         assertEquals(multiMapConfig.isStatisticsEnabled(), configOnCluster.isStatisticsEnabled());
         assertEquals(multiMapConfig.isBinary(), configOnCluster.isBinary());
         assertEquals(multiMapConfig.getValueCollectionType(), configOnCluster.getValueCollectionType());
-        assertEquals(multiMapConfig.getEntryListenerConfigs().get(0),
+        assertListenerConfigEquals(multiMapConfig.getEntryListenerConfigs().get(0),
                 configOnCluster.getEntryListenerConfigs().get(0));
     }
 
@@ -181,8 +191,7 @@ public class DynamicConfigTest extends HazelcastTestSupport {
         ListConfig configOnCluster = getConfigurationService().getListConfig(name);
         assertListConfigCommons(config, configOnCluster);
         ItemListenerConfig listenerConfigOnCluster = configOnCluster.getItemListenerConfigs().get(0);
-        assertEquals(listenerConfig.getClassName(), listenerConfigOnCluster.getClassName());
-        assertEquals(listenerConfig.isIncludeValue(), listenerConfigOnCluster.isIncludeValue());
+        assertListenerConfigEquals(listenerConfig, listenerConfigOnCluster);
     }
 
     @Test
@@ -198,8 +207,7 @@ public class DynamicConfigTest extends HazelcastTestSupport {
         ListConfig configOnCluster = getConfigurationService().getListConfig(name);
         assertListConfigCommons(config, configOnCluster);
         ItemListenerConfig listenerConfigOnCluster = configOnCluster.getItemListenerConfigs().get(0);
-        assertEquals(listenerConfig.getImplementation(), listenerConfigOnCluster.getImplementation());
-        assertEquals(listenerConfig.isIncludeValue(), listenerConfigOnCluster.isIncludeValue());
+        assertListenerConfigEquals(listenerConfig, listenerConfigOnCluster);
     }
 
     @Test
@@ -299,6 +307,99 @@ public class DynamicConfigTest extends HazelcastTestSupport {
         RingbufferConfig configOnCluster = getConfigurationService().getRingbufferConfig(name);
         assertRingbufferConfigCommons(config, configOnCluster);
         assertRingBufferStoreConfig(config.getRingbufferStoreConfig(), configOnCluster.getRingbufferStoreConfig());
+    }
+
+    @Test
+    public void testReplicatedMapConfig_withListenerByClassName() {
+        ReplicatedMapConfig config = new ReplicatedMapConfig(name);
+        config.setStatisticsEnabled(true);
+        config.setMergePolicy("com.hazelcast.SomeMergePolicy");
+        config.setInMemoryFormat(InMemoryFormat.NATIVE);
+        config.setAsyncFillup(true);
+        config.addEntryListenerConfig(new EntryListenerConfig(randomString(), true, false));
+
+        driver.getConfig().addReplicatedMapConfig(config);
+
+        ReplicatedMapConfig configOnCluster = getConfigurationService().getReplicatedMapConfig(name);
+        assertReplicatedMapConfig(config, configOnCluster);
+        assertListenerConfigEquals(config.getListenerConfigs().get(0),
+                configOnCluster.getListenerConfigs().get(0));
+    }
+
+    @Test
+    @Ignore("Failed to serialize 'com.hazelcast.config.EntryListenerConfig$MapListenerToEntryListenerAdapter'")
+    public void testReplicatedMapConfig_withListenerByImplementation() {
+        ReplicatedMapConfig config = new ReplicatedMapConfig(name);
+        config.setStatisticsEnabled(true);
+        config.setMergePolicy("com.hazelcast.SomeMergePolicy");
+        config.setInMemoryFormat(InMemoryFormat.NATIVE);
+        config.setAsyncFillup(true);
+        config.addEntryListenerConfig(new EntryListenerConfig(new SampleEntryListener(), false, true));
+
+        driver.getConfig().addReplicatedMapConfig(config);
+
+        ReplicatedMapConfig configOnCluster = getConfigurationService().getReplicatedMapConfig(name);
+        assertReplicatedMapConfig(config, configOnCluster);
+        assertListenerConfigEquals(config.getListenerConfigs().get(0),
+                configOnCluster.getListenerConfigs().get(0));
+    }
+
+    // todo MapConfig tests missing
+    @Test
+    public void testMapConfig() {
+        MapConfig config = getMapConfig();
+
+        driver.getConfig().addMapConfig(config);
+
+        MapConfig configOnCluster = getConfigurationService().getMapConfig(name);
+        assertEquals(config.getName(), configOnCluster.getName());
+        assertEquals(config.getAsyncBackupCount(), configOnCluster.getAsyncBackupCount());
+        assertEquals(config.getBackupCount(), configOnCluster.getBackupCount());
+        assertEquals(config.getCacheDeserializedValues(), configOnCluster.getCacheDeserializedValues());
+        assertEquals(config.getEvictionPolicy(), configOnCluster.getEvictionPolicy());
+        assertEquals(config.getHotRestartConfig().isEnabled(), configOnCluster.getHotRestartConfig().isEnabled());
+        assertEquals(config.getHotRestartConfig().isFsync(), configOnCluster.getHotRestartConfig().isFsync());
+        assertEquals(config.getInMemoryFormat(), configOnCluster.getInMemoryFormat());
+        assertEquals(config.getMapAttributeConfigs().get(0).getName(),
+                configOnCluster.getMapAttributeConfigs().get(0).getName());
+        assertEquals(config.getMapAttributeConfigs().get(0).getExtractor(),
+                configOnCluster.getMapAttributeConfigs().get(0).getExtractor());
+        assertEquals(config.getMapEvictionPolicy(), configOnCluster.getMapEvictionPolicy());
+        assertEquals(config.getMapIndexConfigs().get(0).getAttribute(),
+                configOnCluster.getMapIndexConfigs().get(0).getAttribute());
+        assertEquals(config.getMapIndexConfigs().get(0).isOrdered(),
+                configOnCluster.getMapIndexConfigs().get(0).isOrdered());
+    }
+
+    private MapConfig getMapConfig() {
+        MapConfig config = new MapConfig(name);
+        config.setAsyncBackupCount(3);
+        config.setBackupCount(2);
+        config.setCacheDeserializedValues(CacheDeserializedValues.INDEX_ONLY);
+        config.setEvictionPolicy(EvictionPolicy.LRU);
+        config.setHotRestartConfig(new HotRestartConfig().setEnabled(true).setFsync(true));
+        config.setInMemoryFormat(InMemoryFormat.OBJECT);
+        config.setMergePolicy("com.hazelcast.SomeMergePolicy");
+        config.setMaxSizeConfig(new MaxSizeConfig(4096, MaxSizeConfig.MaxSizePolicy.PER_NODE));
+        config.setMaxIdleSeconds(110);
+        config.setQuorumName(randomString());
+        config.addMapAttributeConfig(new MapAttributeConfig("attributeName", "com.attribute.extractor"));
+        config.addMapIndexConfig(new MapIndexConfig("attr", true));
+        return config;
+    }
+
+    private void assertReplicatedMapConfig(ReplicatedMapConfig config, ReplicatedMapConfig configOnCluster) {
+        assertEquals(config.isAsyncFillup(), configOnCluster.isAsyncFillup());
+        assertEquals(config.isStatisticsEnabled(), configOnCluster.isStatisticsEnabled());
+        assertEquals(config.getInMemoryFormat(), configOnCluster.getInMemoryFormat());
+        assertEquals(config.getMergePolicy(), configOnCluster.getMergePolicy());
+    }
+
+    private void assertListenerConfigEquals(ListenerConfig config, ListenerConfig configOnCluster) {
+        assertEquals(config.getClassName(), configOnCluster.getClassName());
+        assertEquals(config.getImplementation(), configOnCluster.getImplementation());
+        assertEquals(config.isIncludeValue(), configOnCluster.isIncludeValue());
+        assertEquals(config.isLocal(), configOnCluster.isLocal());
     }
 
     private ListConfig getListConfig() {

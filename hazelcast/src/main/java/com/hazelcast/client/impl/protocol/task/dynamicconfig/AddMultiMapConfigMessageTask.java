@@ -68,8 +68,8 @@ public class AddMultiMapConfigMessageTask extends
         multiMapConfig.setBinary(parameters.binary);
         multiMapConfig.setStatisticsEnabled(parameters.statisticsEnabled);
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            for (EntryListenerConfigHolder configHolder : parameters.listenerConfigs) {
-                EntryListenerConfig entryListenerConfig = configHolder.asEntryListenerConfig(serializationService);
+            for (ListenerConfigHolder configHolder : parameters.listenerConfigs) {
+                EntryListenerConfig entryListenerConfig = configHolder.asListenerConfig(serializationService);
                 multiMapConfig.addEntryListenerConfig(entryListenerConfig);
             }
         }

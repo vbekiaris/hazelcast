@@ -79,7 +79,7 @@ public abstract class AbstractAddConfigMessageTask<P> extends AbstractCallableMe
 
     protected abstract OperationFactory getOperationFactory();
 
-    protected List<ListenerConfig> adaptListenerConfigs(List<ListenerConfigHolder> listenerConfigHolders) {
+    protected List<? extends ListenerConfig> adaptListenerConfigs(List<ListenerConfigHolder> listenerConfigHolders) {
         if (listenerConfigHolders == null || listenerConfigHolders.isEmpty()) {
             return null;
         }
@@ -91,15 +91,4 @@ public abstract class AbstractAddConfigMessageTask<P> extends AbstractCallableMe
         return itemListenerConfigs;
     }
 
-    protected List<ItemListenerConfig> adaptItemListenerConfigs(List<ItemListenerConfigHolder> configHolders) {
-        if (configHolders == null || configHolders.isEmpty()) {
-            return null;
-        }
-
-        List<ItemListenerConfig> itemListenerConfigs = new ArrayList<ItemListenerConfig>(configHolders.size());
-        for (ItemListenerConfigHolder listenerConfigHolder : configHolders) {
-            itemListenerConfigs.add(listenerConfigHolder.asItemListenerConfig(serializationService));
-        }
-        return itemListenerConfigs;
-    }
 }

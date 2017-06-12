@@ -18,11 +18,14 @@ package com.hazelcast.client.impl.protocol.task.dynamicconfig;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.DynamicConfigAddTopicConfigCodec;
+import com.hazelcast.config.ListenerConfig;
 import com.hazelcast.config.TopicConfig;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.dynamicconfig.AddDynamicConfigOperationFactory;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.spi.OperationFactory;
+
+import java.util.List;
 
 public class AddTopicConfigMessageTask
         extends AbstractAddConfigMessageTask<DynamicConfigAddTopicConfigCodec.RequestParameters> {
@@ -48,7 +51,8 @@ public class AddTopicConfigMessageTask
         config.setMultiThreadingEnabled(parameters.multiThreadingEnabled);
         config.setStatisticsEnabled(parameters.statisticsEnabled);
         if (parameters.listenerConfigs != null && !parameters.listenerConfigs.isEmpty()) {
-            config.setMessageListenerConfigs(adaptListenerConfigs(parameters.listenerConfigs));
+            config.setMessageListenerConfigs(
+                    (List<ListenerConfig>) adaptListenerConfigs(parameters.listenerConfigs));
         }
         return new AddDynamicConfigOperationFactory(config);
     }
