@@ -42,7 +42,7 @@ import static java.util.Collections.emptyMap;
  * This is used when Hazelcast is starting and {@link ClusterWideConfigurationService} is not available yet.
  *
  */
-public class EmptyConfigurationService implements ConfigurationService {
+class EmptyConfigurationService implements ConfigurationService {
 
     @Override
     public MultiMapConfig getMultiMapConfig(String name) {

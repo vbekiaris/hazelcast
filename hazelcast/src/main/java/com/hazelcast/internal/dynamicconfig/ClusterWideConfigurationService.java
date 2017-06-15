@@ -32,6 +32,7 @@ import com.hazelcast.config.ScheduledExecutorConfig;
 import com.hazelcast.config.SemaphoreConfig;
 import com.hazelcast.config.SetConfig;
 import com.hazelcast.config.TopicConfig;
+import com.hazelcast.core.HazelcastException;
 import com.hazelcast.internal.cluster.ClusterVersionListener;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.CoreService;
@@ -39,8 +40,11 @@ import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.MigrationAwareService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
+import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.PartitionMigrationEvent;
 import com.hazelcast.spi.PartitionReplicationEvent;
+import com.hazelcast.spi.SplitBrainHandlerService;
+import com.hazelcast.spi.impl.BinaryOperationFactory;
 import com.hazelcast.version.Version;
 
 import java.util.Map;
@@ -52,7 +56,7 @@ import static com.hazelcast.internal.cluster.Versions.V3_8;
 import static com.hazelcast.util.InvocationUtil.invokeOnStableCluster;
 
 public class ClusterWideConfigurationService implements MigrationAwareService,
-        CoreService, ClusterVersionListener, ManagedService, ConfigurationService {
+        CoreService, ClusterVersionListener, ManagedService, ConfigurationService, SplitBrainHandlerService {
     public static final String SERVICE_NAME = "configuration-service";
     public static final int CONFIG_PUBLISH_MAX_ATTEMPT_COUNT = 100;
     
@@ -223,7 +227,26 @@ public class ClusterWideConfigurationService implements MigrationAwareService,
         if (version.isLessOrEqual(V3_8)) {
             return null;
         }
-        return new DynamicConfigReplicationOperation(multiMapConfigs, mapConfigs);
+        return newReplicationOperation();
+    }
+
+    private Operation newReplicationOperation() {
+        return new DynamicConfigReplicationOperation(multiMapConfigs,
+                mapConfigs,
+                cardinalityEstimatorConfigs,
+                ringbufferConfigs,
+                lockConfigs,
+                listConfigs,
+                setConfigs,
+                replicatedMapConfigs,
+                topicConfigs,
+                executorConfigs,
+                durableExecutorConfigs,
+                scheduledExecutorConfigs,
+                semaphoreConfigs,
+                queueConfigs,
+                reliableTopicConfigs,
+                cacheSimpleConfigs);
     }
 
     @Override
@@ -354,5 +377,36 @@ public class ClusterWideConfigurationService implements MigrationAwareService,
     @Override
     public Map<String, CacheSimpleConfig> getCacheSimpleConfigs() {
         return cacheSimpleConfigs;
+    }
+
+    @Override
+    public Runnable prepareMergeRunnable() {
+        if (version.isLessOrEqual(V3_8)) {
+            return null;
+        }
+        return new Merger(nodeEngine, newReplicationOperation());
+    }
+
+    public static class Merger implements Runnable {
+        private final NodeEngine nodeEngine;
+        private final Operation replicationOperation;
+
+        public Merger(NodeEngine nodeEngine, Operation replicationOperation) {
+            this.nodeEngine = nodeEngine;
+            this.replicationOperation = replicationOperation;
+        }
+
+        @Override
+        public void run() {
+            OperationService operationService = nodeEngine.getOperationService();
+            BinaryOperationFactory operationFactory = new BinaryOperationFactory(replicationOperation, nodeEngine);
+            try {
+                // intentionally targeting partitions and not members to avoid races
+                // it has generates extra load, but it's worth it.
+                operationService.invokeOnAllPartitions(SERVICE_NAME, operationFactory);
+            } catch (Exception e) {
+                throw new HazelcastException("Error while merging configurations", e);
+            }
+        }
     }
 }
