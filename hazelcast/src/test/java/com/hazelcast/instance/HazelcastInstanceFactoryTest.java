@@ -17,6 +17,7 @@
 package com.hazelcast.instance;
 
 import com.hazelcast.config.Config;
+import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.ExpectedRuntimeException;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -25,6 +26,7 @@ import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.QuickTest;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -32,11 +34,14 @@ import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static classloading.ThreadLeakTestUtils.assertHazelcastThreadShutdown;
 import static classloading.ThreadLeakTestUtils.getThreads;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
@@ -213,5 +218,15 @@ public class HazelcastInstanceFactoryTest extends HazelcastTestSupport {
         config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
 
         hazelcastInstance = HazelcastInstanceFactory.newHazelcastInstance(config, randomString(), context);
+    }
+
+    @Test
+    public void test_newInstance_fromConfigUrl()
+            throws MalformedURLException {
+        Config config = new Config().setConfigurationUrl(new URL("http://192.168.2.29:8083/mancenter/rest/configuration"));
+        config.setInstanceName("unexpected");
+        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
+        assertNotEquals(config.getInstanceName(), hz.getConfig().getInstanceName());
+
     }
 }

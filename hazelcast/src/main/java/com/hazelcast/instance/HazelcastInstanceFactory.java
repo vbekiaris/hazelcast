@@ -26,7 +26,9 @@ import com.hazelcast.spi.annotation.PrivateApi;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.util.EmptyStatement;
 import com.hazelcast.util.ExceptionUtil;
+import com.hazelcast.util.StringUtil;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -117,15 +119,31 @@ public final class HazelcastInstanceFactory {
      * @return the configured {@link HazelcastInstance}
      */
     public static HazelcastInstance newHazelcastInstance(Config config) {
-        if (config == null) {
-            config = new XmlConfigBuilder().build();
-        }
+        Config actualConfig = resolveConfig(config);
 
         return newHazelcastInstance(
-                config,
-                config.getInstanceName(),
+                actualConfig,
+                actualConfig.getInstanceName(),
                 new DefaultNodeContext()
         );
+    }
+
+    private static Config resolveConfig(Config config) {
+        Config actualConfig = null;
+        if (config == null) {
+            actualConfig = new XmlConfigBuilder().build();
+        } else {
+            if (config.getConfigurationUrl() != null) {
+                try {
+                    actualConfig = new XmlConfigBuilder(config.getConfigurationUrl()).build();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                actualConfig = config;
+            }
+        }
+        return actualConfig;
     }
 
     public static String createInstanceName(Config config) {
@@ -159,11 +177,9 @@ public final class HazelcastInstanceFactory {
      * @return the configured {@link HazelcastInstance}
      */
     public static HazelcastInstance newHazelcastInstance(Config config, String instanceName, NodeContext nodeContext) {
-        if (config == null) {
-            config = new XmlConfigBuilder().build();
-        }
+        Config actualConfig = resolveConfig(config);
 
-        String name = getInstanceName(instanceName, config);
+        String name = getInstanceName(instanceName, actualConfig);
 
         InstanceFuture future = new InstanceFuture();
         if (INSTANCE_MAP.putIfAbsent(name, future) != null) {
@@ -171,7 +187,7 @@ public final class HazelcastInstanceFactory {
         }
 
         try {
-            return constructHazelcastInstance(config, name, nodeContext, future);
+            return constructHazelcastInstance(actualConfig, name, nodeContext, future);
         } catch (Throwable t) {
             INSTANCE_MAP.remove(name, future);
             future.setFailure(t);
