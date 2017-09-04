@@ -101,7 +101,7 @@ public class ClientTopicProxy<E> extends PartitionSpecificClientProxy implements
         }
     }
 
-    private class Codec implements ListenerMessageCodec {
+    public class Codec implements ListenerMessageCodec {
 
         @Override
         public ClientMessage encodeAddRequest(boolean localOnly) {

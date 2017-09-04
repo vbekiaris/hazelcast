@@ -20,6 +20,7 @@ import com.hazelcast.client.connection.ClientConnectionManager;
 import com.hazelcast.client.connection.nio.ClientConnection;
 import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.impl.protocol.ClientMessage;
+import com.hazelcast.client.proxy.ClientTopicProxy;
 import com.hazelcast.client.spi.ClientClusterService;
 import com.hazelcast.client.spi.EventHandler;
 import com.hazelcast.client.spi.impl.ClientInvocation;
@@ -208,9 +209,11 @@ public class ClientSmartListenerService extends ClientListenerServiceImpl
         registrationExecutor.submit(new Runnable() {
             @Override
             public void run() {
+                logger.severe("At start of connectionAdded " + dumpRegistrations());
                 for (ClientRegistrationKey registrationKey : registrations.keySet()) {
                     invokeFromInternalThread(registrationKey, connection);
                 }
+                logger.severe("At end of connectionAdded " + dumpRegistrations());
             }
         });
     }
@@ -223,6 +226,7 @@ public class ClientSmartListenerService extends ClientListenerServiceImpl
         registrationExecutor.submit(new Runnable() {
             @Override
             public void run() {
+                logger.severe("At start of connectionRemoved " + dumpRegistrations());
                 failedRegistrations.remove(connection);
                 for (Map<Connection, ClientEventRegistration> registrationMap : registrations.values()) {
                     ClientEventRegistration registration = registrationMap.remove(connection);
@@ -230,6 +234,7 @@ public class ClientSmartListenerService extends ClientListenerServiceImpl
                         removeEventHandler(registration.getCallId());
                     }
                 }
+                logger.severe("At end of connectionRemoved " + dumpRegistrations());
             }
         });
     }
@@ -305,5 +310,20 @@ public class ClientSmartListenerService extends ClientListenerServiceImpl
     // used in tests
     public Map<ClientRegistrationKey, Map<Connection, ClientEventRegistration>> getRegistrations() {
         return registrations;
+    }
+
+    private String dumpRegistrations() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<ClientRegistrationKey, Map<Connection, ClientEventRegistration>> entry : registrations.entrySet()) {
+            if (entry.getKey().getCodec() instanceof ClientTopicProxy.Codec) {
+                sb.append("{" + entry.getKey().getUserRegistrationId() + " ->");
+                for (Map.Entry<Connection, ClientEventRegistration> connectionRegistrations : entry.getValue().entrySet()) {
+                    sb.append("\n\t{" + connectionRegistrations.getKey() + " -> " +
+                                connectionRegistrations.getValue().getServerRegistrationId() + "}");
+                }
+                sb.append("\n}\n");
+            }
+        }
+        return sb.toString();
     }
 }
