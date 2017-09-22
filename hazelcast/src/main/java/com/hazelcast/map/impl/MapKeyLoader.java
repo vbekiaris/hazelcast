@@ -127,14 +127,15 @@ public class MapKeyLoader {
             .withTransition(State.LOADED, State.LOADING);
 
     public MapKeyLoader(String mapName, OperationService opService, IPartitionService ps,
-                        ClusterService clusterService, ExecutionService execService, IFunction<Object, Data> serialize) {
+                        ClusterService clusterService, ExecutionService execService, IFunction<Object, Data> serialize,
+                        ILogger logger) {
         this.mapName = mapName;
         this.opService = opService;
         this.partitionService = ps;
         this.clusterService = clusterService;
         this.toData = serialize;
         this.execService = execService;
-        this.logger = getLogger(MapKeyLoader.class);
+        this.logger = logger;
     }
 
     public Future startInitialLoad(MapStoreContext mapStoreContext, int partitionId) {
