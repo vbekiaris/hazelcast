@@ -34,6 +34,7 @@ public class IsPartitionLoadedOperation extends MapOperation implements Partitio
     @Override
     public void run() {
         isFinished = recordStore.isLoaded();
+        getLogger().severe("partitionId=" + getPartitionId() + " finished=" + isFinished);
     }
 
     @Override

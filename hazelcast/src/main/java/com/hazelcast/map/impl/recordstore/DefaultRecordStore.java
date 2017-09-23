@@ -152,7 +152,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
         keyLoader.trackLoading(lastBatch, exception);
 
         if (lastBatch) {
-            logger.finest("Completed loading map " + name + " on partitionId=" + partitionId);
+            logger.finest("Completed loading map " + name + " " + getStateMessage());
         }
     }
 

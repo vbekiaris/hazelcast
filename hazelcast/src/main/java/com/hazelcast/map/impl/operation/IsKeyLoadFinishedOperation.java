@@ -34,6 +34,7 @@ public class IsKeyLoadFinishedOperation extends MapOperation implements Partitio
     @Override
     public void run() {
         isFinished = recordStore.isKeyLoadFinished();
+        getLogger().severe("IsKeyLoadFinished partitionId=" + getPartitionId() + " result=" + isFinished);
     }
 
     @Override
