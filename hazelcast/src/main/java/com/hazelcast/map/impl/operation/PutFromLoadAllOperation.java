@@ -22,6 +22,7 @@ import com.hazelcast.map.impl.EntryViews;
 import com.hazelcast.map.impl.MapDataSerializerHook;
 import com.hazelcast.map.impl.event.MapEventPublisher;
 import com.hazelcast.map.impl.record.Record;
+import com.hazelcast.map.impl.recordstore.DefaultRecordStore;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
@@ -47,6 +48,7 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
 
     private List<Data> keyValueSequence;
     private List<Data> invalidationKeys;
+    private boolean finalBatch;
 
     public PutFromLoadAllOperation() {
         keyValueSequence = Collections.emptyList();
@@ -90,6 +92,10 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
             publishEntryEvent(key, previousValue, value);
             publishWanReplicationEvent(key, value, record);
             addInvalidation(key);
+        }
+
+        if (finalBatch) {
+            ((DefaultRecordStore)recordStore).setAsLoaded();
         }
     }
 
@@ -159,6 +165,10 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
         return new PutFromLoadAllBackupOperation(name, keyValueSequence);
     }
 
+    public void setFinalBatch(boolean finalBatch) {
+        this.finalBatch = finalBatch;
+    }
+
     @Override
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         super.writeInternal(out);
@@ -168,6 +178,7 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
         for (Data data : keyValueSequence) {
             out.writeData(data);
         }
+        out.writeBoolean(finalBatch);
     }
 
     @Override
@@ -184,6 +195,7 @@ public class PutFromLoadAllOperation extends MapOperation implements PartitionAw
             }
             keyValueSequence = tmpKeyValueSequence;
         }
+        finalBatch = in.readBoolean();
     }
 
     @Override

@@ -21,8 +21,8 @@ import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.mapstore.MapDataStore;
-import com.hazelcast.map.impl.operation.MapOperation;
 import com.hazelcast.map.impl.operation.MapOperationProvider;
+import com.hazelcast.map.impl.operation.PutFromLoadAllOperation;
 import com.hazelcast.map.impl.operation.RemoveFromLoadAllOperation;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.ExecutionService;
@@ -213,12 +213,15 @@ class BasicRecordStoreLoader implements RecordStoreLoader {
     private Operation createOperation(List<Data> keyValueSequence, final AtomicInteger finishedBatchCounter) {
         final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         MapOperationProvider operationProvider = mapServiceContext.getMapOperationProvider(name);
-        MapOperation operation = operationProvider.createPutFromLoadAllOperation(name, keyValueSequence);
+        PutFromLoadAllOperation operation = (PutFromLoadAllOperation) operationProvider.createPutFromLoadAllOperation(name, keyValueSequence);
         operation.setNodeEngine(nodeEngine);
         operation.setPartitionId(partitionId);
         OperationAccessor.setCallerAddress(operation, nodeEngine.getThisAddress());
         operation.setCallerUuid(nodeEngine.getLocalMember().getUuid());
         operation.setServiceName(MapService.SERVICE_NAME);
+        if (finishedBatchCounter.decrementAndGet() == 0) {
+            operation.setFinalBatch(true);
+        }
         return operation;
     }
 

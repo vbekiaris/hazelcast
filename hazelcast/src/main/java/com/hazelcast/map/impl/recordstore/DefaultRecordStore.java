@@ -119,9 +119,26 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
         loadedOnPreMigration = loaded;
     }
 
+    public void setAsLoaded() {
+        loadingFutures.clear();
+    }
+
     @Override
     public boolean isLoaded() {
-        return FutureUtil.allDone(loadingFutures);
+        boolean isLoaded = FutureUtil.allDone(loadingFutures);
+        if (!isLoaded) {
+            logger.info("There are still " + loadingFutures.size() + " futures to complete loading on partitionId=" + partitionId
+                    + "\n" + dump());
+        }
+        return isLoaded;
+    }
+
+    private String dump() {
+        StringBuilder builder = new StringBuilder();
+        for (Future f : loadingFutures) {
+            builder.append("\t").append(f + " -> " + f.isDone()).append("\n");
+        }
+        return builder.toString();
     }
 
     @Override
