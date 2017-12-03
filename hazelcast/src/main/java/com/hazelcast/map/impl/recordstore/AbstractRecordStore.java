@@ -268,7 +268,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     }
 
     protected void updateStatsOnRemove(long hits) {
-        decreaseHits(hits);
+
     }
 
     protected void resetStats() {
