@@ -40,6 +40,8 @@ public class LocalReplicatedMapStatsImpl implements LocalReplicatedMapStats {
             newUpdater(LocalReplicatedMapStatsImpl.class, "lastUpdateTime");
     private static final AtomicLongFieldUpdater<LocalReplicatedMapStatsImpl> HITS =
             newUpdater(LocalReplicatedMapStatsImpl.class, "hits");
+    private static final AtomicLongFieldUpdater<LocalReplicatedMapStatsImpl> MISSES =
+            newUpdater(LocalReplicatedMapStatsImpl.class, "misses");
     private static final AtomicLongFieldUpdater<LocalReplicatedMapStatsImpl> NUMBER_OF_OTHER_OPERATIONS =
             newUpdater(LocalReplicatedMapStatsImpl.class, "numberOfOtherOperations");
     private static final AtomicLongFieldUpdater<LocalReplicatedMapStatsImpl> NUMBER_OF_EVENTS =
@@ -73,6 +75,8 @@ public class LocalReplicatedMapStatsImpl implements LocalReplicatedMapStats {
     private volatile long lastUpdateTime;
     @Probe
     private volatile long hits;
+    @Probe
+    private volatile long misses;
     @Probe
     private volatile long numberOfOtherOperations;
     @Probe
@@ -182,6 +186,15 @@ public class LocalReplicatedMapStatsImpl implements LocalReplicatedMapStats {
 
     public void setHits(long hits) {
         HITS.set(this, hits);
+    }
+
+    @Override
+    public long getMisses() {
+        return misses;
+    }
+
+    public void incrementMisses() {
+        MISSES.incrementAndGet(this);
     }
 
     @Override

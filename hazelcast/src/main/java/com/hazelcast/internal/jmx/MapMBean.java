@@ -95,6 +95,12 @@ public class MapMBean extends HazelcastMBean<IMap> {
         return localMapStatsDelegate.getLocalStats().getHits();
     }
 
+    @ManagedAnnotation("localMisses")
+    @ManagedDescription("the number of misses of locally owned keys.")
+    public long getLocalMisses() {
+        return localMapStatsDelegate.getLocalStats().getMisses();
+    }
+
     @ManagedAnnotation("localLockedEntryCount")
     @ManagedDescription("the number of currently locked locally owned keys.")
     public long getLocalLockedEntryCount() {

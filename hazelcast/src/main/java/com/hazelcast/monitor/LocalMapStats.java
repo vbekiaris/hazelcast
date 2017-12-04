@@ -17,10 +17,10 @@
 package com.hazelcast.monitor;
 
 /**
- * Local map statistics. As everything is partitioned in Hazelcast,
- * each member owns 1/N (N being the number of members in the cluster)
- * entries of a distributed map. Each member also holds backup entries
- * of other members. LocalMapStats tells you the count of owned and backup
+ * Local map statistics. As {@link com.hazelcast.core.IMap} is a partitioned data structure
+ * in Hazelcast, each member owns a fraction of the total number of entries of a distributed map.
+ * Depending on the {@link com.hazelcast.core.IMap}'s configuration, each member may also hold backup
+ * entries of other members. LocalMapStats provides the count of owned and backup
  * entries besides their size in memory.
  */
 public interface LocalMapStats extends LocalInstanceStats {
@@ -82,11 +82,25 @@ public interface LocalMapStats extends LocalInstanceStats {
     long getLastUpdateTime();
 
     /**
-     * Returns the number of hits (reads) of the locally owned entries.
+     * Returns the number of hits (reads) of locally owned entries, including those
+     * which are no longer in the map (for example, may have been evicted).
      *
      * @return number of hits (reads) of the locally owned entries.
      */
     long getHits();
+
+    /**
+     * Returns the number of misses (reads without a mapping) of keys owned by this member.
+     * Reading a key without a mapping will cause a miss to be counted even when that key's value is
+     * loaded from a configured {@link com.hazelcast.core.MapLoader} and returned from the call.
+     *
+     * The number of misses is not migrated along with other partition data, so when a partition
+     * is moved to a new owner member, the respective {@link com.hazelcast.map.impl.recordstore.RecordStore}'s
+     * {@code misses} statistics will be reset to 0.
+     *
+     * @return number of misses on locally owned keys.
+     */
+    long getMisses();
 
     /**
      * Returns the number of currently locked locally owned keys.
@@ -118,7 +132,7 @@ public interface LocalMapStats extends LocalInstanceStats {
     long getGetOperationCount();
 
     /**
-     * Returns the number of Remove operations
+     * Returns the number of remove operations
      *
      * @return number of remove operations
      */

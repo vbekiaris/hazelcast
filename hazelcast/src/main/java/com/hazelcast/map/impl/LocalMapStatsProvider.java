@@ -177,12 +177,13 @@ public class LocalMapStatsProvider {
     }
 
     private static void addPrimaryStatsOf(RecordStore recordStore, LocalMapOnDemandCalculatedStats onDemandStats) {
-        if (!hasRecords(recordStore)) {
+        if (addStatsIfEmpty(recordStore, onDemandStats)) {
             return;
         }
 
         onDemandStats.incrementLockedEntryCount(recordStore.getLockedEntryCount());
         onDemandStats.incrementHits(recordStore.getHits());
+        onDemandStats.incrementMisses(recordStore.getMisses());
         onDemandStats.incrementDirtyEntryCount(recordStore.getMapDataStore().notFinishedOperationsCount());
         onDemandStats.incrementOwnedEntryMemoryCost(recordStore.getOwnedEntryCost());
         if (NATIVE  != recordStore.getMapContainer().getMapConfig().getInMemoryFormat()) {
@@ -294,10 +295,27 @@ public class LocalMapStatsProvider {
         }
     }
 
+    /**
+     * Adds record store misses statistics to {@code onDemandStats} if {@link RecordStore} is empty.
+     * @return {@code true} if {@code recordStore} has no records, otherwise {@code false}
+     */
+    private static boolean addStatsIfEmpty(RecordStore recordStore, LocalMapOnDemandCalculatedStats onDemandStats) {
+        if (recordStore == null) {
+            return true;
+        }
+
+        if (recordStore.size() == 0) {
+            onDemandStats.incrementMisses(recordStore.getMisses());
+            return true;
+        }
+        return false;
+    }
+
     private static class LocalMapOnDemandCalculatedStats {
 
         private int backupCount;
         private long hits;
+        private long misses;
         private long ownedEntryCount;
         private long backupEntryCount;
         private long ownedEntryMemoryCost;
@@ -315,6 +333,10 @@ public class LocalMapStatsProvider {
 
         public void incrementHits(long hits) {
             this.hits += hits;
+        }
+
+        public void incrementMisses(long misses) {
+            this.misses += misses;
         }
 
         public void incrementOwnedEntryCount(long ownedEntryCount) {
@@ -348,6 +370,7 @@ public class LocalMapStatsProvider {
         public LocalMapStatsImpl updateAndGet(LocalMapStatsImpl stats) {
             stats.setBackupCount(backupCount);
             stats.setHits(hits);
+            stats.setMisses(misses);
             stats.setOwnedEntryCount(ownedEntryCount);
             stats.setBackupEntryCount(backupEntryCount);
             stats.setOwnedEntryMemoryCost(ownedEntryMemoryCost);

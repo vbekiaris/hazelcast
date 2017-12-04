@@ -649,6 +649,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
 
         Record record = getRecordOrNull(key, now, backup);
         if (record == null) {
+            increaseMisses();
             record = loadRecordOrNull(key, backup);
         } else {
             accessRecord(record, now);
@@ -681,6 +682,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
         final MapEntries mapEntries = new MapEntries(keys.size());
 
         final Iterator<Data> iterator = keys.iterator();
+        long misses = 0;
         while (iterator.hasNext()) {
             final Data key = iterator.next();
             final Record record = getRecordOrNull(key, now, false);
@@ -688,9 +690,11 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
                 addMapEntrySet(key, record.getValue(), mapEntries);
                 accessRecord(record, now);
                 iterator.remove();
+            } else {
+                misses++;
             }
         }
-
+        increaseMisses(misses);
         Map loadedEntries = loadEntries(keys);
         addMapEntrySet(loadedEntries, mapEntries);
 
@@ -759,6 +763,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
 
         Record record = getRecordOrNull(key, now, false);
         if (record == null) {
+            increaseMisses();
             record = loadRecordOrNull(key, false);
         }
         boolean contains = record != null;

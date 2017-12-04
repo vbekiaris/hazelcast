@@ -67,6 +67,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     protected Storage<Data, Record> storage;
 
     private long hits;
+    private long misses;
     private long lastAccess;
     private long lastUpdate;
 
@@ -215,6 +216,11 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     }
 
     @Override
+    public long getMisses() {
+        return misses;
+    }
+
+    @Override
     public long getLastAccessTime() {
         return lastAccess;
     }
@@ -237,6 +243,16 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     @Override
     public void decreaseHits(long hits) {
         this.hits -= hits;
+    }
+
+    @Override
+    public void increaseMisses() {
+        this.misses++;
+    }
+
+    @Override
+    public void increaseMisses(long misses) {
+        this.misses += misses;
     }
 
     @Override
@@ -273,6 +289,7 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
 
     protected void resetStats() {
         this.hits = 0;
+        this.misses = 0;
         this.lastAccess = 0;
         this.lastUpdate = 0;
     }

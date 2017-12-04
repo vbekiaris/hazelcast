@@ -25,6 +25,7 @@ import com.hazelcast.config.PartitionGroupConfig;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.MapLoader;
 import com.hazelcast.core.MultiMap;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.map.listener.EntryEvictedListener;
@@ -373,6 +374,43 @@ public class LocalMapStatsTest extends HazelcastTestSupport {
         assertEquals(1000, localMapStats.getHits());
         assertEquals(1000, localMapStats.getPutOperationCount());
         assertEquals(1000, localMapStats.getGetOperationCount());
+    }
+
+    @Test
+    public void testMisses() {
+        IMap<Integer, Integer> map = getMap();
+        map.get(1);
+        LocalMapStats stats = map.getLocalMapStats();
+        assertEquals(1L, stats.getMisses());
+        assertEquals(0L, stats.getHits());
+    }
+
+    @Test
+    public void testMisses_whenMapLoaderConfigured() {
+        String mapName = randomMapName();
+        Config config = new Config();
+        MapConfig mapConfig = config.getMapConfig(mapName);
+        mapConfig.getMapStoreConfig().setImplementation(new MapLoader<Integer, Integer>() {
+            @Override
+            public Integer load(Integer key) {
+                return key;
+            }
+
+            @Override
+            public Map<Integer, Integer> loadAll(Collection<Integer> keys) {
+                return null;
+            }
+
+            @Override
+            public Iterable<Integer> loadAllKeys() {
+                return null;
+            }
+        });
+        IMap<Integer, Integer> map = getMap();
+        map.get(1);
+        LocalMapStats stats = map.getLocalMapStats();
+        assertEquals(1L, stats.getMisses());
+        assertEquals(0L, stats.getHits());
     }
 
     private void assertBackupEntryCount(final long expectedBackupEntryCount, final String mapName,

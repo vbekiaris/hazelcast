@@ -127,6 +127,9 @@ public abstract class AbstractReplicatedRecordStore<K, V> extends AbstractBaseRe
         Object value = replicatedRecord == null ? null : unmarshall(replicatedRecord.getValue());
         if (replicatedMapConfig.isStatisticsEnabled()) {
             getStats().incrementGets(Clock.currentTimeMillis() - time);
+            if (value == null) {
+                getStats().incrementMisses();
+            }
         }
         return value;
     }
@@ -202,7 +205,11 @@ public abstract class AbstractReplicatedRecordStore<K, V> extends AbstractBaseRe
     // IMPORTANT >> Increments hit counter
     private boolean containsKeyAndValue(Object key) {
         ReplicatedRecord replicatedRecord = getStorage().get(marshall(key));
-        return replicatedRecord != null && replicatedRecord.getValue() != null;
+        boolean containsKeyAndValue = replicatedRecord != null && replicatedRecord.getValue() != null;
+        if (!containsKeyAndValue) {
+            getStats().incrementMisses();
+        }
+        return containsKeyAndValue;
     }
 
     @Override

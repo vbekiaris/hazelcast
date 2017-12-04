@@ -242,6 +242,37 @@ public class ReplicatedMapStatsTest extends HazelcastTestSupport {
         });
     }
 
+    @Test
+    public void testMisses() {
+        Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+        for (int i = 0; i < 100; i++) {
+            map.put(i, i);
+        }
+        ReplicatedMap<Integer, Integer> replicatedMap = getReplicatedMap();
+        replicatedMap.putAll(map);
+        for (int i = 100; i < 200; i++) {
+            replicatedMap.get(i);
+        }
+        LocalReplicatedMapStats stats = replicatedMap.getReplicatedMapStats();
+        assertEquals(100, stats.getMisses());
+    }
+
+    @Test
+    public void testContainsKey_increasesHitsAndMisses() {
+        Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+        for (int i = 0; i < 100; i++) {
+            map.put(i, i);
+        }
+        ReplicatedMap<Integer, Integer> replicatedMap = getReplicatedMap();
+        replicatedMap.putAll(map);
+        for (int i = 0; i < 200; i++) {
+            replicatedMap.containsKey(i);
+        }
+        LocalReplicatedMapStats stats = replicatedMap.getReplicatedMapStats();
+        assertEquals(100, stats.getHits());
+        assertEquals(100, stats.getMisses());
+    }
+
     private <K, V> ReplicatedMap<K, V> getReplicatedMap() {
         HazelcastInstance instance = createHazelcastInstance();
         warmUpPartitions(instance);

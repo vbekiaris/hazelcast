@@ -63,6 +63,12 @@ public class ReplicatedMapMBean extends HazelcastMBean<ReplicatedMapProxy> {
         return managedObject.getReplicatedMapStats().getHits();
     }
 
+    @ManagedAnnotation("localMisses")
+    @ManagedDescription("the number of misses of locally owned keys.")
+    public long getLocalMisses() {
+        return managedObject.getReplicatedMapStats().getMisses();
+    }
+
     @ManagedAnnotation("localPutOperationCount")
     @ManagedDescription("the number of put operations on this member")
     public long getLocalPutOperationCount() {

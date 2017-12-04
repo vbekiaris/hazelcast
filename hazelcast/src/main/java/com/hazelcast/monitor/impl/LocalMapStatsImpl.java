@@ -111,6 +111,8 @@ public class LocalMapStatsImpl implements LocalMapStats {
     private volatile long dirtyEntryCount;
     @Probe
     private volatile int backupCount;
+    @Probe
+    private volatile long misses;
 
     private volatile NearCacheStats nearCacheStats;
 
@@ -193,6 +195,15 @@ public class LocalMapStatsImpl implements LocalMapStats {
 
     public void setHits(long hits) {
         this.hits = hits;
+    }
+
+    @Override
+    public long getMisses() {
+        return misses;
+    }
+
+    public void setMisses(long misses) {
+        this.misses = misses;
     }
 
     @Override
@@ -342,6 +353,7 @@ public class LocalMapStatsImpl implements LocalMapStats {
         root.add("lastAccessTime", lastAccessTime);
         root.add("lastUpdateTime", lastUpdateTime);
         root.add("hits", hits);
+        root.add("misses", misses);
         root.add("ownedEntryCount", ownedEntryCount);
         root.add("backupEntryCount", backupEntryCount);
         root.add("backupCount", backupCount);
@@ -385,6 +397,7 @@ public class LocalMapStatsImpl implements LocalMapStats {
         maxRemoveLatency = MILLISECONDS.toNanos(getLong(json, "maxRemoveLatency", -1L));
 
         hits = getLong(json, "hits", -1L);
+        misses = getLong(json, "misses", -1L);
         ownedEntryCount = getLong(json, "ownedEntryCount", -1L);
         backupEntryCount = getLong(json, "backupEntryCount", -1L);
         backupCount = getInt(json, "backupCount", -1);
@@ -407,6 +420,7 @@ public class LocalMapStatsImpl implements LocalMapStats {
                 + "lastAccessTime=" + lastAccessTime
                 + ", lastUpdateTime=" + lastUpdateTime
                 + ", hits=" + hits
+                + ", misses=" + misses
                 + ", numberOfOtherOperations=" + numberOfOtherOperations
                 + ", numberOfEvents=" + numberOfEvents
                 + ", getCount=" + getCount

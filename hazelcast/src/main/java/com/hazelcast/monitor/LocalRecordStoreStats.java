@@ -19,11 +19,26 @@ package com.hazelcast.monitor;
 public interface LocalRecordStoreStats {
 
     /**
-     * Returns the number of hits (reads) of the locally owned entries of this partition.
+     * Returns the number of hits (reads) of the locally owned entries of this partition,
+     * since this record store was created.
      *
      * @return number of hits (reads) of the locally owned entries of this partition.
      */
     long getHits();
+
+    /**
+     * Returns the number of misses (reads without a mapping) on keys owned by
+     * this record store since it was created. Reading a key without a mapping
+     * will cause a miss even when that key's value is loaded from a configured
+     * {@link com.hazelcast.core.MapLoader} and returned from the call.
+     *
+     * The number of misses is not migrated, so when a partition has a new owner member,
+     * the respective {@link com.hazelcast.map.impl.recordstore.RecordStore}'s
+     * {@code misses} statistics will be reset to 0.
+     *
+     * @return number of misses of the locally owned keys of this partition.
+     */
+    long getMisses();
 
     /**
      * Returns the last access (read) time of the locally owned entries of this partition.
@@ -53,6 +68,16 @@ public interface LocalRecordStoreStats {
      * Decreases the number of hits of the locally owned entries of this partition.
      */
     void decreaseHits(long hits);
+
+    /**
+     * Increases the number of misses of the locally owned keys of this partition.
+     */
+    void increaseMisses();
+
+    /**
+     * Increases the number of misses of the locally owned keys of this partition.
+     */
+    void increaseMisses(long misses);
 
     /**
      * Increases the number of hits of the locally owned entries of this partition.

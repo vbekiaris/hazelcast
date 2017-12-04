@@ -81,6 +81,7 @@ public class MapMBeanTest extends HazelcastTestSupport {
         String value = map.get("firstKey");
         String values = invokeMethod("values", EMPTY_STRING_PARAMETER);
         String entries = invokeMethod("entrySet", EMPTY_STRING_PARAMETER);
+        map.get("missingKey");
 
         long localEntryCount = getLongAttribute("localOwnedEntryCount");
         long localBackupEntryCount = getLongAttribute("localBackupEntryCount");
@@ -92,6 +93,7 @@ public class MapMBeanTest extends HazelcastTestSupport {
         long localLastAccessTime = getLongAttribute("localLastAccessTime");
         long localLastUpdateTime = getLongAttribute("localLastUpdateTime");
         long localHits = getLongAttribute("localHits");
+        long localMisses = getLongAttribute("localMisses");
         long localLockedEntryCount = getLongAttribute("localLockedEntryCount");
         long localDirtyEntryCount = getLongAttribute("localDirtyEntryCount");
 
@@ -126,11 +128,12 @@ public class MapMBeanTest extends HazelcastTestSupport {
         assertTrue(localLastAccessTime >= started);
         assertTrue(localLastUpdateTime >= started);
         assertEquals(1, localHits);
+        assertEquals(1, localMisses);
         assertEquals(0, localLockedEntryCount);
         assertEquals(0, localDirtyEntryCount);
 
         assertEquals(2, localPutOperationCount);
-        assertEquals(1, localGetOperationCount);
+        assertEquals(2, localGetOperationCount);
         assertEquals(1, localRemoveOperationCount);
 
         assertTrue("localTotalPutLatency should be >= 0", localTotalPutLatency >= 0);
