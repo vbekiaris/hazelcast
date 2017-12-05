@@ -21,6 +21,7 @@ import com.hazelcast.concurrent.lock.LockStore;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.DistributedObjectNamespace;
 import com.hazelcast.spi.ObjectNamespace;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +55,7 @@ public class MultiMapContainer extends MultiMapContainerSupport {
     // these fields are volatile since they can be read by other threads than the partition-thread
     private volatile long lastAccessTime;
     private volatile long lastUpdateTime;
+    private volatile long misses;
 
     public MultiMapContainer(String name, MultiMapService service, int partitionId) {
         super(name, service.getNodeEngine());
@@ -212,6 +214,16 @@ public class MultiMapContainer extends MultiMapContainerSupport {
 
     public long getLockedCount() {
         return lockStore.getLockedKeys().size();
+    }
+
+    @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT",
+            justification = "MultiMapContainer.misses is only updated in its own partition thread.")
+    public void incrementMisses() {
+        misses++;
+    }
+
+    public long getMisses() {
+        return misses;
     }
 
     public ObjectNamespace getObjectNamespace() {

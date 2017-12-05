@@ -46,6 +46,8 @@ public class GetAllOperation extends MultiMapKeyBasedOperation implements Blocki
         if (multiMapValue != null) {
             multiMapValue.incrementHit();
             coll = multiMapValue.getCollection(executedLocally());
+        } else {
+            container.incrementMisses();
         }
         response = new MultiMapResponse(coll, getValueCollectionType(container));
     }

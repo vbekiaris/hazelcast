@@ -195,4 +195,10 @@ public class MultiMapMBean extends HazelcastMBean<MultiMap> {
     public int getSize() {
         return managedObject.size();
     }
+
+    @ManagedAnnotation("config")
+    @ManagedDescription("MultiMapConfig")
+    public String getConfig() {
+        return service.instance.getConfig().findMultiMapConfig(managedObject.getName()).toString();
+    }
 }
