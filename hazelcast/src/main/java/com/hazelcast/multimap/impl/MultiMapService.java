@@ -66,6 +66,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.util.MapUtil.createHashMap;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 public class MultiMapService implements ManagedService, RemoteService, FragmentedMigrationAwareService,
         EventPublishingService<EventData, EntryListener>, TransactionalService, StatisticsAwareService<LocalMultiMapStats> {
@@ -433,9 +434,9 @@ public class MultiMapService implements ManagedService, RemoteService, Fragmente
     private Address getReplicaAddress(IPartition partition, int backupCount, int replicaIndex) {
         Address replicaAddress = partition.getReplicaAddress(replicaIndex);
         int tryCount = REPLICA_ADDRESS_TRY_COUNT;
-        int memberSize = nodeEngine.getClusterService().getSize();
+        int maxAllowedBackupCount = min(backupCount, nodeEngine.getPartitionService().getMaxAllowedBackupCount());
 
-        while (memberSize > backupCount && replicaAddress == null && tryCount-- > 0) {
+        while (maxAllowedBackupCount > replicaIndex && replicaAddress == null && tryCount-- > 0) {
             try {
                 Thread.sleep(REPLICA_ADDRESS_SLEEP_WAIT_MILLIS);
             } catch (InterruptedException e) {
