@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package com.hazelcast.internal.networking;
+package com.hazelcast.internal.networking.unix;
 
+import com.hazelcast.internal.networking.Channel;
+import com.hazelcast.internal.networking.ChannelCloseListener;
+import com.hazelcast.internal.networking.OutboundFrame;
+import com.hazelcast.internal.networking.nio.NioChannelReader;
+import com.hazelcast.internal.networking.nio.NioChannelWriter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 
@@ -23,6 +28,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,29 +40,45 @@ import static java.lang.String.format;
 import static java.util.Collections.newSetFromMap;
 import static java.util.concurrent.atomic.AtomicIntegerFieldUpdater.newUpdater;
 
-/**
- * An abstract {@link Channel} implementation. This class is a pure implementation detail, the fact that it exposes some
- * functionality like access to the socket channel is because the current Channel implementations need the SocketChannel.
- */
-public abstract class AbstractChannel implements Channel {
-
+public class UnixChannel implements Channel {
     private static final int FALSE = 0;
     private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<AbstractChannel> CLOSED = newUpdater(AbstractChannel.class, "closed");
+    private static final AtomicIntegerFieldUpdater<UnixChannel> CLOSED = newUpdater(UnixChannel.class, "closed");
 
-    protected final SocketChannel socketChannel;
-
-    private final ConcurrentMap<?, ?> attributeMap = new ConcurrentHashMap<Object, Object>();
+    private final SocketChannel socketChannel;
+    private final ILogger logger = Logger.getLogger(getClass());
+    private final ConcurrentMap<?, ?> attributeMap = new ConcurrentHashMap<>();
     private final Set<ChannelCloseListener> closeListeners
             = newSetFromMap(new ConcurrentHashMap<ChannelCloseListener, Boolean>());
     private final boolean clientMode;
-
-    @SuppressWarnings("FieldCanBeLocal")
     private volatile int closed = FALSE;
+    private NioChannelReader reader;
+    private NioChannelWriter writer;
 
-    public AbstractChannel(SocketChannel socketChannel, boolean clientMode) {
+    public UnixChannel(SocketChannel socketChannel, boolean clientMode) {
         this.socketChannel = socketChannel;
         this.clientMode = clientMode;
+    }
+
+    @Override
+    public SocketChannel socketChannel() {
+        return socketChannel;
+    }
+
+    public void setReader(NioChannelReader reader) {
+        this.reader = reader;
+    }
+
+    public void setWriter(NioChannelWriter writer) {
+        this.writer = writer;
+    }
+
+    public NioChannelReader getReader() {
+        return reader;
+    }
+
+    public NioChannelWriter getWriter() {
+        return writer;
     }
 
     @Override
@@ -64,6 +86,7 @@ public abstract class AbstractChannel implements Channel {
         return clientMode;
     }
 
+    @Override
     public ConcurrentMap attributeMap() {
         return attributeMap;
     }
@@ -74,38 +97,55 @@ public abstract class AbstractChannel implements Channel {
     }
 
     @Override
-    public SocketChannel socketChannel() {
-        return socketChannel;
-    }
-
-    @Override
     public SocketAddress getRemoteSocketAddress() {
-        Socket socket = socket();
-        return socket == null ? null : socket.getRemoteSocketAddress();
+        try {
+            return socketChannel.getRemoteAddress();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     @Override
     public SocketAddress getLocalSocketAddress() {
-        Socket socket = socket();
-        return socket == null ? null : socket.getLocalSocketAddress();
+        try {
+            return socketChannel.getLocalAddress();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public long lastReadTimeMillis() {
+        return reader.lastReadTimeMillis();
+    }
+
+    @Override
+    public long lastWriteTimeMillis() {
+        return writer.lastWriteTimeMillis();
     }
 
     @Override
     public int read(ByteBuffer dst) throws IOException {
-        return socketChannel.read(dst);
+        int read = socketChannel.read(dst);
+        //logger.info(this + " read:" + read +" cap:"+dst.capacity()+" pos:"+dst.position());
+        return read;
     }
 
     @Override
     public int write(ByteBuffer src) throws IOException {
-        return socketChannel.write(src);
+        int written = socketChannel.write(src);
+        //logger.info(this + " written:" + written);
+        return written;
     }
 
     @Override
     public void closeInbound() throws IOException {
+        //no-op
     }
 
     @Override
     public void closeOutbound() throws IOException {
+        //no-op
     }
 
     @Override
@@ -119,42 +159,42 @@ public abstract class AbstractChannel implements Channel {
             return;
         }
 
-        // we execute this in its own try/catch block because we don't want to skip closing the socketChannel in case of problems
-        try {
-            onClose();
-        } catch (Exception e) {
-            getLogger().severe(format("Failed to call 'onClose' on channel [%s]", this), e);
-        }
-
         try {
             socketChannel.close();
         } finally {
             for (ChannelCloseListener closeListener : closeListeners) {
                 // it is important we catch exceptions so that other listeners aren't obstructed when
-                // one of the listeners is throwing an exception
+                // one of the listeners is throwing an exception.
                 try {
                     closeListener.onClose(this);
                 } catch (Exception e) {
-                    getLogger().severe(format("Failed to process closeListener [%s] on channel [%s]", closeListener, this), e);
+                    logger.severe(format("Failed to process closeListener [%s] on channel [%s]", closeListener, this), e);
                 }
             }
         }
     }
 
-    private ILogger getLogger() {
-        return Logger.getLogger(getClass());
-    }
-
-    /**
-     * Template method that is called when the socket channel closed. It is called before the {@code socketChannel} is closed.
-     * <p>
-     * It will be called only once.
-     */
-    protected void onClose() throws IOException {
-    }
-
     @Override
     public void addCloseListener(ChannelCloseListener listener) {
         closeListeners.add(checkNotNull(listener, "listener"));
+    }
+
+    @Override
+    public boolean write(OutboundFrame frame) {
+        if (isClosed()) {
+            return false;
+        }
+        writer.write(frame);
+        return true;
+    }
+
+    @Override
+    public void flush() {
+        writer.flush();
+    }
+
+    @Override
+    public String toString() {
+        return "UdpNioChannel{" + getLocalSocketAddress() + "->" + getRemoteSocketAddress() + '}';
     }
 }

@@ -25,8 +25,14 @@ import com.hazelcast.internal.networking.nio.SelectorMode;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.IOService;
+import com.hazelcast.nio.unix.UnixServerSocketAcceptor;
+import jnr.enxio.channels.NativeSelectorProvider;
+import jnr.enxio.channels.ServerSocketChannelAdapter;
+import jnr.unixsocket.UnixServerSocketChannel;
+import jnr.unixsocket.UnixSocketAddress;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -55,6 +61,9 @@ public class TcpIpAcceptor implements MetricsProvider {
     private static final long SELECT_TIMEOUT_MILLIS = SECONDS.toMillis(60);
     private static final int SELECT_IDLE_COUNT_THRESHOLD = 10;
 
+    private final ServerSocketChannelAdapter unixSocketChannel;
+    private final Selector nativeSelector;
+    private final UnixServerSocketAcceptor unixAcceptorThread;
     private final ServerSocketChannel serverSocketChannel;
     private final TcpIpConnectionManager connectionManager;
     private final ILogger logger;
@@ -66,7 +75,7 @@ public class TcpIpAcceptor implements MetricsProvider {
     // count number of times the selector was recreated (if selectWorkaround is enabled)
     @Probe
     private final SwCounter selectorRecreateCount = newSwCounter();
-    private final AcceptorIOThread acceptorThread;
+    private final Thread acceptorThread;
     // last time select returned
     private volatile long lastSelectTimeMs;
 
@@ -85,6 +94,27 @@ public class TcpIpAcceptor implements MetricsProvider {
         this.ioService = connectionManager.getIoService();
         this.logger = ioService.getLoggingService().getLogger(getClass());
         this.acceptorThread = new AcceptorIOThread();
+        ServerSocketChannelAdapter serverSocketChannelAdapter = null;
+        Selector nativeSelector = null;
+        try {
+            nativeSelector = NativeSelectorProvider.getInstance().openSelector();
+            int port = ((InetSocketAddress)serverSocketChannel.getLocalAddress()).getPort();
+            java.io.File path = new java.io.File("/tmp/hazelcast-" + port + ".sock");
+            path.deleteOnExit();
+            UnixSocketAddress address = new UnixSocketAddress(path);
+            UnixServerSocketChannel channel = UnixServerSocketChannel.open();
+            serverSocketChannelAdapter = new ServerSocketChannelAdapter(channel);
+            serverSocketChannelAdapter.configureBlocking(false);
+            serverSocketChannelAdapter.bind(address);
+            serverSocketChannelAdapter.register(nativeSelector, SelectionKey.OP_ACCEPT);
+            logger.info("Started unix domain socket at " + path.getAbsolutePath());
+        } catch (IOException e) {
+            logger.severe("Failure trying to initialize UNIX domain server socket", e);
+        }
+        this.unixSocketChannel = serverSocketChannelAdapter;
+        this.nativeSelector = nativeSelector;
+        this.unixAcceptorThread = new UnixServerSocketAcceptor(unixSocketChannel, nativeSelector, logger,
+                ioService.getHazelcastName(), ioService, connectionManager);
     }
 
     /**
@@ -104,6 +134,7 @@ public class TcpIpAcceptor implements MetricsProvider {
 
     public TcpIpAcceptor start() {
         acceptorThread.start();
+        unixAcceptorThread.start();
         return this;
     }
 
@@ -114,6 +145,7 @@ public class TcpIpAcceptor implements MetricsProvider {
 
         logger.finest("Shutting down SocketAcceptor thread.");
         stop = true;
+        unixAcceptorThread.notifyStop();
         Selector sel = selector;
         if (sel != null) {
             sel.wakeup();
@@ -121,6 +153,7 @@ public class TcpIpAcceptor implements MetricsProvider {
 
         try {
             acceptorThread.join(SHUTDOWN_TIMEOUT_MILLIS);
+            unixAcceptorThread.join(SHUTDOWN_TIMEOUT_MILLIS);
         } catch (InterruptedException e) {
             logger.finest(e);
         }

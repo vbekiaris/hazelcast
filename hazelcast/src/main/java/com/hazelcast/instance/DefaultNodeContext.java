@@ -24,6 +24,7 @@ import com.hazelcast.internal.networking.ChannelErrorHandler;
 import com.hazelcast.internal.networking.EventLoopGroup;
 import com.hazelcast.internal.networking.nio.NioEventLoopGroup;
 import com.hazelcast.internal.networking.spinning.SpinningEventLoopGroup;
+import com.hazelcast.internal.networking.unix.UnixEventLoopGroup;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.LoggingServiceImpl;
 import com.hazelcast.nio.ClassLoaderUtil;
@@ -132,7 +133,8 @@ public class DefaultNodeContext implements NodeContext {
     @Override
     public ConnectionManager createConnectionManager(Node node, ServerSocketChannel serverSocketChannel) {
         NodeIOService ioService = new NodeIOService(node, node.nodeEngine);
-        EventLoopGroup eventLoopGroup = createEventLoopGroup(node, ioService);
+//        EventLoopGroup eventLoopGroup = createEventLoopGroup(node, ioService);
+        EventLoopGroup eventLoopGroup = createUnixEventLoopGroup(node, ioService);
 
         return new TcpIpConnectionManager(
                 ioService,
@@ -141,6 +143,22 @@ public class DefaultNodeContext implements NodeContext {
                 node.nodeEngine.getMetricsRegistry(),
                 eventLoopGroup,
                 node.getProperties());
+    }
+
+    private EventLoopGroup createUnixEventLoopGroup(Node node, NodeIOService ioService) {
+        LoggingServiceImpl loggingService = node.loggingService;
+        MemberChannelInitializer initializer
+                = new MemberChannelInitializer(loggingService.getLogger(MemberChannelInitializer.class), ioService);
+        ChannelErrorHandler exceptionHandler
+                = new TcpIpConnectionChannelErrorHandler(loggingService.getLogger(TcpIpConnectionChannelErrorHandler.class));
+        return new UnixEventLoopGroup(loggingService,
+                node.nodeEngine.getMetricsRegistry(),
+                node.hazelcastInstance.getName(),
+                exceptionHandler,
+                ioService.getInputSelectorThreadCount(),
+                ioService.getOutputSelectorThreadCount(),
+                ioService.getBalancerIntervalSeconds(),
+                initializer);
     }
 
     private EventLoopGroup createEventLoopGroup(Node node, NodeIOService ioService) {

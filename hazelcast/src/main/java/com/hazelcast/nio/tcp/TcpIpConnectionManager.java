@@ -24,6 +24,7 @@ import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelFactory;
 import com.hazelcast.internal.networking.EventLoopGroup;
+import com.hazelcast.internal.networking.unix.UnixChannel;
 import com.hazelcast.internal.util.concurrent.ThreadFactoryImpl;
 import com.hazelcast.internal.util.counters.MwCounter;
 import com.hazelcast.logging.ILogger;
@@ -41,10 +42,18 @@ import com.hazelcast.util.ConcurrencyUtil;
 import com.hazelcast.util.ConstructorFunction;
 import com.hazelcast.util.executor.StripedRunnable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import jnr.enxio.channels.NativeSelectorProvider;
+import jnr.enxio.channels.ServerSocketChannelAdapter;
+import jnr.unixsocket.UnixServerSocketChannel;
+import jnr.unixsocket.UnixSocketAddress;
+import jnr.unixsocket.UnixSocketChannel;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Collections;
@@ -360,9 +369,7 @@ public class TcpIpConnectionManager implements ConnectionManager, PacketHandler 
         connection.setEndPoint(remoteEndPoint);
         ioService.onSuccessfulConnection(remoteEndPoint);
         //make sure bind packet is the first packet sent to the end point.
-        if (logger.isFinestEnabled()) {
-            logger.finest("Sending bind packet to " + remoteEndPoint);
-        }
+        logger.info("Sending bind packet to " + remoteEndPoint);
         BindMessage bind = new BindMessage(ioService.getThisAddress(), remoteEndPoint, reply);
         byte[] bytes = ioService.getSerializationService().toBytes(bind);
         Packet packet = new Packet(bytes).setPacketType(Packet.Type.BIND);
@@ -370,13 +377,49 @@ public class TcpIpConnectionManager implements ConnectionManager, PacketHandler 
         //now you can send anything...
     }
 
-    Channel createChannel(SocketChannel socketChannel, boolean client) throws Exception {
-        Channel wrapper = channelFactory.create(socketChannel, client, ioService.useDirectSocketBuffer());
-        acceptedSockets.add(wrapper);
-        return wrapper;
+    public Channel createChannel(SocketChannel socketChannel, boolean client) throws Exception {
+//        Channel wrapper = channelFactory.create(socketChannel, client, ioService.useDirectSocketBuffer());
+//        acceptedSockets.add(wrapper);
+//        return wrapper;
+        Channel unixChannel;
+
+        if (!(socketChannel instanceof UnixSocketChannel)) {
+            // substitute with a unix domain socket
+            if (client) {
+                // connect to remote address' unix socket
+                int port = ((InetSocketAddress) socketChannel.getRemoteAddress()).getPort();
+                java.io.File path = new java.io.File("/tmp/hazelcast-" + port + ".sock");
+                if (!path.exists()) {
+                    logger.severe("Could not locate unix socket " + path.getAbsolutePath());
+                    return null;
+                }
+                UnixSocketAddress address = new UnixSocketAddress(path);
+                UnixSocketChannel unixSocketChannel = UnixSocketChannel.open(address);
+                logger.info("Connected to " + unixSocketChannel.getRemoteSocketAddress());
+                unixChannel = new UnixChannel(unixSocketChannel, client);
+                acceptedSockets.add(unixChannel);
+                return unixChannel;
+            } else {
+                logger.info("Discarding connection from TcpIpAcceptor " + socketChannel);
+                return null;
+            }
+        } else {
+            logger.info("Established channel with FD " + ((UnixSocketChannel) socketChannel).getFD() + ", client mode: " + client);
+            unixChannel = new UnixChannel(socketChannel, client);
+            acceptedSockets.add(unixChannel);
+            return unixChannel;
+        }
     }
 
-    synchronized TcpIpConnection newConnection(Channel channel, Address endpoint) {
+    public Channel createUnixSocketChannel(SocketChannel unixSocketChannel, boolean client) {
+        // todo
+        logger.info("Established channel with FD " + ((UnixSocketChannel)unixSocketChannel).getFD() +", client mode: " + client);
+        Channel channel = new UnixChannel(unixSocketChannel, client);
+        acceptedSockets.add(channel);
+        return channel;
+    }
+
+    public synchronized TcpIpConnection newConnection(Channel channel, Address endpoint) {
         try {
             if (!live) {
                 throw new IllegalStateException("connection manager is not live!");

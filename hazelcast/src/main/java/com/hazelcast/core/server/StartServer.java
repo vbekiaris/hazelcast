@@ -16,6 +16,7 @@
 
 package com.hazelcast.core.server;
 
+import com.hazelcast.config.Config;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -43,7 +44,9 @@ public final class StartServer {
      * @param args none
      */
     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
-        HazelcastInstance hz = Hazelcast.newHazelcastInstance(null);
+        Config config = new Config();
+        config.getGroupConfig().setName("vbek").setPassword("vbek");
+        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
         printMemberPort(hz);
     }
 

@@ -180,11 +180,13 @@ public class TcpIpConnector {
                     logger.finest("Successfully connected to: " + address + " using socket " + socketChannel.socket());
                 }
                 Channel channel = connectionManager.createChannel(socketChannel, true);
-                ioService.interceptSocket(socketChannel.socket(), false);
+                if (channel != null) {
+                    ioService.interceptSocket(socketChannel.socket(), false);
 
-                socketChannel.configureBlocking(false);
-                TcpIpConnection connection = connectionManager.newConnection(channel, address);
-                connectionManager.sendBindRequest(connection, address, true);
+                    socketChannel.configureBlocking(false);
+                    TcpIpConnection connection = connectionManager.newConnection(channel, address);
+                    connectionManager.sendBindRequest(connection, address, true);
+                }
             } catch (Exception e) {
                 closeSocket(socketChannel);
                 logger.log(level, "Could not connect to: " + socketAddress + ". Reason: " + e.getClass().getSimpleName()

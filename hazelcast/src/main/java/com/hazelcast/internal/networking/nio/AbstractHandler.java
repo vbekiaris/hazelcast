@@ -60,7 +60,7 @@ public abstract class AbstractHandler
     @Probe
     private final SwCounter migrationCount = newSwCounter();
 
-    AbstractHandler(NioChannel channel,
+    AbstractHandler(Channel channel,
                     NioThread ioThread,
                     int initialOps,
                     ILogger logger,

@@ -17,6 +17,7 @@
 package com.hazelcast.internal.networking.nio;
 
 import com.hazelcast.internal.metrics.Probe;
+import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelInboundHandler;
 import com.hazelcast.internal.networking.ChannelInitializer;
 import com.hazelcast.internal.networking.InitResult;
@@ -58,7 +59,7 @@ public final class NioChannelReader extends AbstractHandler {
     private volatile long handleCountLastPublish;
 
     public NioChannelReader(
-            NioChannel channel,
+            Channel channel,
             NioThread ioThread,
             ILogger logger,
             IOBalancer balancer,

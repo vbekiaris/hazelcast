@@ -16,12 +16,16 @@
 
 package com.hazelcast.internal.networking;
 
+import com.hazelcast.internal.networking.spinning.SpinningChannelReader;
+import com.hazelcast.internal.networking.spinning.SpinningChannelWriter;
+
 import javax.net.ssl.SSLEngine;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -71,7 +75,7 @@ public interface Channel extends Closeable {
 
     /**
      * Returns the attribute map.
-     *
+     * <p>
      * Attribute map can be used to store data into a socket. For example to find the Connection for a Channel, one can
      * store the Connection in this channel using some well known key.
      *
@@ -81,9 +85,9 @@ public interface Channel extends Closeable {
 
     /**
      * @see java.nio.channels.SocketChannel#socket()
-     *
+     * <p>
      * This method will be removed from the interface. Only an explicit cast to NioChannel will expose the Socket.
-     *
+     * <p>
      * It is very important that the socket isn't closed directly; but one goes through the {@link #close()} method so that
      * interal administration of the channel is in sync with that of the socket.
      */
@@ -108,7 +112,7 @@ public interface Channel extends Closeable {
 
     /**
      * Returns the last {@link com.hazelcast.util.Clock#currentTimeMillis()} that a write to the socket completed.
-     *
+     * <p>
      * Writing to the socket doesn't mean that data has been send or received; it means that data was written to the
      * SocketChannel. It could very well be that this data is stuck somewhere in an io-buffer.
      *
@@ -121,43 +125,48 @@ public interface Channel extends Closeable {
      *
      * @see java.nio.channels.SocketChannel#read(ByteBuffer)
      */
-    int read(ByteBuffer dst) throws IOException;
+    int read(ByteBuffer dst)
+            throws IOException;
 
     /**
      * This method will be removed from the Channel in the near future.
      *
      * @see java.nio.channels.SocketChannel#write(ByteBuffer)
      */
-    int write(ByteBuffer src) throws IOException;
+    int write(ByteBuffer src)
+            throws IOException;
 
     /**
      * Closes inbound.
-     *
+     * <p>
      * <p>Not thread safe. Should be called in channel reader thread.</p>
-     *
+     * <p>
      * Method will be removed once the TLS integration doesn't rely on subclassing this channel.
      *
      * @throws IOException
      */
-    void closeInbound() throws IOException;
+    void closeInbound()
+            throws IOException;
 
     /**
      * Closes outbound.
-     *
+     * <p>
      * <p>Not thread safe. Should be called in channel writer thread.</p>
-     *
+     * <p>
      * Method will be removed once the TLS integration doesn't rely on subclassing this channel.
      *
      * @throws IOException
      */
-    void closeOutbound() throws IOException;
+    void closeOutbound()
+            throws IOException;
 
     /**
      * Closes the Channel.
-     *
+     * <p>
      * When the channel already is closed, the call is ignored.
      */
-    void close() throws IOException;
+    void close()
+            throws IOException;
 
     /**
      * Checks if this Channel is closed. This method is very cheap to make.
@@ -176,9 +185,9 @@ public interface Channel extends Closeable {
 
     /**
      * Checks if this side is the Channel is in client mode or server mode.
-     *
+     * <p>
      * A channel is in client-mode if it initiated the connection, and in server-mode if it was the one accepting the connection.
-     *
+     * <p>
      * One of the reasons this property is valuable is for protocol/handshaking so that it is clear distinction between the
      * side that initiated the connection, or accepted the connection.
      *
@@ -198,9 +207,11 @@ public interface Channel extends Closeable {
 
     /**
      * Flushes whatever needs to be written.
-     *
+     * <p>
      * Normally this call doesn't need to be made since {@link #write(OutboundFrame)} write the content; but in case of protocol
      * and TLS handshaking, such triggers are needed.
      */
     void flush();
+
+    SocketChannel socketChannel();
 }

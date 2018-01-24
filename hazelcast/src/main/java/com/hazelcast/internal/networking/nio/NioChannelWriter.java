@@ -17,6 +17,7 @@
 package com.hazelcast.internal.networking.nio;
 
 import com.hazelcast.internal.metrics.Probe;
+import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelInitializer;
 import com.hazelcast.internal.networking.ChannelOutboundHandler;
 import com.hazelcast.internal.networking.InitResult;
@@ -77,7 +78,7 @@ public final class NioChannelWriter extends AbstractHandler implements Runnable 
     private long priorityFramesReadLastPublish;
     private long eventsLastPublish;
 
-    public NioChannelWriter(NioChannel channel,
+    public NioChannelWriter(Channel channel,
                             NioThread ioThread,
                             ILogger logger,
                             IOBalancer balancer,
@@ -426,7 +427,7 @@ public final class NioChannelWriter extends AbstractHandler implements Runnable 
     }
 
     @Override
-    protected void publish() {
+    public void publish() {
         ioThread.bytesTransceived += bytesWritten.get() - bytesReadLastPublish;
         ioThread.framesTransceived += normalFramesWritten.get() - normalFramesReadLastPublish;
         ioThread.priorityFramesTransceived += priorityFramesWritten.get() - priorityFramesReadLastPublish;

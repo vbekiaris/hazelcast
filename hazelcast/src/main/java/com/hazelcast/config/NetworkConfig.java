@@ -61,6 +61,8 @@ public class NetworkConfig {
 
     private MemberAddressProviderConfig memberAddressProviderConfig = new MemberAddressProviderConfig();
 
+    private UnixSocketConfig unixSocketConfig = new UnixSocketConfig();
+
     public NetworkConfig() {
         String os = StringUtil.lowerCaseInternal(System.getProperty("os.name"));
         reuseAddress = (!os.contains("win"));
@@ -334,6 +336,15 @@ public class NetworkConfig {
         return this;
     }
 
+    public UnixSocketConfig getUnixSocketConfig() {
+        return unixSocketConfig;
+    }
+
+    public NetworkConfig setUnixSocketConfig(UnixSocketConfig unixSocketConfig) {
+        this.unixSocketConfig = unixSocketConfig;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "NetworkConfig{"
@@ -346,6 +357,7 @@ public class NetworkConfig {
                 + ", sslConfig=" + sslConfig
                 + ", socketInterceptorConfig=" + socketInterceptorConfig
                 + ", symmetricEncryptionConfig=" + symmetricEncryptionConfig
+                + ", unixSocketConfig=" + unixSocketConfig
                 + '}';
     }
 }
