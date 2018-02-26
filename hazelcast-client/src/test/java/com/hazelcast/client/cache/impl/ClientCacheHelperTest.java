@@ -33,17 +33,13 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.client.cache.impl.ClientCacheHelper.createCacheConfig;
 import static com.hazelcast.client.cache.impl.ClientCacheHelper.enableStatisticManagementOnNodes;
 import static com.hazelcast.client.cache.impl.ClientCacheHelper.getCacheConfig;
 import static com.hazelcast.client.impl.ClientTestUtil.getHazelcastClientInstanceImpl;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -64,9 +60,6 @@ public class ClientCacheHelperTest extends HazelcastTestSupport {
 
     private CacheConfig<String, String> newCacheConfig;
 
-    private CacheConfig<String, String> cacheConfig;
-    private ConcurrentMap<String, CacheConfig> configs;
-
     @Before
     public void setUp() {
         CacheSimpleConfig cacheSimpleConfig = new CacheSimpleConfig();
@@ -81,10 +74,7 @@ public class ClientCacheHelperTest extends HazelcastTestSupport {
         exceptionThrowingClient = mock(HazelcastClientInstanceImpl.class, RETURNS_DEEP_STUBS);
         when(exceptionThrowingClient.getClientPartitionService()).thenThrow(new IllegalArgumentException("expected"));
 
-        newCacheConfig = new CacheConfig<String, String>(CACHE_NAME);
-
-        cacheConfig = new CacheConfig<String, String>(CACHE_NAME);
-        configs = new ConcurrentHashMap<String, CacheConfig>(singletonMap(CACHE_NAME, cacheConfig));
+        newCacheConfig = new CacheConfig<String, String>(CACHE_NAME).setManagerPrefix("");
     }
 
     @After
@@ -119,21 +109,13 @@ public class ClientCacheHelperTest extends HazelcastTestSupport {
 
     @Test
     public void testCreateCacheConfig_whenSyncCreate_thenReturnNewConfig() {
-        CacheConfig<String, String> actualConfig = createCacheConfig(client, cacheConfig, newCacheConfig, false, true);
-
-        assertNotEquals(cacheConfig, actualConfig);
-    }
-
-    @Test
-    public void testCreateCacheConfig_whenNotSyncCreate_thenReturnCurrentConfig() {
-        CacheConfig<String, String> actualConfig = createCacheConfig(client, cacheConfig, newCacheConfig, false, false);
-
-        assertEquals(cacheConfig, actualConfig);
+        createCacheConfig(client, newCacheConfig, false, true);
+        assertEquals(newCacheConfig, getCacheConfig(client, CACHE_NAME, CACHE_NAME));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testCreateCacheConfig_rethrowsExceptions() {
-        createCacheConfig(exceptionThrowingClient, cacheConfig, newCacheConfig, false, false);
+        createCacheConfig(exceptionThrowingClient, newCacheConfig, false, false);
     }
 
     @Test

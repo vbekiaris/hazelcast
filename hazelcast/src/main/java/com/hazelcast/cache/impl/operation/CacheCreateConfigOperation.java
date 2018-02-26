@@ -37,21 +37,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Used to create cluster wide cache configuration.
  * <p>
- * This configuration is created using the following algorithm;
+ * This configuration is created:
  * <ul>
- * <li>Find partition ID using the distributed object name of cache as a key.</li>
- * <li>Send the <code>CacheCreateConfigOperation</code> operation to the calculated partition which will force all
- * clusters to be single threaded.</li>
- * <li>{@link ICacheService#putCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)} is called.</li>
+ * <li>on local member, when {@code ignoreLocal} is {@code false}</li>
+ * <li>other members of the cluster when {@code createAlsoOnOthers} is {@code true} (via sending
+ * {@code CacheCreateConfigOperation} operations to other members of the cluster)</li>
  * </ul>
  * <p>
- * This operation's purpose is to pass the required parameters into
- * {@link ICacheService#putCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)}.
- * <p/>
- * Caveat: This operation does not return a response when {@code createAlsoOnOthers} is {@code true} and there are at least one
- * remote members on which the new {@code CacheConfig} needs to be created. When this operation returns {@code null} with {@code
- * createAlsoOnOthers == true}, it is impossible to tell whether it is because the {@code CacheConfig} was not already registered
- * or due to sending out the operation to other remote members.
+ * Creation of the {@link CacheConfig} on other members of the cluster is prone to races as
+ * members join or leave the cluster, so it is not guaranteed that all members of the cluster will
+ * be aware of the given {@link CacheConfig} even when {@code createAlsoOnOthers} is {@code true}.
  */
 public class CacheCreateConfigOperation
         extends AbstractNamedOperation
@@ -62,7 +57,6 @@ public class CacheCreateConfigOperation
     private boolean ignoreLocal;
 
     private boolean returnsResponse = true;
-    private transient Object response;
 
     public CacheCreateConfigOperation() {
     }
@@ -89,7 +83,7 @@ public class CacheCreateConfigOperation
         if (!ignoreLocal) {
             CacheConfig cacheConfig =
                     config instanceof PreJoinCacheConfig ? ((PreJoinCacheConfig) config).asCacheConfig() : config;
-            response = service.putCacheConfigIfAbsent(cacheConfig);
+            service.putCacheConfigIfAbsent(cacheConfig);
         }
         if (createAlsoOnOthers) {
             NodeEngine nodeEngine = getNodeEngine();
@@ -147,7 +141,7 @@ public class CacheCreateConfigOperation
 
     @Override
     public Object getResponse() {
-        return response;
+        return null;
     }
 
     @Override

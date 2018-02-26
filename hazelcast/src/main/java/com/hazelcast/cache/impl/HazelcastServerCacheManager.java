@@ -147,11 +147,10 @@ public class HazelcastServerCacheManager
     }
 
     @Override
-    protected <K, V> CacheConfig<K, V> createCacheConfig(String cacheName,
-                                                         CacheConfig<K, V> config,
-                                                         boolean createAlsoOnOthers,
-                                                         boolean syncCreate) {
-        CacheConfig<K, V> currentCacheConfig = cacheService.getCacheConfig(cacheName);
+    protected <K, V> void createCacheConfig(String cacheName,
+                                            CacheConfig<K, V> config,
+                                            boolean createAlsoOnOthers,
+                                            boolean syncCreate) {
         OperationService operationService = nodeEngine.getOperationService();
         // Create cache config on all nodes.
         CacheCreateConfigOperation op =
@@ -162,9 +161,7 @@ public class HazelcastServerCacheManager
         InternalCompletableFuture future =
                 operationService.invokeOnTarget(CacheService.SERVICE_NAME, op, nodeEngine.getThisAddress());
         if (syncCreate) {
-            return (CacheConfig<K, V>) future.join();
-        } else {
-            return currentCacheConfig;
+            future.join();
         }
     }
 

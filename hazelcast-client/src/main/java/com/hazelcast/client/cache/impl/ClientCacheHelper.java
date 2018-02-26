@@ -105,7 +105,6 @@ final class ClientCacheHelper {
      * Creates a new cache configuration on Hazelcast members.
      *
      * @param client             the client instance which will send the operation to server
-     * @param existingConfig     an existing {@link CacheConfig}, already known to the client
      * @param newCacheConfig     the cache configuration to be sent to server
      * @param createAlsoOnOthers when {@code true} the {@code newCacheConfig}
      *                           will be sent to all cluster members by the target member that receives the
@@ -114,14 +113,12 @@ final class ClientCacheHelper {
      *                           imply that when this method exits the {@code CacheConfig} is already created on all members.
      * @param <K>                type of the key of the cache
      * @param <V>                type of the value of the cache
-     * @return the created cache configuration
      * @see com.hazelcast.cache.impl.operation.CacheCreateConfigOperation
      */
-    static <K, V> CacheConfig<K, V> createCacheConfig(HazelcastClientInstanceImpl client,
-                                                      CacheConfig<K, V> existingConfig,
-                                                      CacheConfig<K, V> newCacheConfig,
-                                                      boolean createAlsoOnOthers,
-                                                      boolean syncCreate) {
+    static <K, V> void createCacheConfig(HazelcastClientInstanceImpl client,
+                                         CacheConfig<K, V> newCacheConfig,
+                                         boolean createAlsoOnOthers,
+                                         boolean syncCreate) {
         try {
             String nameWithPrefix = newCacheConfig.getNameWithPrefix();
             int partitionId = client.getClientPartitionService().getPartitionId(nameWithPrefix);
@@ -133,31 +130,11 @@ final class ClientCacheHelper {
             ClientInvocation clientInvocation = new ClientInvocation(client, request, nameWithPrefix, partitionId);
             Future<ClientMessage> future = clientInvocation.invoke();
             if (syncCreate) {
-                final ClientMessage response = future.get();
-                final Data data = CacheCreateConfigCodec.decodeResponse(response).response;
-                return resolveCacheConfig(client, clientInvocation, data);
-            } else {
-                return existingConfig;
+                future.get();
             }
         } catch (Exception e) {
             throw rethrow(e);
         }
-    }
-
-    private static <K, V> CacheConfig<K, V> resolveCacheConfig(HazelcastClientInstanceImpl client,
-                                                               ClientInvocation clientInvocation, Data configData) {
-        ClientConnection sendConnection = clientInvocation.getSendConnection();
-        if (null != sendConnection && BuildInfo.UNKNOWN_HAZELCAST_VERSION == sendConnection.getConnectedServerVersion()) {
-            boolean compatibilityEnabled = client.getProperties().getBoolean(ClientProperty.COMPATIBILITY_3_6_SERVER_ENABLED);
-            if (compatibilityEnabled) {
-                LegacyCacheConfig legacyConfig = client.getSerializationService().toObject(configData, LegacyCacheConfig.class);
-                if (null == legacyConfig) {
-                    return null;
-                }
-                return legacyConfig.getConfigAndReset();
-            }
-        }
-        return client.getSerializationService().toObject(configData);
     }
 
     private static <K, V> Object resolveCacheConfig(HazelcastClientInstanceImpl client, CacheConfig<K, V> newCacheConfig,

@@ -20,13 +20,15 @@ import com.hazelcast.cache.impl.CacheService;
 import com.hazelcast.cache.impl.operation.CacheCreateConfigOperation;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CacheCreateConfigCodec;
+import com.hazelcast.client.impl.protocol.task.AbstractInvocationMessageTask;
 import com.hazelcast.config.CacheConfig;
 import com.hazelcast.config.LegacyCacheConfig;
 import com.hazelcast.instance.BuildInfo;
 import com.hazelcast.instance.Node;
 import com.hazelcast.nio.Connection;
-import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.Operation;
+import com.hazelcast.spi.impl.operationservice.InternalOperationService;
 import com.hazelcast.spi.properties.GroupProperty;
 
 import java.security.Permission;
@@ -37,7 +39,7 @@ import java.security.Permission;
  * @see CacheCreateConfigOperation
  */
 public class CacheCreateConfigMessageTask
-        extends AbstractCacheMessageTask<CacheCreateConfigCodec.RequestParameters> {
+        extends AbstractInvocationMessageTask<CacheCreateConfigCodec.RequestParameters> {
 
     public CacheCreateConfigMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -50,9 +52,14 @@ public class CacheCreateConfigMessageTask
         return new CacheCreateConfigOperation(cacheConfig, parameters.createAlsoOnOthers);
     }
 
+    @Override
+    protected InvocationBuilder getInvocationBuilder(Operation op) {
+        InternalOperationService operationService = nodeEngine.getOperationService();
+        return operationService.createInvocationBuilder(getServiceName(), op, nodeEngine.getThisAddress());
+    }
+
     private CacheConfig extractCacheConfigFromMessage() {
         int clientVersion = getClientVersion();
-        CacheConfig cacheConfig = null;
         if (BuildInfo.UNKNOWN_HAZELCAST_VERSION == clientVersion) {
             boolean compatibilityEnabled = nodeEngine.getProperties().getBoolean(GroupProperty.COMPATIBILITY_3_6_CLIENT_ENABLED);
             if (compatibilityEnabled) {
@@ -74,8 +81,8 @@ public class CacheCreateConfigMessageTask
 
     @Override
     protected ClientMessage encodeResponse(Object response) {
-        Data responseData = serializeCacheConfig(response);
-        return CacheCreateConfigCodec.encodeResponse(responseData);
+        // CacheCreateConfig operation does not return any response
+        return CacheCreateConfigCodec.encodeResponse(null);
     }
 
     @Override
