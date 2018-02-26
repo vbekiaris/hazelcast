@@ -43,6 +43,11 @@ public interface ICacheService
     String SERVICE_NAME = "hz:impl:cacheService";
 
     /**
+     * Maximum retries for adding cache config cluster-wide on stable cluster
+     */
+    int MAX_ADD_CACHE_CONFIG_RETRIES = 100;
+
+    /**
      * Gets or creates a cache record store with the prefixed {@code cacheNameWithPrefix}
      * and partition ID.
      *
@@ -66,8 +71,21 @@ public interface ICacheService
 
     CacheConfig putCacheConfigIfAbsent(CacheConfig config);
 
+    /**
+     * Gets a {@code CacheConfig} that has already been created on the local member, otherwise returns {@code null}.
+     *
+     * @param cacheNameWithPrefix the full name of the {@link com.hazelcast.cache.ICache}, including the manager scope prefix
+     * @return the existing {@code CacheConfig} or {@code null}
+     */
     CacheConfig getCacheConfig(String cacheNameWithPrefix);
 
+    /**
+     * Finds a {@code CacheConfig} with the given simple name based on the local member's configuration.
+     * Pattern matching rules apply as described in {@link com.hazelcast.config.Config#findCacheConfigOrNull(String)}.
+     *
+     * @param simpleName the simple name of the {@code Cache} excluding the cache manager scope prefix
+     * @return the {@code CacheConfig} if found, otherwise {@code null}
+     */
     CacheConfig findCacheConfig(String simpleName);
 
     Collection<CacheConfig> getCacheConfigs();
@@ -128,4 +146,11 @@ public interface ICacheService
      * Returns an interface for interacting with the cache event journals.
      */
     CacheEventJournal getEventJournal();
+
+    /**
+     * Creates the given {@link CacheConfig} on all members of the cluster synchronously.
+     *
+     * @param cacheConfig the cache configuration to add to all members
+     */
+    void createCacheConfigOnAllMembers(CacheConfig cacheConfig);
 }

@@ -99,4 +99,12 @@ public class PreJoinCacheConfig<K, V> extends CacheConfig<K, V> implements Ident
 
         return true;
     }
+
+    public static PreJoinCacheConfig of(CacheConfig cacheConfig, boolean resolved) {
+        if (cacheConfig instanceof PreJoinCacheConfig) {
+            return (PreJoinCacheConfig) cacheConfig;
+        } else {
+            return new PreJoinCacheConfig(cacheConfig, resolved);
+        }
+    }
 }

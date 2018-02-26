@@ -109,13 +109,13 @@ public class ClientCacheHelperTest extends HazelcastTestSupport {
 
     @Test
     public void testCreateCacheConfig_whenSyncCreate_thenReturnNewConfig() {
-        createCacheConfig(client, newCacheConfig, false, true);
+        createCacheConfig(client, newCacheConfig);
         assertEquals(newCacheConfig, getCacheConfig(client, CACHE_NAME, CACHE_NAME));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testCreateCacheConfig_rethrowsExceptions() {
-        createCacheConfig(exceptionThrowingClient, newCacheConfig, false, false);
+        createCacheConfig(exceptionThrowingClient, newCacheConfig);
     }
 
     @Test
