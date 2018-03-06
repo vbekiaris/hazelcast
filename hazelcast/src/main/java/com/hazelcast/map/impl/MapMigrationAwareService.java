@@ -80,7 +80,8 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         int partitionId = event.getPartitionId();
         PartitionContainer container = mapServiceContext.getPartitionContainer(partitionId);
 
-        Operation operation = new MapReplicationOperation(container, partitionId, event.getReplicaIndex());
+        Operation operation = new MapReplicationOperation(mapServiceContext.getNodeEngine(),
+                container, partitionId, event.getReplicaIndex());
         operation.setService(mapServiceContext.getService());
 
         return operation;
@@ -95,7 +96,8 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         int partitionId = event.getPartitionId();
         PartitionContainer container = mapServiceContext.getPartitionContainer(partitionId);
 
-        Operation operation = new MapReplicationOperation(container, namespaces, partitionId, event.getReplicaIndex());
+        Operation operation = new MapReplicationOperation(mapServiceContext.getNodeEngine(),
+                container, namespaces, partitionId, event.getReplicaIndex());
         operation.setService(mapServiceContext.getService());
 
         return operation;

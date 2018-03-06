@@ -39,6 +39,7 @@ import com.hazelcast.spi.ExceptionAction;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationResponseHandler;
+import com.hazelcast.spi.TargetAware;
 import com.hazelcast.spi.exception.ResponseAlreadySentException;
 import com.hazelcast.spi.exception.RetryableException;
 import com.hazelcast.spi.exception.RetryableIOException;
@@ -548,11 +549,23 @@ public abstract class Invocation implements OperationResponseHandler {
             return;
         }
 
+        injectTarget();
+
         if (remote) {
             doInvokeRemote();
         } else {
             doInvokeLocal(isAsync);
         }
+    }
+
+    private void injectTarget() {
+        if (!(op instanceof TargetAware)) {
+            return;
+        }
+
+        Address targetAddress = remote ? invTarget : context.thisAddress;
+
+        ((TargetAware) op).setTarget(targetAddress);
     }
 
     private void doInvokeLocal(boolean isAsync) {
