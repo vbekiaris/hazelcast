@@ -34,7 +34,6 @@ import com.hazelcast.nio.serialization.impl.Versioned;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationAccessor;
-import com.hazelcast.spi.PartitionReplicationEvent;
 import com.hazelcast.spi.ServiceNamespace;
 import com.hazelcast.spi.TargetAware;
 import com.hazelcast.spi.impl.MutatingOperation;

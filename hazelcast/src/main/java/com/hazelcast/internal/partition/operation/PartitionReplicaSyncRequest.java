@@ -38,6 +38,7 @@ import com.hazelcast.spi.OperationService;
 import com.hazelcast.spi.PartitionAwareOperation;
 import com.hazelcast.spi.PartitionReplicationEvent;
 import com.hazelcast.spi.ServiceNamespace;
+import com.hazelcast.spi.TargetAware;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 
 import java.io.IOException;
@@ -56,7 +57,7 @@ import java.util.Collections;
  * An empty response can be sent if the current replica version is 0.
  */
 public final class PartitionReplicaSyncRequest extends AbstractPartitionOperation
-        implements PartitionAwareOperation, MigrationCycleOperation, Versioned {
+        implements PartitionAwareOperation, MigrationCycleOperation, Versioned, TargetAware {
 
     private Collection<ServiceNamespace> allNamespaces;
 
@@ -257,5 +258,10 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
     @Override
     public int getId() {
         return PartitionDataSerializerHook.REPLICA_SYNC_REQUEST;
+    }
+
+    @Override
+    public void setTarget(Address address) {
+
     }
 }

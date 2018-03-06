@@ -212,7 +212,7 @@ public class MapIndexLifecycleTest extends HazelcastTestSupport {
         if (mapContainer.getMapConfig().getInMemoryFormat().equals(NATIVE)) {
             return;
         }
-        assertTrueEventually(new AssertTask() {
+            assertTrueEventually(new AssertTask() {
             @Override
             public void run() {
                 assertEquals(2, mapContainer.getIndexes().getIndexes().length);
