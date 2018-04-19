@@ -185,6 +185,7 @@ public abstract class CollectionService implements ManagedService, RemoteService
     }
 
     public void addContainer(String name, CollectionContainer container) {
+        logger.severe("Adding container for " + container.getName() + " with " + container.size() + " items");
         getRawContainerMap().put(name, container);
     }
 

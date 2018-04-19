@@ -40,6 +40,8 @@ public abstract class CollectionReplicationOperation extends Operation implement
 
     @Override
     public void run() throws Exception {
+        getLogger().severe("Running " + this.getClass().getSimpleName() + " on partition " + getPartitionId() + " for " +
+                migrationData.keySet());
         CollectionService service = getService();
         for (Map.Entry<String, CollectionContainer> entry : migrationData.entrySet()) {
             String name = entry.getKey();

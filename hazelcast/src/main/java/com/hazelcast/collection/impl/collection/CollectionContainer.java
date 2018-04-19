@@ -350,6 +350,7 @@ public abstract class CollectionContainer implements IdentifiedDataSerializable 
     public void writeData(ObjectDataOutput out) throws IOException {
         out.writeUTF(name);
         final Collection<CollectionItem> collection = getCollection();
+        logger.severe("Dumping my contents for " + name + " with " + collection.size() + " items");
         out.writeInt(collection.size());
         for (CollectionItem item : collection) {
             item.writeData(out);
