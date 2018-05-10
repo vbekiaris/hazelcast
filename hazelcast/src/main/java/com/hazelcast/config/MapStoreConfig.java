@@ -43,6 +43,8 @@ public class MapStoreConfig implements IdentifiedDataSerializable {
      */
     public static final boolean DEFAULT_WRITE_COALESCING = true;
 
+    public static final boolean DEFAULT_BACKUP_POPULATION = false;
+
     private boolean enabled = true;
     private boolean writeCoalescing = DEFAULT_WRITE_COALESCING;
     private String className;
@@ -54,6 +56,7 @@ public class MapStoreConfig implements IdentifiedDataSerializable {
     private Properties properties = new Properties();
     private transient MapStoreConfigReadOnly readOnly;
     private InitialLoadMode initialLoadMode = InitialLoadMode.LAZY;
+    private boolean backupPopulationEnabled = DEFAULT_BACKUP_POPULATION;
 
     /**
      * Initial load module
@@ -82,6 +85,7 @@ public class MapStoreConfig implements IdentifiedDataSerializable {
         writeBatchSize = config.getWriteBatchSize();
         initialLoadMode = config.getInitialLoadMode();
         writeCoalescing = config.isWriteCoalescing();
+        backupPopulationEnabled = config.isBackupPopulationEnabled();
         properties.putAll(config.getProperties());
     }
 
@@ -320,6 +324,15 @@ public class MapStoreConfig implements IdentifiedDataSerializable {
      */
     public MapStoreConfig setWriteCoalescing(boolean writeCoalescing) {
         this.writeCoalescing = writeCoalescing;
+        return this;
+    }
+
+    public boolean isBackupPopulationEnabled() {
+        return backupPopulationEnabled;
+    }
+
+    public MapStoreConfig setBackupPopulationEnabled(boolean backupPopulationEnabled) {
+        this.backupPopulationEnabled = backupPopulationEnabled;
         return this;
     }
 

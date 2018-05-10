@@ -24,6 +24,7 @@ import com.hazelcast.spi.merge.SplitBrainMergeTypeProvider;
 import com.hazelcast.spi.merge.SplitBrainMergeTypes;
 import com.hazelcast.spi.partition.IPartition;
 
+import javax.cache.integration.CacheLoader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +67,11 @@ public class CacheSimpleConfig implements SplitBrainMergeTypeProvider, Identifie
      * Default policy for merging
      */
     public static final String DEFAULT_CACHE_MERGE_POLICY = PutIfAbsentMergePolicy.class.getName();
+
+    /**
+     * TODO
+     */
+    public static final boolean DEFAULT_POPULATE_BACKUPS_ON_READ_THROUGH = false;
 
     private String name;
 
@@ -112,6 +118,15 @@ public class CacheSimpleConfig implements SplitBrainMergeTypeProvider, Identifie
      */
     private boolean disablePerEntryInvalidationEvents;
 
+    /**
+     * When {@code true}, read-though is enabled and a {@link CacheLoader} is configured,
+     * values loaded from the CacheLoader will populate all configured backups. Otherwise
+     * only the owner partition will store the value; in this case, if a partition is lost
+     * the value will be absent from the promoted partition and will be loaded from the CacheLoader
+     * upon the next cache miss on that key.
+     */
+    protected boolean populateBackupsOnReadThrough = DEFAULT_POPULATE_BACKUPS_ON_READ_THROUGH;
+
     @SuppressWarnings("checkstyle:executablestatementcount")
     public CacheSimpleConfig(CacheSimpleConfig cacheSimpleConfig) {
         this.name = cacheSimpleConfig.name;
@@ -139,6 +154,7 @@ public class CacheSimpleConfig implements SplitBrainMergeTypeProvider, Identifie
         this.mergePolicy = cacheSimpleConfig.mergePolicy;
         this.hotRestartConfig = new HotRestartConfig(cacheSimpleConfig.hotRestartConfig);
         this.disablePerEntryInvalidationEvents = cacheSimpleConfig.disablePerEntryInvalidationEvents;
+        this.populateBackupsOnReadThrough = cacheSimpleConfig.populateBackupsOnReadThrough;
     }
 
     public CacheSimpleConfig() {
@@ -682,6 +698,15 @@ public class CacheSimpleConfig implements SplitBrainMergeTypeProvider, Identifie
      */
     public void setDisablePerEntryInvalidationEvents(boolean disablePerEntryInvalidationEvents) {
         this.disablePerEntryInvalidationEvents = disablePerEntryInvalidationEvents;
+    }
+
+    public boolean isPopulateBackupsOnReadThrough() {
+        return populateBackupsOnReadThrough;
+    }
+
+    public CacheSimpleConfig setPopulateBackupsOnReadThrough(boolean populateBackupsOnReadThrough) {
+        this.populateBackupsOnReadThrough = populateBackupsOnReadThrough;
+        return this;
     }
 
     @Override

@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.hazelcast.config.CacheSimpleConfig.DEFAULT_POPULATE_BACKUPS_ON_READ_THROUGH;
 import static com.hazelcast.util.Preconditions.checkNotNull;
 
 /**
@@ -100,6 +101,15 @@ public abstract class AbstractCacheConfig<K, V> implements CacheConfiguration<K,
      * The {@link CacheEntryListenerConfiguration}s for the {@link javax.cache.configuration.Configuration}.
      */
     protected Set<DeferredValue<CacheEntryListenerConfiguration<K, V>>> listenerConfigurations;
+
+    /**
+     * When {@code true}, read-though is enabled and a {@link CacheLoader} is configured,
+     * values loaded from the CacheLoader will populate all configured backups. Otherwise
+     * only the owner partition will store the value; in this case, if a partition is lost
+     * the value will be absent from the promoted partition and will be loaded from the CacheLoader
+     * upon the next cache miss on that key.
+     */
+    protected boolean populateBackupsOnReadThrough = DEFAULT_POPULATE_BACKUPS_ON_READ_THROUGH;
 
     /**
      * The type of keys for {@link javax.cache.Cache}s configured with this
@@ -401,6 +411,10 @@ public abstract class AbstractCacheConfig<K, V> implements CacheConfiguration<K,
     public CacheConfiguration<K, V> setStoreByValue(boolean storeByValue) {
         this.isStoreByValue = storeByValue;
         return this;
+    }
+
+    public boolean isPopulateBackupsOnReadThrough() {
+        return populateBackupsOnReadThrough;
     }
 
     protected Set<DeferredValue<CacheEntryListenerConfiguration<K, V>>> createConcurrentSet() {

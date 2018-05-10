@@ -108,5 +108,10 @@ public final class MapStoreContextFactory {
         public boolean isMapLoader() {
             return false;
         }
+
+        @Override
+        public boolean isBackupPopulationEnabled() {
+            return false;
+        }
     }
 }

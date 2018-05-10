@@ -16,18 +16,27 @@
 
 package com.hazelcast.map.impl.operation;
 
+import com.hazelcast.map.impl.record.Record;
+import com.hazelcast.map.impl.record.RecordInfo;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.BackupAwareOperation;
+import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.PartitionAwareOperation;
 import com.hazelcast.spi.ReadonlyOperation;
 
 import java.io.IOException;
 
+import static com.hazelcast.map.impl.record.Records.buildRecordInfo;
+
 /**
  * Abstract {@link MapOperation} that serves as based for readonly operations.
  */
-public abstract class ReadonlyKeyBasedMapOperation extends MapOperation implements ReadonlyOperation, PartitionAwareOperation {
+public abstract class ReadonlyKeyBasedMapOperation extends MapOperation
+        implements ReadonlyOperation, PartitionAwareOperation, BackupAwareOperation {
+
+    protected transient boolean loaded;
 
     protected Data dataKey;
     protected long threadId;
@@ -62,5 +71,28 @@ public abstract class ReadonlyKeyBasedMapOperation extends MapOperation implemen
         name = in.readUTF();
         dataKey = in.readData();
         threadId = in.readLong();
+    }
+
+    @Override
+    public boolean shouldBackup() {
+        return loaded && mapContainer.getMapStoreContext().isBackupPopulationEnabled();
+    }
+
+    @Override
+    public Operation getBackupOperation() {
+        final Record record = recordStore.getRecord(dataKey);
+        final RecordInfo replicationInfo = buildRecordInfo(record);
+        Data dataValue = mapServiceContext.toData(record.getValue());
+        return new PutBackupOperation(name, dataKey, dataValue, replicationInfo);
+    }
+
+    @Override
+    public final int getAsyncBackupCount() {
+        return mapContainer.getAsyncBackupCount();
+    }
+
+    @Override
+    public final int getSyncBackupCount() {
+        return mapContainer.getBackupCount();
     }
 }

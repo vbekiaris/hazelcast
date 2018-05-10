@@ -685,9 +685,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
         long now = getNow();
 
         Record record = getRecordOrNull(key, now, false);
-        if (record == null) {
-            record = loadRecordOrNull(key, false);
-        }
+        // TODO CHECK USAGES AND CHANGE OF CONTRACT
         boolean contains = record != null;
         if (contains) {
             accessRecord(record, now);

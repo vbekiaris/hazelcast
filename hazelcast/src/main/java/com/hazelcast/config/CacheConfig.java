@@ -155,6 +155,7 @@ public class CacheConfig<K, V> extends AbstractCacheConfig<K, V> implements Spli
         this.mergePolicy = simpleConfig.getMergePolicy();
         this.hotRestartConfig = new HotRestartConfig(simpleConfig.getHotRestartConfig());
         this.disablePerEntryInvalidationEvents = simpleConfig.isDisablePerEntryInvalidationEvents();
+        this.populateBackupsOnReadThrough = simpleConfig.isPopulateBackupsOnReadThrough();
     }
 
     private void initExpiryPolicyFactoryConfig(CacheSimpleConfig simpleConfig) throws Exception {

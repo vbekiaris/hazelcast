@@ -37,9 +37,14 @@ import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.map.MapInterceptor;
+import com.hazelcast.map.impl.MapService;
+import com.hazelcast.map.impl.MapServiceContext;
+import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.mapstore.writebehind.TestMapUsingMapStoreBuilder;
+import com.hazelcast.map.impl.recordstore.RecordStore;
 import com.hazelcast.nio.Address;
 import com.hazelcast.query.SqlPredicate;
+import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastSerialClassRunner;
@@ -78,6 +83,7 @@ import static java.util.Collections.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(HazelcastSerialClassRunner.class)
@@ -86,6 +92,115 @@ public class MapLoaderTest extends HazelcastTestSupport {
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
+
+    @Test
+    public void testBackupsArePopulated() {
+        final ILogger logger = Logger.getLogger(MapLoaderTest.class);
+        String name = randomString();
+        MapStoreConfig mapStoreConfig = new MapStoreConfig()
+                .setEnabled(true)
+                .setInitialLoadMode(MapStoreConfig.InitialLoadMode.EAGER)
+                .setImplementation(new DummyMapLoader());
+
+        Config config = new Config();
+        config.getMapConfig(name)
+              .setBackupCount(2)
+              .setMapStoreConfig(mapStoreConfig);
+
+        logger.info("Starting cluster with 5 members");
+        TestHazelcastInstanceFactory instanceFactory = createHazelcastInstanceFactory(3);
+        HazelcastInstance[] instances = instanceFactory.newInstances(config);
+
+        waitAllForSafeState(instances);
+        final IMap map = instances[0].getMap(name);
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() {
+                assertTrue(map.size() == 1000);
+            }
+        });
+
+        int count = 0;
+
+        for (HazelcastInstance instance : instances) {
+            for (int partitionId = 0; partitionId < 271; partitionId++) {
+                MapServiceContext mapServiceContext = getMapServiceContext(instance);
+                RecordStore recordStore = mapServiceContext.getExistingRecordStore(partitionId, name);
+                if (recordStore != null) {
+                    count += recordStore.size();
+                }
+            }
+        }
+
+        System.out.println("All record stores in all partitions contain " + count);
+
+        //////// THIS DOES NOT WORK THE SAME???? backupCount = 6??? really???
+//        int ownedEntriesCount = 0;
+//        int backupEntriesCount = 0;
+//
+//        for (HazelcastInstance instance : instances) {
+//            IMap mapOnMember = instance.getMap(name);
+//            ownedEntriesCount += mapOnMember.getLocalMapStats().getOwnedEntryCount();
+//            backupEntriesCount += mapOnMember.getLocalMapStats().getBackupCount();
+//        }
+//
+//        System.out.println("All record stores in all partitions contain " + ownedEntriesCount + " / " + backupEntriesCount);
+        instanceFactory.terminateAll();
+    }
+
+    @Test
+    public void testBackupsInContainsKey() {
+        String name = randomString();
+        MapStoreConfig mapStoreConfig = new MapStoreConfig()
+                .setEnabled(true)
+                .setBackupPopulationEnabled(true)
+                .setInitialLoadMode(MapStoreConfig.InitialLoadMode.LAZY)
+                .setImplementation(new DummyMapLoader());
+
+        Config config = new Config();
+        config.getMapConfig(name)
+              .setBackupCount(2)
+              .setMapStoreConfig(mapStoreConfig);
+
+        TestHazelcastInstanceFactory instanceFactory = createHazelcastInstanceFactory(3);
+        HazelcastInstance[] instances = instanceFactory.newInstances(config);
+
+        waitAllForSafeState(instances);
+        final IMap<Integer, Integer> map = instances[0].getMap(name);
+        assertTrue(map.containsKey(1));
+        int count = 0;
+
+        for (HazelcastInstance instance : instances) {
+            for (int partitionId = 0; partitionId < 271; partitionId++) {
+                MapServiceContext mapServiceContext = getMapServiceContext(instance);
+                RecordStore recordStore = mapServiceContext.getExistingRecordStore(partitionId, name);
+                if (recordStore != null) {
+                    count += recordStore.size();
+                }
+            }
+        }
+
+        System.out.println("All record stores in all partitions contain " + count);
+
+        //////// THIS DOES NOT WORK THE SAME???? backupCount = 6??? really???
+//        int ownedEntriesCount = 0;
+//        int backupEntriesCount = 0;
+//
+//        for (HazelcastInstance instance : instances) {
+//            IMap mapOnMember = instance.getMap(name);
+//            ownedEntriesCount += mapOnMember.getLocalMapStats().getOwnedEntryCount();
+//            backupEntriesCount += mapOnMember.getLocalMapStats().getBackupCount();
+//        }
+//
+//        System.out.println("All record stores in all partitions contain " + ownedEntriesCount + " / " + backupEntriesCount);
+        instanceFactory.terminateAll();
+    }
+
+    private MapServiceContext getMapServiceContext(HazelcastInstance instance) {
+        NodeEngineImpl nodeEngine1 = getNodeEngineImpl(instance);
+        MapService mapService = nodeEngine1.getService(MapService.SERVICE_NAME);
+        return mapService.getMapServiceContext();
+    }
 
     @Test
     public void testSenderAndBackupTerminates_AfterInitialLoad() {
@@ -807,7 +922,7 @@ public class MapLoaderTest extends HazelcastTestSupport {
 
         @Override
         public Iterable<Integer> loadAllKeys() {
-            return map.keySet();
+            return new HashSet<Integer>();
         }
     }
 

@@ -19,11 +19,16 @@ package com.hazelcast.map.impl.operation;
 import com.hazelcast.concurrent.lock.LockWaitNotifyKey;
 import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.map.impl.MapDataSerializerHook;
+import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.BackupAwareOperation;
 import com.hazelcast.spi.BlockingOperation;
+import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.WaitNotifyKey;
 
-public class ContainsKeyOperation extends ReadonlyKeyBasedMapOperation implements BlockingOperation {
+import static com.hazelcast.util.Clock.currentTimeMillis;
+
+public class ContainsKeyOperation extends ReadonlyKeyBasedMapOperation implements BlockingOperation, BackupAwareOperation {
 
     private transient boolean containsKey;
 
@@ -38,6 +43,14 @@ public class ContainsKeyOperation extends ReadonlyKeyBasedMapOperation implement
     @Override
     public void run() {
         containsKey = recordStore.containsKey(dataKey);
+        if (!containsKey) {
+            Record record = recordStore.loadRecordOrNull(dataKey, false);
+            containsKey = (record != null);
+            loaded = containsKey;
+            if (containsKey) {
+                recordStore.accessRecord(record, currentTimeMillis());
+            }
+        }
     }
 
     @Override

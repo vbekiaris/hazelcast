@@ -310,7 +310,8 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
         expirationManager.sendExpiredKeysToBackups(this, true);
     }
 
-    protected void accessRecord(Record record, long now) {
+    @Override
+    public void accessRecord(Record record, long now) {
         record.onAccess(now);
         updateStatsOnGet(now);
         long maxIdleMillis = calculateMaxIdleMillis(mapContainer.getMapConfig());

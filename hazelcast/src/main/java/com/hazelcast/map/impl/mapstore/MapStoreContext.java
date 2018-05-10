@@ -67,4 +67,9 @@ public interface MapStoreContext {
      * @return {@code true} if a {@link MapLoader} is configured for this map
      */
     boolean isMapLoader();
+
+    /**
+     * @return {@code true} if a {@link MapLoader} is configured for this map and backups must be populated on each load
+     */
+    boolean isBackupPopulationEnabled();
 }

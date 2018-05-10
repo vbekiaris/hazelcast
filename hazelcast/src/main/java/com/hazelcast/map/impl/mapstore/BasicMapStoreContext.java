@@ -41,17 +41,21 @@ import static com.hazelcast.map.impl.mapstore.StoreConstructor.createStore;
  */
 final class BasicMapStoreContext implements MapStoreContext {
 
-    private String mapName;
+    private final String mapName;
+    private final MapStoreWrapper storeWrapper;
+    private final MapServiceContext mapServiceContext;
+    private final MapStoreConfig mapStoreConfig;
+    private final boolean backupPopulationEnabled;
 
     private MapStoreManager mapStoreManager;
 
-    private MapStoreWrapper storeWrapper;
-
-    private MapServiceContext mapServiceContext;
-
-    private MapStoreConfig mapStoreConfig;
-
-    private BasicMapStoreContext() {
+    public BasicMapStoreContext(String mapName, MapStoreWrapper storeWrapper, MapServiceContext mapServiceContext,
+                                MapStoreConfig mapStoreConfig) {
+        this.mapName = mapName;
+        this.storeWrapper = storeWrapper;
+        this.mapServiceContext = mapServiceContext;
+        this.mapStoreConfig = mapStoreConfig;
+        this.backupPopulationEnabled = mapStoreConfig.isBackupPopulationEnabled();
     }
 
     @Override
@@ -111,8 +115,12 @@ final class BasicMapStoreContext implements MapStoreContext {
         return storeWrapper;
     }
 
+    @Override
+    public boolean isBackupPopulationEnabled() {
+        return backupPopulationEnabled && storeWrapper.isMapLoader();
+    }
+
     static MapStoreContext create(MapContainer mapContainer) {
-        final BasicMapStoreContext context = new BasicMapStoreContext();
         final String mapName = mapContainer.getName();
         final MapServiceContext mapServiceContext = mapContainer.getMapServiceContext();
         final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
@@ -127,14 +135,10 @@ final class BasicMapStoreContext implements MapStoreContext {
 
         setStoreImplToWritableMapStoreConfig(nodeEngine, mapName, store);
 
-        context.setMapName(mapName);
-        context.setMapStoreConfig(mapStoreConfig);
-        context.setPartitioningStrategy(partitioningStrategy);
-        context.setMapServiceContext(mapServiceContext);
-        context.setStoreWrapper(storeWrapper);
+        final BasicMapStoreContext context = new BasicMapStoreContext(mapName, storeWrapper, mapServiceContext, mapStoreConfig);
 
         final MapStoreManager mapStoreManager = createMapStoreManager(context);
-        context.setMapStoreManager(mapStoreManager);
+        context.mapStoreManager = mapStoreManager;
 
         // todo this is user code. it may also block map store creation.
         callLifecycleSupportInit(context);
@@ -178,28 +182,5 @@ final class BasicMapStoreContext implements MapStoreContext {
     @Override
     public Iterable<Object> loadAllKeys() {
         return IterableUtil.nullToEmpty(storeWrapper.loadAllKeys());
-    }
-
-    void setMapStoreManager(MapStoreManager mapStoreManager) {
-        this.mapStoreManager = mapStoreManager;
-    }
-
-    void setStoreWrapper(MapStoreWrapper storeWrapper) {
-        this.storeWrapper = storeWrapper;
-    }
-
-    void setMapServiceContext(MapServiceContext mapServiceContext) {
-        this.mapServiceContext = mapServiceContext;
-    }
-
-    void setMapName(String mapName) {
-        this.mapName = mapName;
-    }
-
-    void setPartitioningStrategy(PartitioningStrategy partitioningStrategy) {
-    }
-
-    void setMapStoreConfig(MapStoreConfig mapStoreConfig) {
-        this.mapStoreConfig = mapStoreConfig;
     }
 }

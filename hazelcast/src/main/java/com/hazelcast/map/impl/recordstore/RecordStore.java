@@ -478,4 +478,6 @@ public interface RecordStore<R extends Record> {
      * for this map.
      */
     boolean hasQueryCache();
+
+    void accessRecord(Record record, long now);
 }
