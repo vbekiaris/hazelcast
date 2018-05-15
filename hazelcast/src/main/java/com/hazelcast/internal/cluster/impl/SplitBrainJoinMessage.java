@@ -26,6 +26,10 @@ import com.hazelcast.version.Version;
 import java.io.IOException;
 import java.util.Collection;
 
+import static com.hazelcast.instance.BuildInfoProvider.getBuildInfo;
+import static com.hazelcast.internal.cluster.Versions.V3_10;
+import static com.hazelcast.internal.cluster.Versions.V3_9;
+
 /**
  * A {@code JoinMessage} issued by the master node of a subcluster to the master of another subcluster
  * while searching for other clusters for split brain recovery.
@@ -70,7 +74,19 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
             throws IOException {
         super.readData(in);
         clusterVersion = in.readObject();
-        memberListVersion = in.readInt();
+        // OS always includes memberListVersion
+        // 3.10+ always includes the memberListVersion
+        // SplitBrainJoinMessages serialized from 3.9 EE do not include the memberListVersion when in.version is unknown
+        // SplitBrainJoinMessages serialized from 3.9 EE do include the memberListVersion when in.version is 3.9
+        boolean from310OrHigher = memberVersion.asVersion().isGreaterOrEqual(V3_10);
+        boolean fromMember3_9 = memberVersion.asVersion().equals(V3_9);
+        boolean enterprise = getBuildInfo().isEnterprise();
+
+        if (!enterprise || from310OrHigher
+                || (in.getVersion().isUnknown() && !fromMember3_9)
+                || (in.getVersion().isGreaterOrEqual(V3_9))) {
+            memberListVersion = in.readInt();
+        }
     }
 
     @Override
