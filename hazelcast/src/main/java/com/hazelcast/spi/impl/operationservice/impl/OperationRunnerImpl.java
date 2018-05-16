@@ -36,6 +36,7 @@ import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.Packet;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.nio.serialization.HazelcastSerializationException;
 import com.hazelcast.quorum.QuorumException;
 import com.hazelcast.quorum.impl.QuorumServiceImpl;
 import com.hazelcast.spi.BlockingOperation;
@@ -59,7 +60,11 @@ import com.hazelcast.spi.impl.operationservice.impl.responses.ErrorResponse;
 import com.hazelcast.spi.impl.operationservice.impl.responses.NormalResponse;
 import com.hazelcast.util.ExceptionUtil;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.DEBUG;
@@ -407,7 +412,7 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
             // If exception happens we need to extract the callId from the bytes directly!
             long callId = extractOperationCallId(packet);
             outboundResponseHandler.send(caller, new ErrorResponse(throwable, callId, packet.isUrgent()));
-            logOperationDeserializationException(throwable, callId);
+            logOperationDeserializationException(throwable, callId, packet);
             throw ExceptionUtil.rethrow(throwable);
         } finally {
             if (publishCurrentTask) {
@@ -464,7 +469,7 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
         }
     }
 
-    private void logOperationDeserializationException(Throwable t, long callId) {
+    private void logOperationDeserializationException(Throwable t, long callId, Packet packet) {
         boolean returnsResponse = callId != 0;
 
         if (t instanceof RetryableException) {
@@ -481,7 +486,29 @@ class OperationRunnerImpl extends OperationRunner implements MetricsProvider {
         } else {
             final Level level = nodeEngine.isRunning() ? SEVERE : FINEST;
             if (logger.isLoggable(level)) {
-                logger.log(level, t.getMessage(), t);
+                String message = t.getMessage();
+                if (t instanceof HazelcastSerializationException) {
+                    String fileName = "failure-" + UUID.randomUUID().toString();
+                    message += " - problematic packet dumped to " + fileName;
+                    File cwd = new File(".");
+                    File dump = new File(cwd, fileName);
+                    FileOutputStream fos = null;
+                    try {
+                        fos = new FileOutputStream(dump);
+                        fos.write(packet.toByteArray());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (fos != null) {
+                            try {
+                                fos.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+                logger.log(level, message, t);
             }
         }
     }
