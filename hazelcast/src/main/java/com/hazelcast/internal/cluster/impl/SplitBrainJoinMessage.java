@@ -92,6 +92,7 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
     @Override
     public void writeData(ObjectDataOutput out)
             throws IOException {
+        assert !out.getVersion().isUnknown() : "Output version in SplitBrainJoinMessage was " + out.getVersion();
         super.writeData(out);
         out.writeObject(clusterVersion);
         out.writeInt(memberListVersion);

@@ -16,9 +16,18 @@
 
 package com.hazelcast.core.server;
 
+import com.hazelcast.cache.HazelcastCachingProvider;
+import com.hazelcast.cache.ICache;
+import com.hazelcast.config.CacheConfig;
+import com.hazelcast.config.Config;
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
+import javax.cache.Cache;
+import javax.cache.CacheManager;
+import javax.cache.Caching;
+import javax.cache.spi.CachingProvider;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
@@ -42,9 +51,31 @@ public final class StartServer {
      *
      * @param args none
      */
-    public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
-        HazelcastInstance hz = Hazelcast.newHazelcastInstance(null);
-        printMemberPort(hz);
+//    public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
+//        Config config = new Config();
+//        config.getCacheConfig("test")
+//              .setBackupCount(6);
+//        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
+//        CachingProvider provider = Caching.getCachingProvider();
+//        CacheManager cacheManager = provider.getCacheManager(null, null, HazelcastCachingProvider.propertiesByInstanceItself(hz));
+//        Cache<Integer, Integer> cache = cacheManager.createCache("test", new CacheConfig<Integer, Integer>()
+//                        .setBackupCount(3));
+//
+//        ICache iCache = cache.unwrap(ICache.class);
+//        System.out.println(((CacheConfig) iCache.getConfiguration(CacheConfig.class)).getBackupCount());
+//        printMemberPort(hz);
+//    }
+
+    public static void main(String[] args) {
+
+        MapConfig mapConfig = new MapConfig("test").setBackupCount(6);
+        Config config = new Config();
+        config.addMapConfig(mapConfig);
+
+        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
+        hz.getConfig().addMapConfig(mapConfig);
+
+        System.out.println(">>> " + hz.getConfig().getMapConfig("test").getBackupCount());
     }
 
     private static void printMemberPort(HazelcastInstance hz) throws FileNotFoundException, UnsupportedEncodingException {

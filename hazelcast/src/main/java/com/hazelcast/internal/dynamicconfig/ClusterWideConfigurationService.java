@@ -71,7 +71,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static com.hazelcast.internal.cluster.Versions.V3_10;
-import static com.hazelcast.internal.cluster.Versions.V3_8;
 import static com.hazelcast.internal.cluster.Versions.V3_9;
 import static com.hazelcast.internal.config.ConfigUtils.lookupByPattern;
 import static com.hazelcast.internal.util.InvocationUtil.invokeOnStableClusterSerial;
@@ -644,9 +643,6 @@ public class ClusterWideConfigurationService implements PreJoinAwareService,
 
     @Override
     public Runnable prepareMergeRunnable() {
-        if (version.isLessOrEqual(V3_8)) {
-            return null;
-        }
         IdentifiedDataSerializable[] allConfigurations = collectAllDynamicConfigs();
         if (noConfigurationExist(allConfigurations)) {
             return null;
