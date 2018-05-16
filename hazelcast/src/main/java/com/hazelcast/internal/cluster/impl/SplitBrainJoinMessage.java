@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.cluster.impl;
 
+import com.hazelcast.logging.Logger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -79,13 +80,20 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
         // SplitBrainJoinMessages serialized from 3.9 EE do not include the memberListVersion when in.version is unknown
         // SplitBrainJoinMessages serialized from 3.9 EE do include the memberListVersion when in.version is 3.9
         boolean from310OrHigher = memberVersion.asVersion().isGreaterOrEqual(V3_10);
-        boolean fromMember3_9 = memberVersion.asVersion().equals(V3_9);
+        boolean from39 = memberVersion.asVersion().equals(V3_9);
         boolean enterprise = getBuildInfo().isEnterprise();
 
         if (!enterprise || from310OrHigher
-                || (in.getVersion().isUnknown() && !fromMember3_9)
+                || (in.getVersion().isUnknown() && !from39)
                 || (in.getVersion().isGreaterOrEqual(V3_9))) {
+            Logger.getLogger(SplitBrainJoinMessage.class).warning("Going to deserialize member list version because: "
+                    + "enterprise: " + enterprise + ", from310+: " + from310OrHigher + ", from39: " + from39
+                    + ", in.version: " + in.getVersion());
             memberListVersion = in.readInt();
+        } else {
+            Logger.getLogger(SplitBrainJoinMessage.class).warning("Not reading member list version because: "
+                    + "enterprise: " + enterprise + ", from310+: " + from310OrHigher + ", from39: " + from39
+                    + ", in.version: " + in.getVersion());
         }
     }
 
