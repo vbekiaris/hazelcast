@@ -80,7 +80,7 @@ public class PostJoinMapOperation extends Operation implements IdentifiedDataSer
     private List<InterceptorInfo> interceptorInfoList = new LinkedList<InterceptorInfo>();
     private List<AccumulatorInfo> infoList;
     // used on sending side to determine member version of target
-    private transient Address target;
+    private volatile transient Address target;
 
     @Override
     public String getServiceName() {
@@ -335,6 +335,7 @@ public class PostJoinMapOperation extends Operation implements IdentifiedDataSer
 
     @Override
     public void setTarget(Address address) {
+        getLogger().warning("[" + Thread.currentThread() + "] Setting target to " + address, new Throwable("Debug setTarget"));
         this.target = address;
     }
 

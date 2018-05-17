@@ -148,6 +148,7 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware {
             for (Member member : members) {
                 if (!member.localMember()) {
                     OnJoinOp operation = new OnJoinOp(postJoinOperations);
+                    getLogger().warning("Sending out post-join ops to " + member);
                     operationService.invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, operation, member.getAddress());
                 }
             }
