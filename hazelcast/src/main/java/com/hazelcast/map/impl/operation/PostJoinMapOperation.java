@@ -19,6 +19,8 @@ package com.hazelcast.map.impl.operation;
 import com.hazelcast.core.IMapEvent;
 import com.hazelcast.core.Member;
 import com.hazelcast.internal.cluster.ClusterService;
+import com.hazelcast.logging.ILogger;
+import com.hazelcast.logging.Logger;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.InterceptorRegistry;
 import com.hazelcast.map.impl.ListenerAdapter;
@@ -226,8 +228,19 @@ public class PostJoinMapOperation extends Operation implements IdentifiedDataSer
 
     @Override
     protected void writeInternal(ObjectDataOutput out) throws IOException {
+        ClusterService clusterService = getNodeEngine().getClusterService();
+        Member targetMember = clusterService.getMember(target);
+        boolean mustWriteIndexInfos = mustWriteIndexInfos(out.getVersion());
+
+        getLogger().warning("Writing PJMO{version: " + out.getVersion()
+                    + ", targetMemberVersion: " + targetMember.getVersion()
+                    + ", target: " + targetMember
+                    + ", clusterVersion: " + clusterService.getClusterVersion()
+                    + ", mustWriteIndexInfos: " + mustWriteIndexInfos
+                    + "}", new Throwable("Debug message"));
+
         super.writeInternal(out);
-        if (mustWriteIndexInfos(out.getVersion())) {
+        if (mustWriteIndexInfos) {
             out.writeInt(indexInfoList.size());
             for (MapIndexInfo mapIndex : indexInfoList) {
                 mapIndex.writeData(out);
