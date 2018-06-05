@@ -19,11 +19,14 @@ package com.hazelcast.query.impl.predicates;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import nl.jqno.equalsverifier.EqualsVerifier;
+import nl.jqno.equalsverifier.Warning;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import static com.hazelcast.query.impl.predicates.PredicateTestUtils.entry;
+import static com.hazelcast.test.HazelcastTestSupport.assumeDifferentHashCodes;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -173,5 +176,14 @@ public class GreaterLessPredicateTest {
         assertFalse(-Double.NaN < -100.0d);
         assertFalse(-Float.NaN < -100.0);
         assertFalse(-Float.NaN < -100.0d);
+    }
+
+    @Test
+    public void testEqualsHashCode() {
+        assumeDifferentHashCodes();
+        EqualsVerifier.forClass(GreaterLessPredicate.class)
+                      .allFieldsShouldBeUsedExcept("attributeType")
+                      .suppress(Warning.NULL_FIELDS, Warning.NONFINAL_FIELDS)
+                      .verify();
     }
 }
