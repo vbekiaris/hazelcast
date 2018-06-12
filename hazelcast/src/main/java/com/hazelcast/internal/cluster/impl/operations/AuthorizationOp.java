@@ -20,21 +20,26 @@ import com.hazelcast.config.GroupConfig;
 import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.spi.OperationAccessor;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 public class AuthorizationOp extends AbstractJoinOperation {
 
     private String groupName;
     private String groupPassword;
-    private Boolean response = Boolean.TRUE;
+    private String[] supportedProtocols;
+    private Object response = Boolean.TRUE;
 
     public AuthorizationOp() {
     }
 
-    public AuthorizationOp(String groupName, String groupPassword) {
+    public AuthorizationOp(String groupName, String groupPassword, String[] supportedProtocols) {
         this.groupName = groupName;
         this.groupPassword = groupPassword;
+        this.supportedProtocols = Arrays.copyOf(supportedProtocols, supportedProtocols.length);
+        OperationAccessor.setFlag(this, true, BITMASK_WAN_PROTOCOL_AUTH_OP);
     }
 
     @Override
@@ -44,6 +49,10 @@ public class AuthorizationOp extends AbstractJoinOperation {
             response = Boolean.FALSE;
         } else if (!groupPassword.equals(groupConfig.getPassword())) {
             response = Boolean.FALSE;
+        }
+        // 3.11+, select most preferred protocol
+        if (supportedProtocols != null) {
+            response = supportedProtocols[0];
         }
     }
 
@@ -56,12 +65,16 @@ public class AuthorizationOp extends AbstractJoinOperation {
     protected void readInternal(ObjectDataInput in) throws IOException {
         groupName = in.readUTF();
         groupPassword = in.readUTF();
+        if (OperationAccessor.isFlagSet(this, BITMASK_WAN_PROTOCOL_AUTH_OP)) {
+            supportedProtocols = in.readUTFArray();
+        }
     }
 
     @Override
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         out.writeUTF(groupName);
         out.writeUTF(groupPassword);
+        out.writeUTFArray(supportedProtocols);
     }
 
     @Override

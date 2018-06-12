@@ -64,6 +64,8 @@ public abstract class Operation implements DataSerializable {
     static final int BITMASK_CALL_TIMEOUT_64_BIT = 1 << 5;
     static final int BITMASK_SERVICE_NAME_SET = 1 << 6;
 
+    protected static final int BITMASK_WAN_PROTOCOL_AUTH_OP = 1 << 7;
+
     private static final AtomicLongFieldUpdater<Operation> CALL_ID =
             AtomicLongFieldUpdater.newUpdater(Operation.class, "callId");
 

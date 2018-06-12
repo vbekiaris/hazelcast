@@ -79,4 +79,12 @@ public final class OperationAccessor {
         op.setCallTimeout(callTimeout);
     }
 
+    public static void setFlag(Operation op, boolean value, int bitmask) {
+        op.setFlag(value, bitmask);
+    }
+
+    public static boolean isFlagSet(Operation op, int bitmask) {
+        return op.isFlagSet(bitmask);
+    }
+
 }
