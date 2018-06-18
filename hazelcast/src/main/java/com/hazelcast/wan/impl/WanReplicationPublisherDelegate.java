@@ -65,4 +65,9 @@ final class WanReplicationPublisherDelegate
             endpoint.checkWanReplicationQueues();
         }
     }
+
+    @Override
+    public String[] getSupportedProtocols() {
+        return new String[0];
+    }
 }

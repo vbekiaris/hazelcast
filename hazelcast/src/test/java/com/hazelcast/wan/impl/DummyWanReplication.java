@@ -60,4 +60,9 @@ class DummyWanReplication implements WanReplicationEndpoint {
     Queue<WanReplicationEvent> getEventQueue() {
         return eventQueue;
     }
+
+    @Override
+    public String[] getSupportedProtocols() {
+        return new String[0];
+    }
 }

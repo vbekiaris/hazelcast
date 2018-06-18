@@ -50,4 +50,9 @@ public class FullQueueWanReplication implements WanReplicationEndpoint {
     public void checkWanReplicationQueues() {
         throw new WANReplicationQueueFullException("WAN event queue is full");
     }
+
+    @Override
+    public String[] getSupportedProtocols() {
+        return new String[0];
+    }
 }

@@ -59,4 +59,10 @@ public interface WanReplicationPublisher {
      */
     void checkWanReplicationQueues();
 
+    /**
+     *
+     * @return protocol versions by this publisher
+     */
+    String[] getSupportedProtocols();
+
 }

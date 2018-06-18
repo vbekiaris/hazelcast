@@ -48,4 +48,9 @@ public class DummyWanReplication implements WanReplicationEndpoint {
     @Override
     public void publishReplicationEventBackup(String serviceName, ReplicationEventObject eventObject) {
     }
+
+    @Override
+    public String[] getSupportedProtocols() {
+        return new String[0];
+    }
 }
