@@ -24,16 +24,24 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
 import javax.cache.CacheManager;
+import javax.cache.spi.CachingProvider;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
+import static com.hazelcast.cache.HazelcastCachingProvider.HAZELCAST_INSTANCE_ITSELF;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 
 /**
  * Spring utility class for connecting {@link HazelcastCachingProvider} interface and Hazelcast instance.
  */
 public final class SpringHazelcastCachingProvider {
+
+    // Hazelcast instance name -> CachingProvider cache
+    static final Map<String, CachingProvider> CLIENT_PROVIDERS_PER_NAME = new HashMap<String, CachingProvider>();
+    static final Map<String, CachingProvider> SERVER_PROVIDERS_PER_NAME = new HashMap<String, CachingProvider>();
 
     private SpringHazelcastCachingProvider() {
     }
@@ -56,11 +64,33 @@ public final class SpringHazelcastCachingProvider {
                 throw rethrow(e);
             }
         }
-        if (instance instanceof HazelcastClientProxy) {
-            return HazelcastClientCachingProvider.createCachingProvider(instance).getCacheManager(uri, null, props);
-        } else {
-            return HazelcastServerCachingProvider.createCachingProvider(instance).getCacheManager(uri, null, props);
+        Map<String, CachingProvider> providers = (instance instanceof HazelcastClientProxy)
+                ? CLIENT_PROVIDERS_PER_NAME : SERVER_PROVIDERS_PER_NAME;
+        synchronized ((instance instanceof HazelcastClientProxy)
+                ? CLIENT_PROVIDERS_PER_NAME : SERVER_PROVIDERS_PER_NAME) {
+            String instanceName = instance.getName();
+            CachingProvider existingCachingProvider = providers.get(instanceName);
+            if (existingCachingProvider != null) {
+                // there is no 1-to-1 HazelcastInstance -> CachingProvider mapping; instead this can be managed per
+                // CacheManager, so to ensure the returned CacheManager is backed by the given HazelcastInstance
+                // set the HazelcastInstance to the designated property
+                props.put(HAZELCAST_INSTANCE_ITSELF, instance);
+                return existingCachingProvider.getCacheManager(uri, null, props);
+            } else {
+                CachingProvider provider;
+                CacheManager cacheManager;
+                if (instance instanceof HazelcastClientProxy) {
+                    provider = HazelcastClientCachingProvider.createCachingProvider(instance);
+                    cacheManager = provider.getCacheManager(uri, null, props);
+                } else {
+                    provider = HazelcastServerCachingProvider.createCachingProvider(instance);
+                    cacheManager = provider.getCacheManager(uri, null, props);
+                }
+                providers.put(instanceName, provider);
+                return cacheManager;
+            }
         }
+
     }
 
     public static CacheManager getCacheManager(String uriString, Properties properties) {
