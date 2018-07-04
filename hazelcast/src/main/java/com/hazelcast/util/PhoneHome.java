@@ -142,7 +142,7 @@ public final class PhoneHome {
         String downloadId = "source";
         InputStream is = null;
         try {
-            is = getClass().getClassLoader().getResourceAsStream("hazelcast-download.properties");
+            is = getClass().getResourceAsStream("hazelcast-download.properties");
             if (is != null) {
                 final Properties properties = new Properties();
                 properties.load(is);

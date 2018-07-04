@@ -169,7 +169,7 @@ public abstract class AbstractXmlConfigHelper {
         }
 
         // include hazelcast schema
-        schemas.add(new StreamSource(getClass().getClassLoader().getResourceAsStream(hazelcastSchemaLocation)));
+        schemas.add(new StreamSource(getClass().getResourceAsStream(hazelcastSchemaLocation)));
 
         // document to InputStream conversion
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
