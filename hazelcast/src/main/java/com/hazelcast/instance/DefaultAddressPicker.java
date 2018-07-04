@@ -367,10 +367,9 @@ class DefaultAddressPicker implements AddressPicker {
      * the interface is: down, virtual or loopback.
      */
     private boolean skipInterface(NetworkInterface ni) throws SocketException {
-        boolean skipInterface = !ni.isUp() || ni.isVirtual() || ni.isLoopback();
+        boolean skipInterface = ni.isVirtual();
         if (skipInterface && logger.isFineEnabled()) {
-            logger.fine("Skipping NetworkInterface '" + ni.getName() + "': isUp=" + ni.isUp() + ", isVirtual=" + ni.isVirtual()
-                    + ", isLoopback=" + ni.isLoopback());
+            logger.fine("Skipping NetworkInterface '" + ni.getName() + ", isVirtual=" + ni.isVirtual());
         }
         return skipInterface;
     }
