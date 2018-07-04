@@ -1,0 +1,20 @@
+[
+  {
+    "name": "com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
+    "methods": [
+      {"name": "<init>", "parameterTypes": [] }
+    ]
+  },
+  {
+    "name": "com.sun.org.apache.xpath.internal.functions.FuncNot",
+    "methods": [
+      {"name": "<init>", "parameterTypes": [] }
+    ]
+  },
+  {
+    "name": "com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl",
+    "methods": [
+      {"name": "<init>", "parameterTypes": [] }
+    ]
+  }
+]

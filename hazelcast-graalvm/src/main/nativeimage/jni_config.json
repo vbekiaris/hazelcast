@@ -1,0 +1,8 @@
+[
+  {
+    "name": "java.net.NetworkInterface",
+    "methods":[
+      {"name": "isUp0", "parameterTypes":["java.lang.String", "int"]}
+    ]
+  }
+]
