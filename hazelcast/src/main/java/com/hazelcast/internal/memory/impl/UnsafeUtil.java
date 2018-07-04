@@ -43,6 +43,9 @@ public final class UnsafeUtil {
      */
     public static final Unsafe UNSAFE;
 
+    // throw-away field only used for checkUnsafeInstance method and GraalVM native image substitution
+    private static long ARRAY_BASE_OFFSET;
+
     private static final ILogger LOGGER = Logger.getLogger(UnsafeUtil.class);
 
     static {
@@ -51,6 +54,7 @@ public final class UnsafeUtil {
             unsafe = findUnsafe();
             if (unsafe != null) {
                 // test if unsafe has required methods...
+                ARRAY_BASE_OFFSET = unsafe.arrayBaseOffset(byte[].class);
                 checkUnsafeInstance(unsafe);
             }
         } catch (Throwable t) {
@@ -96,17 +100,16 @@ public final class UnsafeUtil {
 
     @SuppressWarnings("checkstyle:magicnumber")
     private static void checkUnsafeInstance(Unsafe unsafe) {
-        long arrayBaseOffset = unsafe.arrayBaseOffset(byte[].class);
-        byte[] buffer = new byte[(int) arrayBaseOffset + (2 * Bits.LONG_SIZE_IN_BYTES)];
-        unsafe.putByte(buffer, arrayBaseOffset, (byte) 0x00);
-        unsafe.putBoolean(buffer, arrayBaseOffset, false);
-        unsafe.putChar(buffer, normalize(arrayBaseOffset, Bits.CHAR_SIZE_IN_BYTES), '0');
-        unsafe.putShort(buffer, normalize(arrayBaseOffset, Bits.SHORT_SIZE_IN_BYTES), (short) 1);
-        unsafe.putInt(buffer, normalize(arrayBaseOffset, Bits.INT_SIZE_IN_BYTES), 2);
-        unsafe.putFloat(buffer, normalize(arrayBaseOffset, Bits.FLOAT_SIZE_IN_BYTES), 3f);
-        unsafe.putLong(buffer, normalize(arrayBaseOffset, Bits.LONG_SIZE_IN_BYTES), 4L);
-        unsafe.putDouble(buffer, normalize(arrayBaseOffset, Bits.DOUBLE_SIZE_IN_BYTES), 5d);
-        unsafe.copyMemory(new byte[buffer.length], arrayBaseOffset, buffer, arrayBaseOffset, buffer.length);
+        byte[] buffer = new byte[(int) ARRAY_BASE_OFFSET + (2 * Bits.LONG_SIZE_IN_BYTES)];
+        unsafe.putByte(buffer, ARRAY_BASE_OFFSET, (byte) 0x00);
+        unsafe.putBoolean(buffer, ARRAY_BASE_OFFSET, false);
+        unsafe.putChar(buffer, normalize(ARRAY_BASE_OFFSET, Bits.CHAR_SIZE_IN_BYTES), '0');
+        unsafe.putShort(buffer, normalize(ARRAY_BASE_OFFSET, Bits.SHORT_SIZE_IN_BYTES), (short) 1);
+        unsafe.putInt(buffer, normalize(ARRAY_BASE_OFFSET, Bits.INT_SIZE_IN_BYTES), 2);
+        unsafe.putFloat(buffer, normalize(ARRAY_BASE_OFFSET, Bits.FLOAT_SIZE_IN_BYTES), 3f);
+        unsafe.putLong(buffer, normalize(ARRAY_BASE_OFFSET, Bits.LONG_SIZE_IN_BYTES), 4L);
+        unsafe.putDouble(buffer, normalize(ARRAY_BASE_OFFSET, Bits.DOUBLE_SIZE_IN_BYTES), 5d);
+        unsafe.copyMemory(new byte[buffer.length], ARRAY_BASE_OFFSET, buffer, ARRAY_BASE_OFFSET, buffer.length);
     }
 
     private static void logFailureToFindUnsafeDueTo(final Throwable reason) {
