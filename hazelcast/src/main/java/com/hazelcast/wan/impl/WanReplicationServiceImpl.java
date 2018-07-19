@@ -29,10 +29,12 @@ import com.hazelcast.wan.WanReplicationService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.hazelcast.nio.ClassLoaderUtil.getOrCreate;
 import static com.hazelcast.util.ConcurrencyUtil.getOrPutSynchronized;
+import static com.hazelcast.wan.impl.WanUtil.allSupportedProtocols;
 
 /**
  * Open source implementation of the {@link com.hazelcast.wan.WanReplicationService}
@@ -177,4 +179,16 @@ public class WanReplicationServiceImpl implements WanReplicationService {
         receivedWanEventCounters.removeCounter(serviceName, objectName);
         sentWanEventCounters.removeCounter(serviceName, objectName);
     }
+
+    @Override
+    public String selectProtocol(String[] advertisedProtocols) {
+        Set<String> supportedProtocols = allSupportedProtocols(wanReplications.values());
+        for (String protocol : advertisedProtocols) {
+            if (supportedProtocols.contains(protocol)) {
+                return protocol;
+            }
+        }
+        return "";
+    }
+
 }

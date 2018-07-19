@@ -24,32 +24,33 @@ import com.hazelcast.spi.OperationAccessor;
 import com.hazelcast.wan.WanReplicationService;
 
 import java.io.IOException;
-import java.util.Arrays;
+
+import static com.hazelcast.util.collection.ArrayUtils.createCopy;
 
 public class AuthorizationOp extends AbstractJoinOperation {
 
     private String groupName;
     private String groupPassword;
     /**
-     * Supported WAN protocol versions. exchanged as plain strings (instead of eg enum values)
-     * to avoid serialization failures. A 3.11 member sets the {@link #BITMASK_CUSTOM_OPERATION_FLAG}
-     * to indicate supported protocols are serialized. Previous version members will ignore the extra
-     * bytes.
+     * Advertised WAN protocol versions: sent from WAN connection initiator as plain strings
+     * (instead of eg enum values) to avoid serialization failures. A 3.11 member sets the
+     * {@link #BITMASK_CUSTOM_OPERATION_FLAG} to indicate advertised protocols are included
+     * in the serialized operation. Previous version members will ignore the extra bytes.
      *
      * @since 3.11
      */
-    private String[] supportedProtocols;
+    private String[] advertisedProtocols;
     private Object response = Boolean.TRUE;
 
     public AuthorizationOp() {
     }
 
-    public AuthorizationOp(String groupName, String groupPassword, String[] supportedProtocols) {
+    public AuthorizationOp(String groupName, String groupPassword, String[] advertisedProtocols) {
         this.groupName = groupName;
         this.groupPassword = groupPassword;
-        this.supportedProtocols = Arrays.copyOf(supportedProtocols, supportedProtocols.length);
+        this.advertisedProtocols = createCopy(advertisedProtocols);
         // Use the custom operation flag to indicate that AuthorizationOp serialized by this member
-        // will include supported protocols information
+        // will include advertised protocols information
         OperationAccessor.setFlag(this, true, BITMASK_CUSTOM_OPERATION_FLAG);
     }
 
@@ -62,10 +63,9 @@ public class AuthorizationOp extends AbstractJoinOperation {
             response = Boolean.FALSE;
         }
         // 3.11+, select most preferred protocol
-        if (supportedProtocols != null && supportedProtocols.length > 0) {
+        if (advertisedProtocols != null && advertisedProtocols.length > 0) {
             WanReplicationService wanReplicationService = getNodeEngine().getWanReplicationService();
-//            wanReplicationService.getWanReplicationPublisher()
-            response = supportedProtocols[0];
+            response = wanReplicationService.selectProtocol(advertisedProtocols);
         }
     }
 
@@ -80,7 +80,7 @@ public class AuthorizationOp extends AbstractJoinOperation {
         groupPassword = in.readUTF();
         // check if supported protocols are available
         if (OperationAccessor.isFlagSet(this, BITMASK_CUSTOM_OPERATION_FLAG)) {
-            supportedProtocols = in.readUTFArray();
+            advertisedProtocols = in.readUTFArray();
         }
     }
 
@@ -88,7 +88,7 @@ public class AuthorizationOp extends AbstractJoinOperation {
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         out.writeUTF(groupName);
         out.writeUTF(groupPassword);
-        out.writeUTFArray(supportedProtocols);
+        out.writeUTFArray(advertisedProtocols);
     }
 
     @Override

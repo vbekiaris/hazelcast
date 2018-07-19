@@ -56,6 +56,9 @@ public abstract class Operation implements DataSerializable {
      */
     public static final int GENERIC_PARTITION_ID = -1;
 
+    // A flag reserved for interpretation by the Operation subclass that uses it
+    protected static final int BITMASK_CUSTOM_OPERATION_FLAG = 1 << 7;
+
     static final int BITMASK_VALIDATE_TARGET = 1;
     static final int BITMASK_CALLER_UUID_SET = 1 << 1;
     static final int BITMASK_REPLICA_INDEX_SET = 1 << 2;
@@ -63,9 +66,6 @@ public abstract class Operation implements DataSerializable {
     static final int BITMASK_PARTITION_ID_32_BIT = 1 << 4;
     static final int BITMASK_CALL_TIMEOUT_64_BIT = 1 << 5;
     static final int BITMASK_SERVICE_NAME_SET = 1 << 6;
-
-    // A flag reserved for interpretation by the Operation subclass that uses it
-    protected static final int BITMASK_CUSTOM_OPERATION_FLAG = 1 << 7;
 
     private static final AtomicLongFieldUpdater<Operation> CALL_ID =
             AtomicLongFieldUpdater.newUpdater(Operation.class, "callId");

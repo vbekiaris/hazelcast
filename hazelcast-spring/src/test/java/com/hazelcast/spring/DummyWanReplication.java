@@ -23,6 +23,10 @@ import com.hazelcast.wan.ReplicationEventObject;
 import com.hazelcast.wan.WanReplicationEndpoint;
 import com.hazelcast.wan.WanReplicationEvent;
 
+import java.util.Set;
+
+import static java.util.Collections.emptySet;
+
 public class DummyWanReplication implements WanReplicationEndpoint {
 
     @Override
@@ -50,7 +54,7 @@ public class DummyWanReplication implements WanReplicationEndpoint {
     }
 
     @Override
-    public String[] getSupportedProtocols() {
-        return new String[0];
+    public Set<String> getSupportedProtocols() {
+        return emptySet();
     }
 }

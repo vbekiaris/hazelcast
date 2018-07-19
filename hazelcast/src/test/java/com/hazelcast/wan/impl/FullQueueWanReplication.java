@@ -24,6 +24,10 @@ import com.hazelcast.wan.WANReplicationQueueFullException;
 import com.hazelcast.wan.WanReplicationEndpoint;
 import com.hazelcast.wan.WanReplicationEvent;
 
+import java.util.Set;
+
+import static java.util.Collections.emptySet;
+
 public class FullQueueWanReplication implements WanReplicationEndpoint {
 
     @Override
@@ -52,7 +56,7 @@ public class FullQueueWanReplication implements WanReplicationEndpoint {
     }
 
     @Override
-    public String[] getSupportedProtocols() {
-        return new String[0];
+    public Set<String> getSupportedProtocols() {
+        return emptySet();
     }
 }

@@ -21,6 +21,11 @@ import com.hazelcast.wan.WanReplicationEndpoint;
 import com.hazelcast.wan.WanReplicationEvent;
 import com.hazelcast.wan.WanReplicationPublisher;
 
+import java.util.Set;
+
+import static com.hazelcast.wan.impl.WanUtil.allSupportedProtocols;
+import static java.util.Arrays.asList;
+
 /**
  * Delegating replication publisher implementation
  */
@@ -67,7 +72,7 @@ final class WanReplicationPublisherDelegate
     }
 
     @Override
-    public String[] getSupportedProtocols() {
-        return new String[0];
+    public Set<String> getSupportedProtocols() {
+        return allSupportedProtocols(asList(endpoints));
     }
 }

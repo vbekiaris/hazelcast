@@ -19,6 +19,8 @@ package com.hazelcast.wan;
 import com.hazelcast.config.WANQueueFullBehavior;
 import com.hazelcast.config.WanPublisherConfig;
 
+import java.util.Set;
+
 /**
  * This interface offers the implementation of different kinds of replication techniques like
  * TCP, UDP or maybe even an JMS based service
@@ -63,6 +65,6 @@ public interface WanReplicationPublisher {
      *
      * @return protocol versions by this publisher
      */
-    String[] getSupportedProtocols();
+    Set<String> getSupportedProtocols();
 
 }

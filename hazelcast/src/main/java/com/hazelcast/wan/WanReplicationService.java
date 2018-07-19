@@ -155,4 +155,16 @@ public interface WanReplicationService extends CoreService, StatisticsAwareServi
      * @param dataStructureName the distributed object name
      */
     void removeWanEventCounters(String serviceName, String dataStructureName);
+
+    /**
+     * Select the most preferred advertised protocol that is also supported by this Hazelcast instance.
+     * If none match, then LEGACY/NULL/EMPTY???
+     * Unknown protocols are ignored.
+     * ALSO: consider using Version instead of String (compat serialized form etc).
+     *
+     * @param advertisedProtocols   protocols advertised by the connection initiator in order of preference
+     * @return                      the most preferred advertised protocol that is supported by
+     *                              this Hazelcast instance. If none matches, WHAT? LEGACY OR NULL/EMPTY STRING?
+     */
+    String selectProtocol(String[] advertisedProtocols);
 }
