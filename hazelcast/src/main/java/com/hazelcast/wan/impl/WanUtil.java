@@ -16,7 +16,12 @@
 
 package com.hazelcast.wan.impl;
 
+import com.hazelcast.nio.Address;
+import com.hazelcast.spi.InternalCompletableFuture;
+import com.hazelcast.spi.Operation;
+import com.hazelcast.spi.OperationService;
 import com.hazelcast.wan.WanReplicationPublisher;
+import com.hazelcast.wan.WanReplicationService;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -35,5 +40,14 @@ public final class WanUtil {
             supportedProtocols.addAll(publisher.getSupportedProtocols());
         }
         return unmodifiableSet(supportedProtocols);
+    }
+
+    public static InternalCompletableFuture invokeOnWanTarget(OperationService operationService, Operation operation,
+                                                              Address target, long reponseTimeoutMillis) {
+        String serviceName = WanReplicationService.SERVICE_NAME;
+        return operationService.createInvocationBuilder(serviceName, operation, target)
+                                .setTryCount(1)
+                                .setCallTimeout(reponseTimeoutMillis)
+                                .invoke();
     }
 }
