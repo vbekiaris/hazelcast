@@ -28,6 +28,8 @@ import com.hazelcast.wan.WanReplicationService;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 import static java.util.Collections.unmodifiableSet;
@@ -59,5 +61,19 @@ public final class WanUtil {
         return new VersionMismatchException(String.format("Could not locate a compatible WAN protocol. This member supports %s"
                         + " while remote member supports %s", supportedProtocols.toString(),
                 Arrays.toString(advertisedProtocols)));
+    }
+
+    // scan WanReplicationPublishers registered via java.util.ServiceLoader for supported WAN protocols
+    public static Set<Version> scanForSupportedVersions(ClassLoader configClassLoader) {
+        Set<Version> supportedProtocols = new HashSet<Version>();
+        ServiceLoader<WanReplicationPublisher> publishersLoader = ServiceLoader.load(WanReplicationPublisher.class,
+                configClassLoader);
+        Iterator<WanReplicationPublisher> registeredPublishers = publishersLoader.iterator();
+
+        while (registeredPublishers.hasNext()) {
+            WanReplicationPublisher publisher = registeredPublishers.next();
+            supportedProtocols.addAll(publisher.getSupportedProtocols());
+        }
+        return supportedProtocols;
     }
 }
