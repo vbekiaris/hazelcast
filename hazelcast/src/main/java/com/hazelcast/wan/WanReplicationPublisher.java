@@ -18,6 +18,7 @@ package com.hazelcast.wan;
 
 import com.hazelcast.config.WANQueueFullBehavior;
 import com.hazelcast.config.WanPublisherConfig;
+import com.hazelcast.version.Version;
 
 import java.util.Set;
 
@@ -62,9 +63,8 @@ public interface WanReplicationPublisher {
     void checkWanReplicationQueues();
 
     /**
-     *
-     * @return protocol versions by this publisher
+     * @return protocol versions supported by this publisher
      */
-    Set<String> getSupportedProtocols();
+    Set<Version> getSupportedProtocols();
 
 }

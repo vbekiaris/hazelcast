@@ -16,6 +16,7 @@
 
 package com.hazelcast.wan.impl;
 
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.ReplicationEventObject;
 import com.hazelcast.wan.WanReplicationEndpoint;
 import com.hazelcast.wan.WanReplicationEvent;
@@ -72,7 +73,7 @@ final class WanReplicationPublisherDelegate
     }
 
     @Override
-    public Set<String> getSupportedProtocols() {
+    public Set<Version> getSupportedProtocols() {
         return allSupportedProtocols(asList(endpoints));
     }
 }

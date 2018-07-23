@@ -19,6 +19,7 @@ package com.hazelcast.wan.impl;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationPublisher;
 import org.junit.Before;
 import org.junit.Test;
@@ -38,13 +39,17 @@ import static org.junit.Assert.assertTrue;
 @Category({QuickTest.class, ParallelTest.class})
 public class WanUtilTest {
 
+    private static final Version V1 = Version.of("1");
+    private static final Version V2 = Version.of("2");
+    private static final Version V3 = Version.of("3");
+
     private WanReplicationPublisher publisher1;
     private WanReplicationPublisher publisher2;
 
     @Before
     public void setup() {
-        Set<String> protocols1 = new HashSet<String>(asList(new String[] {"1", "2"}));
-        Set<String> protocols2 = new HashSet<String>(asList(new String[] {"2", "3"}));
+        Set<Version> protocols1 = new HashSet<Version>(asList(new Version[] {V1, V2}));
+        Set<Version> protocols2 = new HashSet<Version>(asList(new Version[] {V2, V3}));
 
         publisher1 = Mockito.mock(WanReplicationPublisher.class);
         Mockito.when(publisher1.getSupportedProtocols()).thenReturn(protocols1);
@@ -60,13 +65,13 @@ public class WanUtilTest {
 
     @Test
     public void testAllSupportedProtocols() {
-        Set<String> allProtocols = WanUtil.allSupportedProtocols(new HashSet(asList(
+        Set<Version> allProtocols = WanUtil.allSupportedProtocols(new HashSet(asList(
             publisher1, publisher2
         )));
         assertEquals(3, allProtocols.size());
-        assertTrue(allProtocols.contains("1"));
-        assertTrue(allProtocols.contains("2"));
-        assertTrue(allProtocols.contains("3"));
+        assertTrue(allProtocols.contains(V1));
+        assertTrue(allProtocols.contains(V2));
+        assertTrue(allProtocols.contains(V3));
     }
 
 }

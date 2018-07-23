@@ -21,6 +21,7 @@ import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.OperationAccessor;
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationService;
 
 import java.io.IOException;
@@ -39,13 +40,13 @@ public class AuthorizationOp extends AbstractJoinOperation {
      *
      * @since 3.11
      */
-    private String[] advertisedProtocols;
+    private Version[] advertisedProtocols;
     private Object response = Boolean.TRUE;
 
     public AuthorizationOp() {
     }
 
-    public AuthorizationOp(String groupName, String groupPassword, String[] advertisedProtocols) {
+    public AuthorizationOp(String groupName, String groupPassword, Version[] advertisedProtocols) {
         this.groupName = groupName;
         this.groupPassword = groupPassword;
         this.advertisedProtocols = createCopy(advertisedProtocols);
@@ -80,7 +81,11 @@ public class AuthorizationOp extends AbstractJoinOperation {
         groupPassword = in.readUTF();
         // check if supported protocols are available
         if (OperationAccessor.isFlagSet(this, BITMASK_CUSTOM_OPERATION_FLAG)) {
-            advertisedProtocols = in.readUTFArray();
+            int protocolCount = in.readUnsignedByte();
+            advertisedProtocols = new Version[protocolCount];
+            for (int i = 0; i < protocolCount; i++) {
+                advertisedProtocols[i] = in.readObject();
+            }
         }
     }
 
@@ -88,7 +93,10 @@ public class AuthorizationOp extends AbstractJoinOperation {
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         out.writeUTF(groupName);
         out.writeUTF(groupPassword);
-        out.writeUTFArray(advertisedProtocols);
+        out.writeByte(advertisedProtocols.length);
+        for (int i = 0; i < advertisedProtocols.length; i++) {
+            out.writeObject(advertisedProtocols[i]);
+        }
     }
 
     @Override

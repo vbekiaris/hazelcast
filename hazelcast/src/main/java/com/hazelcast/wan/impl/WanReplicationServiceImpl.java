@@ -23,6 +23,7 @@ import com.hazelcast.instance.Node;
 import com.hazelcast.monitor.LocalWanStats;
 import com.hazelcast.monitor.WanSyncState;
 import com.hazelcast.util.ConstructorFunction;
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationEndpoint;
 import com.hazelcast.wan.WanReplicationPublisher;
 import com.hazelcast.wan.WanReplicationService;
@@ -35,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.hazelcast.nio.ClassLoaderUtil.getOrCreate;
 import static com.hazelcast.util.ConcurrencyUtil.getOrPutSynchronized;
 import static com.hazelcast.wan.impl.WanUtil.allSupportedProtocols;
+import static com.hazelcast.wan.impl.WanUtil.newVersionMismatchException;
 
 /**
  * Open source implementation of the {@link com.hazelcast.wan.WanReplicationService}
@@ -181,14 +183,17 @@ public class WanReplicationServiceImpl implements WanReplicationService {
     }
 
     @Override
-    public String selectProtocol(String[] advertisedProtocols) {
-        Set<String> supportedProtocols = allSupportedProtocols(wanReplications.values());
-        for (String protocol : advertisedProtocols) {
+    public Version selectProtocol(Version[] advertisedProtocols) {
+        // todo this is wrong, will just collect protocol versions from registered publishers
+        // instead, reflectively get all supported protocols from all WanReplPublishers known to config classloader
+        // or use ServiceLoader mechanism?
+        Set<Version> supportedProtocols = allSupportedProtocols(wanReplications.values());
+        for (Version protocol : advertisedProtocols) {
             if (supportedProtocols.contains(protocol)) {
                 return protocol;
             }
         }
-        return "";
+        throw newVersionMismatchException(supportedProtocols, advertisedProtocols);
     }
 
 }

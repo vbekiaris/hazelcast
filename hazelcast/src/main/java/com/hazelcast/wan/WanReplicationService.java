@@ -22,6 +22,7 @@ import com.hazelcast.monitor.LocalWanStats;
 import com.hazelcast.monitor.WanSyncState;
 import com.hazelcast.spi.CoreService;
 import com.hazelcast.spi.StatisticsAwareService;
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.impl.DistributedServiceWanEventCounters;
 
 /**
@@ -158,13 +159,13 @@ public interface WanReplicationService extends CoreService, StatisticsAwareServi
 
     /**
      * Select the most preferred advertised protocol that is also supported by this Hazelcast instance.
-     * If none match, then LEGACY/NULL/EMPTY???
+     * If none match, then {@link com.hazelcast.internal.cluster.impl.VersionMismatchException} is thrown.
      * Unknown protocols are ignored.
-     * ALSO: consider using Version instead of String (compat serialized form etc).
      *
      * @param advertisedProtocols   protocols advertised by the connection initiator in order of preference
      * @return                      the most preferred advertised protocol that is supported by
-     *                              this Hazelcast instance. If none matches, WHAT? LEGACY OR NULL/EMPTY STRING?
+     *                              this Hazelcast instance. If none matches,
+     *                              {@link com.hazelcast.internal.cluster.impl.VersionMismatchException} is thrown
      */
-    String selectProtocol(String[] advertisedProtocols);
+    Version selectProtocol(Version[] advertisedProtocols);
 }

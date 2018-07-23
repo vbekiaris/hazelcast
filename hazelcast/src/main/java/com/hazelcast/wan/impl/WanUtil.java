@@ -16,13 +16,16 @@
 
 package com.hazelcast.wan.impl;
 
+import com.hazelcast.internal.cluster.impl.VersionMismatchException;
 import com.hazelcast.nio.Address;
 import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationService;
+import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationPublisher;
 import com.hazelcast.wan.WanReplicationService;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -34,8 +37,8 @@ public final class WanUtil {
     private WanUtil() {
     }
 
-    public static Set<String> allSupportedProtocols(Collection<? extends WanReplicationPublisher> publishers) {
-        Set<String> supportedProtocols = new HashSet<String>();
+    public static Set<Version> allSupportedProtocols(Collection<? extends WanReplicationPublisher> publishers) {
+        Set<Version> supportedProtocols = new HashSet<Version>();
         for (WanReplicationPublisher publisher : publishers) {
             supportedProtocols.addAll(publisher.getSupportedProtocols());
         }
@@ -49,5 +52,12 @@ public final class WanUtil {
                                 .setTryCount(1)
                                 .setCallTimeout(reponseTimeoutMillis)
                                 .invoke();
+    }
+
+    public static VersionMismatchException newVersionMismatchException(Set<Version> supportedProtocols,
+                                                                       Version[] advertisedProtocols) {
+        return new VersionMismatchException(String.format("Could not locate a compatible WAN protocol. This member supports %s"
+                        + " while remote member supports %s", supportedProtocols.toString(),
+                Arrays.toString(advertisedProtocols)));
     }
 }
