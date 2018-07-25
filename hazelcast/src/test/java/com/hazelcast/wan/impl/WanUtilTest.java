@@ -39,9 +39,9 @@ import static org.junit.Assert.assertTrue;
 @Category({QuickTest.class, ParallelTest.class})
 public class WanUtilTest {
 
-    private static final Version V1 = Version.of("1");
-    private static final Version V2 = Version.of("2");
-    private static final Version V3 = Version.of("3");
+    private static final Version V1 = Version.of("1.0");
+    private static final Version V2 = Version.of("2.0");
+    private static final Version V3 = Version.of("3.0");
 
     private WanReplicationPublisher publisher1;
     private WanReplicationPublisher publisher2;
@@ -69,9 +69,17 @@ public class WanUtilTest {
             publisher1, publisher2
         )));
         assertEquals(3, allProtocols.size());
-        assertTrue(allProtocols.contains(V1));
-        assertTrue(allProtocols.contains(V2));
-        assertTrue(allProtocols.contains(V3));
+        // ensure ordering is correct
+        Version previousItem = null;
+        for (Version version : allProtocols) {
+            if (previousItem == null) {
+                previousItem = version;
+                continue;
+            }
+            assertTrue("Version " + version + " should be traversed before " + previousItem,
+                    version.compareTo(previousItem) < 0);
+            previousItem = version;
+        }
     }
 
 }

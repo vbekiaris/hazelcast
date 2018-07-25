@@ -74,6 +74,7 @@ final class WanReplicationPublisherDelegate
 
     @Override
     public Set<Version> getSupportedProtocols() {
+        // returns supported protocols of all endpoints, sorted in descending order
         return allSupportedProtocols(asList(endpoints));
     }
 }

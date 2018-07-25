@@ -31,7 +31,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.TreeSet;
 
+import static java.util.Collections.reverseOrder;
 import static java.util.Collections.unmodifiableSet;
 
 public final class WanUtil {
@@ -40,7 +42,7 @@ public final class WanUtil {
     }
 
     public static Set<Version> allSupportedProtocols(Collection<? extends WanReplicationPublisher> publishers) {
-        Set<Version> supportedProtocols = new HashSet<Version>();
+        Set<Version> supportedProtocols = new TreeSet<Version>(reverseOrder());
         for (WanReplicationPublisher publisher : publishers) {
             supportedProtocols.addAll(publisher.getSupportedProtocols());
         }

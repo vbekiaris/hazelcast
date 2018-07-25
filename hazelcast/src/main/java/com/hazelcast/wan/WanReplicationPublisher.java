@@ -63,7 +63,10 @@ public interface WanReplicationPublisher {
     void checkWanReplicationQueues();
 
     /**
-     * @return protocol versions supported by this publisher
+     * Return an ordered set of protocol versions which are supported by this publisher.
+     *
+     * @return  ordered set of protocol versions supported by this publisher,
+     *          in order of preference (preferred version first).
      */
     Set<Version> getSupportedProtocols();
 
