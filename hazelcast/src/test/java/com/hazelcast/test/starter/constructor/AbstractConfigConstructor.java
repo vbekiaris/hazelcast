@@ -30,9 +30,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.test.starter.HazelcastProxyFactory.ProxyPolicy.RETURN_SAME;
+import static com.hazelcast.test.starter.HazelcastProxyFactory.generateProxyForInterface;
 import static com.hazelcast.test.starter.HazelcastProxyFactory.shouldProxy;
 import static com.hazelcast.test.starter.HazelcastStarterUtils.debug;
 import static com.hazelcast.test.starter.ReflectionUtils.getFieldValueReflectively;
+import static java.lang.reflect.Proxy.isProxyClass;
 
 /**
  * Abstract class for constructors of config classes.
@@ -105,6 +107,12 @@ abstract class AbstractConfigConstructor extends AbstractStarterObjectConstructo
                 } else if (returnType.getName().startsWith("java") || returnType.isPrimitive()) {
                     Object thisSubConfigObject = method.invoke(thisConfigObject, null);
                     updateConfig(setter, otherConfigObject, thisSubConfigObject);
+                } else if (returnType.getName().startsWith("com.hazelcast.core.RingbufferStore")) {
+                    cloneStoreInstance(classloader, method, setter, thisConfigObject, otherConfigObject,
+                            "com.hazelcast.core.RingbufferStore");
+                } else if (returnType.getName().startsWith("com.hazelcast.core.QueueStore")) {
+                    cloneStoreInstance(classloader, method, setter, thisConfigObject, otherConfigObject,
+                            "com.hazelcast.core.QueueStore");
                 } else if (returnType.getName().startsWith("com.hazelcast.memory.MemorySize")) {
                     // ignore
                 } else if (returnType.getName().startsWith("com.hazelcast")) {
@@ -140,6 +148,26 @@ abstract class AbstractConfigConstructor extends AbstractStarterObjectConstructo
             return otherConfigClass.getMethod(setterName, returnType);
         } catch (NoSuchMethodException e) {
             return null;
+        }
+    }
+
+    /**
+     * Creates a proxy class for a store implementation from the current
+     * classloader for the proxied classloader.
+     */
+    private static void cloneStoreInstance(ClassLoader classloader, Method method, Method setter, Object thisConfigObject,
+                                           Object otherConfigObject, String targetStoreClass) throws Exception {
+        Object thisStoreObject = method.invoke(thisConfigObject);
+        if (thisStoreObject == null) {
+            return;
+        }
+        Class<?> thisStoreClass = thisStoreObject.getClass();
+        if (isProxyClass(thisStoreClass) || classloader.equals(thisStoreClass.getClassLoader())) {
+            updateConfig(setter, otherConfigObject, thisStoreObject);
+        } else {
+            Class<?> otherStoreClass = classloader.loadClass(targetStoreClass);
+            Object otherStoreObject = generateProxyForInterface(thisStoreObject, classloader, otherStoreClass);
+            updateConfig(setter, otherConfigObject, otherStoreObject);
         }
     }
 
