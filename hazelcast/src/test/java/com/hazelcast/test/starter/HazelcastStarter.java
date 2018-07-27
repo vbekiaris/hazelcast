@@ -24,16 +24,21 @@ import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.instance.HazelcastInstanceImpl;
 import com.hazelcast.instance.Node;
 import com.hazelcast.instance.TestUtil;
+import com.hazelcast.nio.Address;
+import com.hazelcast.test.mocknetwork.TestNodeRegistry;
 import com.hazelcast.test.starter.answer.HazelcastInstanceImplAnswer;
 import com.hazelcast.test.starter.answer.NodeAnswer;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -217,7 +222,7 @@ public class HazelcastStarter {
     private static HazelcastInstance newHazelcastInstanceWithNetwork(HazelcastAPIDelegatingClassloader classloader,
                                                                      Config configTemplate) {
         try {
-            Object delegate = createInstanceViaInstanceFactory(classloader, configTemplate);
+            Object delegate = createInstanceWithMockNetworkViaInstanceFactory(classloader, configTemplate);
             if (delegate == null) {
                 delegate = createInstanceViaHazelcast(classloader, configTemplate);
             }
@@ -225,6 +230,53 @@ public class HazelcastStarter {
         } catch (ClassNotFoundException e) {
             throw rethrowGuardianException(e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object createInstanceWithMockNetworkViaInstanceFactory(HazelcastAPIDelegatingClassloader classloader,
+                                                                          Config configTemplate) {
+        try {
+            Class<?> configClass = classloader.loadClass("com.hazelcast.config.Config");
+            Object config = getConfig(classloader, configClass, configTemplate);
+            String instanceName = configTemplate == null ? newUnsecureUuidString() : configTemplate.getInstanceName();
+
+            TestNodeRegistry testNodeRegistry = new TestNodeRegistry(Arrays.asList(
+                    new Address("127.0.0.1", 5701),
+                    new Address("127.0.0.1", 5702)
+            ));
+            Object proxiedTestNodeRegistry = proxyObjectForStarter(classloader, testNodeRegistry);
+            Address thisAddress = new Address("127.0.0.1", 5701);
+            Object proxiedAddress = proxyObjectForStarter(classloader, thisAddress);
+
+            Class<?> testNodeRegistryClass = classloader.loadClass("com.hazelcast.test.mocknetwork.TestNodeRegistry");
+            Class<?> addressClass = classloader.loadClass("com.hazelcast.nio.Address");
+
+            Class<?> nodeContextClass = classloader.loadClass("com.hazelcast.instance.NodeContext");
+            Class<?> firewallingNodeContextClass = classloader.loadClass("com.hazelcast.test.mocknetwork.MockNodeContext");
+            Constructor<?> ctor = firewallingNodeContextClass.getDeclaredConstructor(testNodeRegistryClass, addressClass);
+            ctor.setAccessible(true);
+            Object nodeContext = ctor.newInstance(proxiedTestNodeRegistry, proxiedAddress);
+
+            Class<?> hazelcastInstanceFactoryClass = classloader.loadClass("com.hazelcast.instance.HazelcastInstanceFactory");
+            System.out.println(hazelcastInstanceFactoryClass + " loaded by " + hazelcastInstanceFactoryClass.getClassLoader());
+
+            Method newHazelcastInstanceMethod = hazelcastInstanceFactoryClass.getMethod("newHazelcastInstance", configClass,
+                    String.class, nodeContextClass);
+            return newHazelcastInstanceMethod.invoke(null, config, instanceName, nodeContext);
+        } catch (ClassNotFoundException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        } catch (IllegalAccessException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        } catch (NoSuchMethodException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        } catch (InvocationTargetException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        } catch (InstantiationException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        } catch (UnknownHostException e) {
+            debug("Could not create HazelcastInstance via HazelcastInstanceFactory: " + e.getMessage());
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

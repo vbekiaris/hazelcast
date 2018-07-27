@@ -71,6 +71,12 @@ public class HazelcastStarterTest {
         }
     }
 
+    @Test
+    public void testMember310() {
+        hz = HazelcastStarter.newHazelcastInstance("3.10", false);
+        hz.shutdown();
+    }
+
     /**
      * Hazelcast 3.9 knows the {@link FirewallingConnectionManager}.
      */

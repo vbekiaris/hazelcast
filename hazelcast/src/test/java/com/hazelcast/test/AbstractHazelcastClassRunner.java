@@ -125,7 +125,7 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
             attachFinalRemovalAgent();
             System.out.println("Running compatibility tests.");
             // Mock network cannot be used for compatibility testing
-            System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "true");
+            System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "false");
         } else {
             TestLoggingUtils.initializeLogging();
             if (System.getProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK) == null) {

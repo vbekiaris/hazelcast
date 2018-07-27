@@ -133,7 +133,7 @@ public final class TestNodeRegistry {
         return nodes.get(address);
     }
 
-    Collection<Address> getJoinAddresses() {
+    public Collection<Address> getJoinAddresses() {
         return Collections.unmodifiableCollection(joinAddresses);
     }
 
