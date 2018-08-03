@@ -56,6 +56,11 @@ public abstract class Operation implements DataSerializable {
      */
     public static final int GENERIC_PARTITION_ID = -1;
 
+    /**
+     * A flag reserved for interpretation by the Operation subclass that uses it.
+     */
+    public static final int BITMASK_CUSTOM_OPERATION_FLAG = 1 << 7;
+
     static final int BITMASK_VALIDATE_TARGET = 1;
     static final int BITMASK_CALLER_UUID_SET = 1 << 1;
     static final int BITMASK_REPLICA_INDEX_SET = 1 << 2;
