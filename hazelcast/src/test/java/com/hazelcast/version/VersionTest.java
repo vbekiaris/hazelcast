@@ -213,4 +213,11 @@ public class VersionTest {
     public void construct_withOverflowingMinor() {
         Version.of(1, Byte.MAX_VALUE + 1);
     }
+
+    @Test
+    public void testNegativeVersion_lessThanPositiveVersion() {
+        // TODO more tests
+        Version negative = Version.of(-1, 0);
+        assertTrue(negative.isLessThan(V3_0));
+    }
 }

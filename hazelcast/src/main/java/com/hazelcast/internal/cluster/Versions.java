@@ -20,6 +20,8 @@ import com.hazelcast.version.Version;
 
 public final class Versions {
 
+    public static final Version WAN_PROTOCOL_LEGACY = Version.of(Byte.MIN_VALUE, Byte.MIN_VALUE);
+
     /**
      * Represents cluster version 3.8
      */
@@ -44,5 +46,13 @@ public final class Versions {
     public static final Version CURRENT_CLUSTER_VERSION = V3_11;
 
     private Versions() {
+    }
+
+    public static Version asWanVersion(Version version) {
+        if ((version.equals(WAN_PROTOCOL_LEGACY))
+            || (version.getMajor() >= 0)) {
+            return version;
+        }
+        return Version.of(-1 * version.getMajor(), version.getMinor());
     }
 }

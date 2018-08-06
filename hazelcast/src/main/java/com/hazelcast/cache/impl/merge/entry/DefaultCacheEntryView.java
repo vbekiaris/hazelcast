@@ -27,6 +27,9 @@ import com.hazelcast.nio.serialization.impl.Versioned;
 
 import java.io.IOException;
 
+import static com.hazelcast.internal.cluster.Versions.V3_11;
+import static com.hazelcast.internal.cluster.Versions.asWanVersion;
+
 /**
  * Default heap based implementation of {@link com.hazelcast.cache.CacheEntryView}.
  */
@@ -104,7 +107,8 @@ public class DefaultCacheEntryView
         out.writeLong(accessHit);
         out.writeData(key);
         out.writeData(value);
-        if (out.getVersion().isGreaterOrEqual(Versions.V3_11)) {
+        if ((out.getVersion().isGreaterOrEqual(V3_11))
+            || (asWanVersion(out.getVersion()).isGreaterOrEqual(V3_11))) {
             out.writeData(expiryPolicy);
         }
     }
@@ -117,7 +121,8 @@ public class DefaultCacheEntryView
         accessHit = in.readLong();
         key = in.readData();
         value = in.readData();
-        if (in.getVersion().isGreaterOrEqual(Versions.V3_11)) {
+        if (in.getVersion().isGreaterOrEqual(Versions.V3_11)
+            || asWanVersion(in.getVersion()).isGreaterOrEqual(V3_11)) {
             expiryPolicy = in.readData();
         }
     }
