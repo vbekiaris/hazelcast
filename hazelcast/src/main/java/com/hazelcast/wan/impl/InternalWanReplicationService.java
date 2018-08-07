@@ -16,6 +16,7 @@
 
 package com.hazelcast.wan.impl;
 
+import com.hazelcast.version.MemberVersion;
 import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationService;
 
@@ -24,7 +25,8 @@ import javax.annotation.Nonnull;
 public interface InternalWanReplicationService extends WanReplicationService {
 
     /**
-     * Select the most preferred advertised protocol that is also supported by this Hazelcast instance.
+     * Executed on the target WAN endpoint to select the most preferred protocol advertised by the
+     * WAN source that is also supported by this Hazelcast instance.
      * If none match, then {@link com.hazelcast.internal.cluster.impl.VersionMismatchException} is thrown.
      * Unknown protocols are ignored.
      *
@@ -33,5 +35,6 @@ public interface InternalWanReplicationService extends WanReplicationService {
      *                              this Hazelcast instance. If none matches,
      *                              {@link com.hazelcast.internal.cluster.impl.VersionMismatchException} is thrown
      */
-    Version selectProtocol(@Nonnull Version[] advertisedProtocols);
+    Version selectProtocol(@Nonnull Version[] advertisedProtocols, Version sourceClusterVersion,
+                           MemberVersion sourceMemberVersion);
 }

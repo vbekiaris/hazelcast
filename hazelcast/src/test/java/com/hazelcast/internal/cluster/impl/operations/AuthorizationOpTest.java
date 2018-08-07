@@ -23,12 +23,14 @@ import com.hazelcast.spi.serialization.SerializationService;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.version.MemberVersion;
 import com.hazelcast.version.Version;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import static com.hazelcast.internal.cluster.Versions.CURRENT_CLUSTER_VERSION;
 import static com.hazelcast.spi.Operation.BITMASK_CUSTOM_OPERATION_FLAG;
 import static com.hazelcast.test.HazelcastTestSupport.randomName;
 import static org.junit.Assert.assertArrayEquals;
@@ -45,18 +47,21 @@ public class AuthorizationOpTest {
     private String groupName;
     private String groupPassword;
     private Version[] advertisedVersions;
+    private MemberVersion memberVersion;
 
     @Before
     public void setup() {
         groupName = randomName();
         groupPassword = randomName();
         advertisedVersions = new Version[] {Version.of(10, 10), Version.UNKNOWN};
+        memberVersion = MemberVersion.of(5, 4, 3);
         serializationService = new DefaultSerializationServiceBuilder().build();
     }
 
     @Test
     public void whenFlagSet_additionalFieldsAreDeserialized() {
-        AuthorizationOp op = new AuthorizationOp(groupName, groupPassword, advertisedVersions);
+        AuthorizationOp op = new AuthorizationOp(groupName, groupPassword, CURRENT_CLUSTER_VERSION,
+                memberVersion, advertisedVersions);
         Data serializedOp = serializationService.toData(op);
         AuthorizationOp deserializedOp = serializationService.toObject(serializedOp);
 
@@ -65,11 +70,14 @@ public class AuthorizationOpTest {
         assertEquals(groupName, deserializedOp.getGroupName());
         assertEquals(groupPassword, deserializedOp.getGroupPassword());
         assertArrayEquals(advertisedVersions, deserializedOp.getAdvertisedProtocols());
+        assertEquals(CURRENT_CLUSTER_VERSION, deserializedOp.getSourceClusterVersion());
+        assertEquals(memberVersion, deserializedOp.getSourceMemberVersion());
     }
 
     @Test
     public void whenFlagNotSet_additionalFieldsNotDeserialized() {
-        AuthorizationOp op = new AuthorizationOp(groupName, groupPassword, advertisedVersions);
+        AuthorizationOp op = new AuthorizationOp(groupName, groupPassword, CURRENT_CLUSTER_VERSION,
+                memberVersion, advertisedVersions);
         // unset the custom flag
         OperationAccessor.setFlag(op, false, BITMASK_CUSTOM_OPERATION_FLAG);
         Data serializedOp = serializationService.toData(op);
@@ -80,6 +88,8 @@ public class AuthorizationOpTest {
         assertEquals(groupName, deserializedOp.getGroupName());
         assertEquals(groupPassword, deserializedOp.getGroupPassword());
         assertNull(deserializedOp.getAdvertisedProtocols());
+        assertNull(deserializedOp.getSourceClusterVersion());
+        assertNull(deserializedOp.getSourceMemberVersion());
     }
 
 }

@@ -21,6 +21,7 @@ import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.internal.cluster.MemberInfo;
 import com.hazelcast.internal.cluster.impl.operations.AuthenticationFailureOp;
 import com.hazelcast.internal.cluster.impl.operations.AuthorizationOp;
+import com.hazelcast.internal.cluster.impl.operations.AuthorizationResponse;
 import com.hazelcast.internal.cluster.impl.operations.BeforeJoinCheckFailureOp;
 import com.hazelcast.internal.cluster.impl.operations.CommitClusterStateOp;
 import com.hazelcast.internal.cluster.impl.operations.ConfigMismatchOp;
@@ -105,8 +106,9 @@ public final class ClusterDataSerializerHook implements DataSerializerHook {
     public static final int HEARTBEAT_COMPLAINT = 41;
     public static final int PROMOTE_LITE_MEMBER = 42;
     public static final int VECTOR_CLOCK = 43;
+    public static final int AUTHORIZATION_RESPONSE = 44;
 
-    static final int LEN = VECTOR_CLOCK + 1;
+    static final int LEN = AUTHORIZATION_RESPONSE + 1;
 
     @Override
     public int getFactoryId() {
@@ -337,6 +339,11 @@ public final class ClusterDataSerializerHook implements DataSerializerHook {
         constructors[VECTOR_CLOCK] = new ConstructorFunction<Integer, IdentifiedDataSerializable>() {
             public IdentifiedDataSerializable createNew(Integer arg) {
                 return new VectorClock();
+            }
+        };
+        constructors[AUTHORIZATION_RESPONSE] = new ConstructorFunction<Integer, IdentifiedDataSerializable>() {
+            public IdentifiedDataSerializable createNew(Integer arg) {
+                return new AuthorizationResponse();
             }
         };
         return new ArrayDataSerializableFactory(constructors);

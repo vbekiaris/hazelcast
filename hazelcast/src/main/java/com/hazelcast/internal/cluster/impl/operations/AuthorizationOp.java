@@ -21,6 +21,8 @@ import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.OperationAccessor;
+import com.hazelcast.util.Preconditions;
+import com.hazelcast.version.MemberVersion;
 import com.hazelcast.version.Version;
 import com.hazelcast.wan.WanReplicationService;
 import com.hazelcast.wan.impl.InternalWanReplicationService;
@@ -31,8 +33,12 @@ import static com.hazelcast.util.collection.ArrayUtils.createCopy;
 
 public class AuthorizationOp extends AbstractJoinOperation {
 
+    private static final int MAX_ADVERTISED_PROTOCOLS_COUNT = 1 << 8;
+
     private String groupName;
     private String groupPassword;
+    private Version sourceClusterVersion;
+    private MemberVersion sourceMemberVersion;
     /**
      * Advertised WAN protocol versions: sent from WAN connection initiator as plain strings
      * (instead of eg enum values) to avoid serialization failures. A 3.11 member sets the
@@ -47,9 +53,15 @@ public class AuthorizationOp extends AbstractJoinOperation {
     public AuthorizationOp() {
     }
 
-    public AuthorizationOp(String groupName, String groupPassword, Version[] advertisedProtocols) {
+    public AuthorizationOp(String groupName, String groupPassword, Version sourceClusterVersion,
+                           MemberVersion sourceMemberVersion,
+                           Version[] advertisedProtocols) {
+        Preconditions.checkTrue(advertisedProtocols.length < MAX_ADVERTISED_PROTOCOLS_COUNT,
+                "Maximum number of advertised protocols must be less than 256");
         this.groupName = groupName;
         this.groupPassword = groupPassword;
+        this.sourceClusterVersion = sourceClusterVersion;
+        this.sourceMemberVersion = sourceMemberVersion;
         this.advertisedProtocols = createCopy(advertisedProtocols);
         // Use the custom operation flag to indicate that AuthorizationOp serialized by this member
         // will include advertised protocols information
@@ -58,17 +70,27 @@ public class AuthorizationOp extends AbstractJoinOperation {
 
     @Override
     public void run() {
+        boolean authorized = true;
         GroupConfig groupConfig = getNodeEngine().getConfig().getGroupConfig();
-        if (!groupName.equals(groupConfig.getName())) {
-            response = Boolean.FALSE;
-        } else if (!groupPassword.equals(groupConfig.getPassword())) {
-            response = Boolean.FALSE;
+        if (!groupName.equals(groupConfig.getName()) ||
+                !groupPassword.equals(groupConfig.getPassword())) {
+            authorized = false;
         }
-        // 3.11+, select most preferred protocol
-        if (advertisedProtocols != null && advertisedProtocols.length > 0) {
-            InternalWanReplicationService wanReplicationService = getNodeEngine().getService(WanReplicationService.SERVICE_NAME);
-            response = wanReplicationService.selectProtocol(advertisedProtocols);
+        // operation received from <= 3.10 member, expects a boolean response
+        if (!OperationAccessor.isFlagSet(this, BITMASK_CUSTOM_OPERATION_FLAG)) {
+            response = authorized;
+            return;
         }
+        // operation received from 3.11+ member
+        if (!authorized) {
+            response = new AuthorizationResponse(false);
+            return;
+        }
+        InternalWanReplicationService wanReplicationService = getNodeEngine().getService(WanReplicationService.SERVICE_NAME);
+        Version selectedProtocol = wanReplicationService.selectProtocol(advertisedProtocols,
+                sourceClusterVersion, sourceMemberVersion);
+        response = new AuthorizationResponse(true, selectedProtocol, getNodeEngine().getClusterService().getClusterVersion(),
+                getNodeEngine().getVersion());
     }
 
     @Override
@@ -82,6 +104,8 @@ public class AuthorizationOp extends AbstractJoinOperation {
         groupPassword = in.readUTF();
         // check if supported protocols are available
         if (OperationAccessor.isFlagSet(this, BITMASK_CUSTOM_OPERATION_FLAG)) {
+            sourceMemberVersion = in.readObject();
+            sourceClusterVersion = in.readObject();
             int protocolCount = in.readUnsignedByte();
             advertisedProtocols = new Version[protocolCount];
             for (int i = 0; i < protocolCount; i++) {
@@ -94,6 +118,8 @@ public class AuthorizationOp extends AbstractJoinOperation {
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         out.writeUTF(groupName);
         out.writeUTF(groupPassword);
+        out.writeObject(sourceMemberVersion);
+        out.writeObject(sourceClusterVersion);
         out.writeByte(advertisedProtocols.length);
         for (int i = 0; i < advertisedProtocols.length; i++) {
             out.writeObject(advertisedProtocols[i]);
@@ -116,5 +142,13 @@ public class AuthorizationOp extends AbstractJoinOperation {
 
     Version[] getAdvertisedProtocols() {
         return advertisedProtocols;
+    }
+
+    public Version getSourceClusterVersion() {
+        return sourceClusterVersion;
+    }
+
+    public MemberVersion getSourceMemberVersion() {
+        return sourceMemberVersion;
     }
 }
