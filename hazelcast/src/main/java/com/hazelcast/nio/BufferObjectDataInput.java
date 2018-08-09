@@ -77,4 +77,6 @@ public interface BufferObjectDataInput extends ObjectDataInput, Closeable {
     void init(byte[] data, int offset);
 
     void setVersion(Version version);
+
+    Version getWanProtocolVersion();
 }

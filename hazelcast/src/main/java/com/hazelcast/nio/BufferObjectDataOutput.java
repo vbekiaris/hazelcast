@@ -75,4 +75,8 @@ public interface BufferObjectDataOutput extends ObjectDataOutput, Closeable {
     void clear();
 
     void setVersion(Version version);
+
+    void setWanProtocolVersion(Version version);
+
+    Version getWanProtocolVersion();
 }

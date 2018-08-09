@@ -21,6 +21,9 @@ import com.hazelcast.version.Version;
 
 import java.io.InputStream;
 
+import static com.hazelcast.internal.cluster.Versions.LEGACY;
+import static com.hazelcast.version.Version.UNKNOWN;
+
 /**
  * Base class for ObjectDataInput that is VersionAware and allows mutating the version.
  * <p>
@@ -29,7 +32,7 @@ import java.io.InputStream;
  */
 abstract class VersionedObjectDataInput extends InputStream implements ObjectDataInput {
 
-    protected Version version = Version.UNKNOWN;
+    protected Version version = UNKNOWN;
 
     /**
      * If the serializer supports versioning it may set the version to use for the serialization on this object.
@@ -38,6 +41,18 @@ abstract class VersionedObjectDataInput extends InputStream implements ObjectDat
      */
     public void setVersion(Version version) {
         this.version = version;
+    }
+
+    public Version getWanProtocolVersion() {
+        if (LEGACY.equals(version)) {
+            return LEGACY;
+        }
+        if (version.getMajor() < 0) {
+            // WAN protocol version
+            return Version.of(-1 * version.getMajor(), version.getMinor());
+        }
+        // no WAN protocol version was set
+        return UNKNOWN;
     }
 
     /**
@@ -49,6 +64,10 @@ abstract class VersionedObjectDataInput extends InputStream implements ObjectDat
      */
     @Override
     public Version getVersion() {
+        if (version.getMajor() < 0) {
+            // a WAN protocol version is represented in this input's version field
+            return UNKNOWN;
+        }
         return version;
     }
 }

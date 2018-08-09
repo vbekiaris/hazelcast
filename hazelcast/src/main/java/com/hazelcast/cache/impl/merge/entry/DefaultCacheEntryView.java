@@ -19,6 +19,8 @@ package com.hazelcast.cache.impl.merge.entry;
 import com.hazelcast.cache.CacheEntryView;
 import com.hazelcast.cache.impl.CacheDataSerializerHook;
 import com.hazelcast.internal.cluster.Versions;
+import com.hazelcast.nio.BufferObjectDataInput;
+import com.hazelcast.nio.BufferObjectDataOutput;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
@@ -28,7 +30,6 @@ import com.hazelcast.nio.serialization.impl.Versioned;
 import java.io.IOException;
 
 import static com.hazelcast.internal.cluster.Versions.V3_11;
-import static com.hazelcast.internal.cluster.Versions.asWanVersion;
 
 /**
  * Default heap based implementation of {@link com.hazelcast.cache.CacheEntryView}.
@@ -107,8 +108,9 @@ public class DefaultCacheEntryView
         out.writeLong(accessHit);
         out.writeData(key);
         out.writeData(value);
-        if ((out.getVersion().isGreaterOrEqual(V3_11))
-            || (asWanVersion(out.getVersion()).isGreaterOrEqual(V3_11))) {
+        BufferObjectDataOutput dataOutput = (BufferObjectDataOutput) out;
+        if (out.getVersion().isGreaterOrEqual(V3_11)
+            || dataOutput.getWanProtocolVersion().isGreaterOrEqual(V3_11)) {
             out.writeData(expiryPolicy);
         }
     }
@@ -121,8 +123,9 @@ public class DefaultCacheEntryView
         accessHit = in.readLong();
         key = in.readData();
         value = in.readData();
+        BufferObjectDataInput dataInput = (BufferObjectDataInput) in;
         if (in.getVersion().isGreaterOrEqual(Versions.V3_11)
-            || asWanVersion(in.getVersion()).isGreaterOrEqual(V3_11)) {
+            || dataInput.getWanProtocolVersion().isGreaterOrEqual(V3_11)) {
             expiryPolicy = in.readData();
         }
     }

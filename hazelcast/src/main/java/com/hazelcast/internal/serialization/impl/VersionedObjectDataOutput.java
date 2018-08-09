@@ -22,14 +22,17 @@ import com.hazelcast.version.Version;
 
 import java.io.OutputStream;
 
+import static com.hazelcast.internal.cluster.Versions.LEGACY;
+import static com.hazelcast.version.Version.UNKNOWN;
+
 /**
- * Base class for ObjectDataInput that is VersionAware and allows mutating the version.
+ * Base class for ObjectDataOutput that is VersionAware and allows mutating the version.
  * What the version means it's up to the Serializer/Deserializer.
  * If the serializer supports versioning it may set the version to use for the serialization on this object.
  */
 abstract class VersionedObjectDataOutput extends OutputStream implements ObjectDataOutput, VersionAware {
 
-    protected Version version = Version.UNKNOWN;
+    protected Version version = UNKNOWN;
 
     /**
      * If the serializer supports versioning it may set the version to use for the serialization on this object.
@@ -40,6 +43,37 @@ abstract class VersionedObjectDataOutput extends OutputStream implements ObjectD
         this.version = version;
     }
 
+    public void setWanProtocolVersion(Version version) {
+        if (LEGACY.equals(version)) {
+            this.version = LEGACY;
+        } else {
+            this.version = Version.of(-1 * version.getMajor(), version.getMinor());
+        }
+    }
+
+    public Version getWanProtocolVersion() {
+        if (LEGACY.equals(version)) {
+            return LEGACY;
+        }
+        if (version.getMajor() < 0) {
+            // WAN protocol version
+            return Version.of(-1 * version.getMajor(), version.getMinor());
+        }
+        // no WAN protocol version was set
+        return UNKNOWN;
+    }
+
+    public Version getRawWanProtocolVersion() {
+        if (LEGACY.equals(version)) {
+            return LEGACY;
+        }
+        if (version.getMajor() < 0) {
+            // WAN protocol version
+            return version;
+        }
+        // no WAN protocol version was set
+        return UNKNOWN;
+    }
 
     /**
      * If the serializer supports versioning it may set the version to use for the serialization on this object.
@@ -49,7 +83,8 @@ abstract class VersionedObjectDataOutput extends OutputStream implements ObjectD
      */
     @Override
     public Version getVersion() {
-        return version;
+        return (version.getMajor() < 0)
+            ? UNKNOWN
+            : version;
     }
-
 }
