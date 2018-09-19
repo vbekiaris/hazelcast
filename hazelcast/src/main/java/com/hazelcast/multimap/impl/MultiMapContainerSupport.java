@@ -17,6 +17,7 @@
 package com.hazelcast.multimap.impl;
 
 import com.hazelcast.config.MultiMapConfig;
+import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.NodeEngine;
 
@@ -36,11 +37,13 @@ abstract class MultiMapContainerSupport {
     protected final String name;
     protected final NodeEngine nodeEngine;
     protected final MultiMapConfig config;
+    protected final ILogger logger;
 
     MultiMapContainerSupport(String name, NodeEngine nodeEngine) {
         this.name = name;
         this.nodeEngine = nodeEngine;
         this.config = nodeEngine.getConfig().findMultiMapConfig(name);
+        this.logger = nodeEngine.getLogger(MultiMapContainerSupport.class);
     }
 
     public MultiMapValue getOrCreateMultiMapValue(Data dataKey) {

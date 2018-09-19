@@ -67,7 +67,12 @@ public class MultiMapContainer extends MultiMapContainerSupport {
     }
 
     public boolean canAcquireLock(Data dataKey, String caller, long threadId) {
-        return lockStore != null && lockStore.canAcquireLock(dataKey, caller, threadId);
+        boolean result = lockStore != null && lockStore.canAcquireLock(dataKey, caller, threadId);
+        if (!result) {
+            logger.info("Cannot acquire lock: " + threadId + ", lockStore: " + lockStore + ", dataKey: " + dataKey
+                    + ", caller: " + caller);
+        }
+        return result;
     }
 
     public boolean isLocked(Data dataKey) {
