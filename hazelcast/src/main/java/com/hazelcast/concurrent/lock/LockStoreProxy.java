@@ -106,7 +106,7 @@ public final class LockStoreProxy implements LockStore {
     @Override
     public boolean canAcquireLock(Data key, String caller, long threadId) {
         LockStore lockStore = getLockStoreOrNull();
-        boolean result = (lockStore != null && lockStore.canAcquireLock(key, caller, threadId));
+        boolean result = (lockStore == null || lockStore.canAcquireLock(key, caller, threadId));
         if (!result) {
             LockServiceImpl.LOGGER.warning("LockStore for " + this.namespace + ", lockStore: " + lockStore);
         }
