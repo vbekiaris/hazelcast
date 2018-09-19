@@ -62,6 +62,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
         FragmentedMigrationAwareService, ClientAwareService, QuorumAwareService {
 
     private static final Object NULL_OBJECT = new Object();
+    public static ILogger LOGGER;
 
     private final NodeEngine nodeEngine;
     private final LockStoreContainer[] containers;
@@ -80,7 +81,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
     };
 
     private final long maxLeaseTimeInMillis;
-    private final ILogger logger;
+
 
     public LockServiceImpl(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
@@ -90,7 +91,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
         }
 
         maxLeaseTimeInMillis = getMaxLeaseTimeInMillis(nodeEngine.getProperties());
-        logger = nodeEngine.getLogger(LockService.class);
+        LOGGER = nodeEngine.getLogger(LockService.class);
     }
 
     NodeEngine getNodeEngine() {
@@ -181,7 +182,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
         for (LockResource lock : lockStore.getLocks()) {
             sb.append(lock).append("\n");
         }
-        logger.warning(sb.toString());
+        LOGGER.warning(sb.toString());
     }
 
     public LockStoreContainer getLockContainer(int partitionId) {

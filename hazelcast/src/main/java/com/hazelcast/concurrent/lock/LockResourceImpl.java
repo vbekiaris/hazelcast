@@ -168,7 +168,11 @@ final class LockResourceImpl implements IdentifiedDataSerializable, LockResource
     }
 
     boolean canAcquireLock(String caller, long threadId) {
-        return lockCount == 0 || getThreadId() == threadId && getOwner().equals(caller);
+        boolean result = lockCount == 0 || getThreadId() == threadId && getOwner().equals(caller);
+        if (!result) {
+            LockServiceImpl.LOGGER.warning("Lock resource cannot acquire lock: " + this);
+        }
+        return result;
     }
 
     void addAwait(String conditionId, String caller, long threadId) {

@@ -17,7 +17,6 @@
 package com.hazelcast.concurrent.lock;
 
 import com.hazelcast.concurrent.lock.operations.AwaitOperation;
-import com.hazelcast.logging.Logger;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
@@ -161,7 +160,7 @@ public final class LockStoreImpl implements IdentifiedDataSerializable, LockStor
         LockResourceImpl lock = locks.get(key);
         boolean result = lock == null || lock.canAcquireLock(caller, threadId);
         if (!result) {
-            Logger.getLogger(LockResourceImpl.class).info("Failed to acquire lock with lock resource: " + lock
+            LockServiceImpl.LOGGER.warning("Failed to acquire lock with lock resource: " + lock
                     + ", caller: " + caller + ", threadId: " + threadId + ", key: " + key);
         }
         return result;
