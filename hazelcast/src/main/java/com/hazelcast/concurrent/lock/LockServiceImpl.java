@@ -22,6 +22,7 @@ import com.hazelcast.concurrent.lock.operations.UnlockOperation;
 import com.hazelcast.config.LockConfig;
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.instance.MemberImpl;
+import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.partition.strategy.StringPartitioningStrategy;
 import com.hazelcast.spi.ClientAwareService;
@@ -79,6 +80,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
     };
 
     private final long maxLeaseTimeInMillis;
+    private final ILogger logger;
 
     public LockServiceImpl(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
@@ -88,6 +90,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
         }
 
         maxLeaseTimeInMillis = getMaxLeaseTimeInMillis(nodeEngine.getProperties());
+        logger = nodeEngine.getLogger(LockService.class);
     }
 
     NodeEngine getNodeEngine() {
@@ -165,6 +168,20 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
     public void clearLockStore(int partitionId, ObjectNamespace namespace) {
         LockStoreContainer container = getLockContainer(partitionId);
         container.clearLockStore(namespace);
+    }
+
+    @Override
+    public void dumpLockStore(int partitionId, ObjectNamespace namespace) {
+        LockStoreImpl lockStore = getLockContainer(partitionId).getLockStore(namespace);
+        if (lockStore == null) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder("Lock store dump for partitionId: ");
+        sb.append(partitionId).append(".\n");
+        for (LockResource lock : lockStore.getLocks()) {
+            sb.append(lock).append("\n");
+        }
+        logger.warning(sb.toString());
     }
 
     public LockStoreContainer getLockContainer(int partitionId) {

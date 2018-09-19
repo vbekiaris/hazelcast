@@ -189,8 +189,10 @@ public class MultiMapContainer extends MultiMapContainerSupport {
     }
 
     public void destroy() {
+        logger.warning("Dump of lock store for (partitionId, namespace): " + partitionId + ", " + lockNamespace);
         LockService lockService = nodeEngine.getSharedService(LockService.SERVICE_NAME);
         if (lockService != null) {
+            lockService.dumpLockStore(partitionId, lockNamespace);
             lockService.clearLockStore(partitionId, lockNamespace);
         }
         multiMapValues.clear();

@@ -24,6 +24,7 @@ import com.hazelcast.core.EntryEventType;
 import com.hazelcast.core.EntryListener;
 import com.hazelcast.internal.cluster.ClusterService;
 import com.hazelcast.internal.cluster.Versions;
+import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.event.EventData;
 import com.hazelcast.monitor.LocalMultiMapStats;
 import com.hazelcast.monitor.impl.LocalMultiMapStatsImpl;
@@ -120,6 +121,7 @@ public class MultiMapService implements ManagedService, RemoteService, Fragmente
             return quorumName == null ? NULL_OBJECT : quorumName;
         }
     };
+    private final ILogger logger;
 
     public MultiMapService(NodeEngine nodeEngine) {
         this.nodeEngine = nodeEngine;
@@ -128,6 +130,7 @@ public class MultiMapService implements ManagedService, RemoteService, Fragmente
         this.dispatcher = new MultiMapEventsDispatcher(this, nodeEngine.getClusterService());
         this.publisher = new MultiMapEventsPublisher(nodeEngine);
         this.quorumService = nodeEngine.getQuorumService();
+        this.logger = nodeEngine.getLogger(MultiMapService.class);
     }
 
     @Override
@@ -161,6 +164,7 @@ public class MultiMapService implements ManagedService, RemoteService, Fragmente
 
     @Override
     public void reset() {
+        logger.info("Resetting multimap service");
         for (MultiMapPartitionContainer container : partitionContainers) {
             if (container != null) {
                 container.destroy();
