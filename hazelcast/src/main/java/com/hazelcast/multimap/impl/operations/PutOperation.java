@@ -47,6 +47,7 @@ public class PutOperation extends AbstractBackupAwareMultiMapOperation implement
 
     @Override
     public void run() throws Exception {
+        getLogger().info("begin run " + this);
         MultiMapContainer container = getOrCreateContainer();
         recordId = container.nextId();
         MultiMapRecord record = new MultiMapRecord(recordId, isBinary() ? value : toObject(value));
@@ -61,6 +62,7 @@ public class PutOperation extends AbstractBackupAwareMultiMapOperation implement
                 response = e;
             }
         }
+        getLogger().info("end run " + this + ", response is: " + response);
     }
 
     @Override
@@ -83,6 +85,7 @@ public class PutOperation extends AbstractBackupAwareMultiMapOperation implement
 
     @Override
     public void onWaitExpire() {
+        getLogger().info("wait expired " + this);
         sendResponse(false);
     }
 

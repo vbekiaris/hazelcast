@@ -60,7 +60,10 @@ public abstract class AbstractBackupAwareMultiMapOperation extends AbstractKeyBa
 
     @Override
     public boolean shouldWait() {
-        return !getOrCreateContainer().canAcquireLock(dataKey, getCallerUuid(), threadId);
+        boolean result = !getOrCreateContainer().canAcquireLock(dataKey, getCallerUuid(), threadId);
+        getLogger().info("should wait " + this + ", dataKey: " + dataKey + ", callerUuid:" + getCallerUuid()
+                + ", threadId" + threadId + ", result: " + result);
+        return result;
     }
 
     @Override
