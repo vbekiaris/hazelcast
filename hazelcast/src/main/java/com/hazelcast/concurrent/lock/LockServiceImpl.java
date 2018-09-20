@@ -168,6 +168,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
     @Override
     public void clearLockStore(int partitionId, ObjectNamespace namespace) {
         LockStoreContainer container = getLockContainer(partitionId);
+        dumpLockStore(partitionId, namespace);
         container.clearLockStore(namespace);
     }
 

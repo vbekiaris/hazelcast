@@ -1206,6 +1206,8 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
 
     @Override
     public void clearPartition(boolean onShutdown, boolean onStorageDestroy) {
+        logger.warning("Clearing partition " + partitionId + " of lockstores");
+
         clearLockStore();
         clearOtherDataThanStorage(onStorageDestroy);
 
