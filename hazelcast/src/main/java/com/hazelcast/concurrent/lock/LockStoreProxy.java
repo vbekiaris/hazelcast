@@ -16,18 +16,17 @@
 
 package com.hazelcast.concurrent.lock;
 
+import com.hazelcast.map.impl.MapService;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.ObjectNamespace;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class LockStoreProxy implements LockStore {
 
     private final LockStoreContainer container;
     private final ObjectNamespace namespace;
-    private final AtomicBoolean didReturnNullLockstore = new AtomicBoolean();
 
     public LockStoreProxy(LockStoreContainer container, ObjectNamespace namespace) {
         this.container = container;
@@ -106,7 +105,7 @@ public final class LockStoreProxy implements LockStore {
     @Override
     public boolean canAcquireLock(Data key, String caller, long threadId) {
         LockStore lockStore = getLockStoreOrNull();
-        boolean result = (lockStore == null || lockStore.canAcquireLock(key, caller, threadId));
+        boolean result = (lockStore != null && lockStore.canAcquireLock(key, caller, threadId));
         if (!result) {
             LockServiceImpl.LOGGER.warning("LockStore for " + this.namespace + ", lockStore: " + lockStore);
         }
@@ -145,9 +144,8 @@ public final class LockStoreProxy implements LockStore {
 
     private LockStore getLockStoreOrNull() {
         LockStore result = container.getLockStore(namespace);
-        if (result == null) {
-            didReturnNullLockstore.set(true);
-            LockServiceImpl.LOGGER.warning("Returned null lock store first time for namespace " + namespace);
+        if (result == null && namespace.getServiceName().equals(MapService.SERVICE_NAME)) {
+            LockServiceImpl.LOGGER.warning("Returned null lock store for namespace " + namespace);
         }
         return result;
     }
