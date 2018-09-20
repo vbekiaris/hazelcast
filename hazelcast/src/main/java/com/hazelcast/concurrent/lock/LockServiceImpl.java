@@ -178,7 +178,7 @@ public final class LockServiceImpl implements LockService, ManagedService, Remot
         if (lockStore == null) {
             return;
         }
-        StringBuilder sb = new StringBuilder("Lock store dump for partitionId: ");
+        StringBuilder sb = new StringBuilder("Lock store dump for " + namespace + " on partitionId: ");
         sb.append(partitionId).append(".\n");
         for (LockResource lock : lockStore.getLocks()) {
             sb.append(lock).append("\n");
