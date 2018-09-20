@@ -16,14 +16,19 @@
 
 package com.hazelcast.concurrent.lock;
 
-import com.hazelcast.map.impl.MapService;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.ObjectNamespace;
 
 import java.util.Collections;
 import java.util.Set;
 
+/**
+ * Proxy to a {@link LockStoreImpl}.
+ * TODO describe get-or-create vs get-or-null
+ */
 public final class LockStoreProxy implements LockStore {
+
+    private static final String NOT_LOCKED = "<not-locked>";
 
     private final LockStoreContainer container;
     private final ObjectNamespace namespace;
@@ -35,19 +40,19 @@ public final class LockStoreProxy implements LockStore {
 
     @Override
     public boolean lock(Data key, String caller, long threadId, long referenceId, long leaseTime) {
-        LockStore lockStore = getLockStoreOrNull();
+        LockStore lockStore = getOrCreateLockStore();
         return lockStore != null && lockStore.lock(key, caller, threadId, referenceId, leaseTime);
     }
 
     @Override
     public boolean localLock(Data key, String caller, long threadId, long referenceId, long leaseTime) {
-        LockStore lockStore = getLockStoreOrNull();
+        LockStore lockStore = getOrCreateLockStore();
         return lockStore != null && lockStore.localLock(key, caller, threadId, referenceId, leaseTime);
     }
 
     @Override
     public boolean txnLock(Data key, String caller, long threadId, long referenceId, long leaseTime, boolean blockReads) {
-        LockStore lockStore = getLockStoreOrNull();
+        LockStore lockStore = getOrCreateLockStore();
         return lockStore != null && lockStore.txnLock(key, caller, threadId, referenceId, leaseTime, blockReads);
     }
 
@@ -66,13 +71,13 @@ public final class LockStoreProxy implements LockStore {
     @Override
     public boolean isLocked(Data key) {
         LockStore lockStore = getLockStoreOrNull();
-        return lockStore != null && lockStore.isLocked(key);
+        return lockStore == null || lockStore.isLocked(key);
     }
 
     @Override
     public boolean isLockedBy(Data key, String caller, long threadId) {
         LockStore lockStore = getLockStoreOrNull();
-        return lockStore != null && lockStore.isLockedBy(key, caller, threadId);
+        return lockStore == null || lockStore.isLockedBy(key, caller, threadId);
     }
 
     @Override
@@ -105,17 +110,13 @@ public final class LockStoreProxy implements LockStore {
     @Override
     public boolean canAcquireLock(Data key, String caller, long threadId) {
         LockStore lockStore = getLockStoreOrNull();
-        boolean result = (lockStore != null && lockStore.canAcquireLock(key, caller, threadId));
-        if (!result) {
-            LockServiceImpl.LOGGER.warning("LockStore for " + this.namespace + ", lockStore: " + lockStore);
-        }
-        return result;
+        return lockStore == null || lockStore.canAcquireLock(key, caller, threadId);
     }
 
     @Override
     public boolean shouldBlockReads(Data key) {
         LockStore lockStore = getLockStoreOrNull();
-        return lockStore != null && lockStore.shouldBlockReads(key);
+        return lockStore == null || lockStore.shouldBlockReads(key);
     }
 
     @Override
@@ -137,16 +138,16 @@ public final class LockStoreProxy implements LockStore {
     public String getOwnerInfo(Data dataKey) {
         LockStore lockStore = getLockStoreOrNull();
         if (lockStore == null) {
-            return "<not-locked>";
+            return NOT_LOCKED;
         }
         return lockStore.getOwnerInfo(dataKey);
     }
 
+    private LockStore getOrCreateLockStore() {
+        return container.getOrCreateLockStore(namespace);
+    }
+
     private LockStore getLockStoreOrNull() {
-        LockStore result = container.getLockStore(namespace);
-        if (result == null && namespace.getServiceName().equals(MapService.SERVICE_NAME)) {
-            LockServiceImpl.LOGGER.warning("Returned null lock store for namespace " + namespace);
-        }
-        return result;
+        return container.getLockStore(namespace);
     }
 }
