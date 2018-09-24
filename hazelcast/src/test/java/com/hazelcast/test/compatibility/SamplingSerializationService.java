@@ -48,6 +48,8 @@ import static java.util.Collections.newSetFromMap;
  */
 public class SamplingSerializationService implements InternalSerializationService {
 
+    static final ThreadLocal<ObjectGraphTracker> TRACKER_THREAD_LOCAL = new ThreadLocal<ObjectGraphTracker>();
+
     static final ConcurrentMap<String, List<byte[]>> SERIALIZED_SAMPLES_PER_CLASS_NAME =
             new ConcurrentHashMap<String, List<byte[]>>(1000);
     // cache classes for which samples have already been captured
@@ -106,15 +108,54 @@ public class SamplingSerializationService implements InternalSerializationServic
 
     @Override
     public byte[] toBytes(Object obj) {
+        boolean rootObject = false;
+        ObjectGraphTracker tracker = TRACKER_THREAD_LOCAL.get();
+        if (tracker == null) {
+            tracker = new ObjectGraphTracker();
+            rootObject = true;
+            TRACKER_THREAD_LOCAL.set(tracker);
+        }
+        tracker.add(obj);
         byte[] bytes = delegate.toBytes(obj);
         sampleObject(obj, bytes);
+        if (rootObject) {
+            validateVersioned(tracker);
+        }
         return bytes;
+    }
+
+    private void validateVersioned(ObjectGraphTracker tracker) {
+        String versionedViolation = tracker.validateVersioned();
+        if (versionedViolation != null) {
+            System.err.println(">>> Versioned validation failed: " + versionedViolation);
+        }
+        TRACKER_THREAD_LOCAL.set(null);
+    }
+
+    private ObjectGraphTracker getOrCreateObjectGraphTracker() {
+        ObjectGraphTracker tracker = TRACKER_THREAD_LOCAL.get();
+        if (tracker == null) {
+            tracker = new ObjectGraphTracker();
+            TRACKER_THREAD_LOCAL.set(tracker);
+        }
+        return tracker;
     }
 
     @Override
     public byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
+        boolean rootObject = false;
+        ObjectGraphTracker tracker = TRACKER_THREAD_LOCAL.get();
+        if (tracker == null) {
+            tracker = new ObjectGraphTracker();
+            rootObject = true;
+            TRACKER_THREAD_LOCAL.set(tracker);
+        }
+        tracker.add(obj);
         byte[] bytes = delegate.toBytes(obj, leftPadding, insertPartitionHash);
         sampleObject(obj, bytes);
+        if (rootObject) {
+            validateVersioned(tracker);
+        }
         return bytes;
     }
 
