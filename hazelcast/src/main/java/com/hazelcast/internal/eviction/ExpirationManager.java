@@ -20,8 +20,6 @@ import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.LifecycleEvent;
 import com.hazelcast.core.LifecycleListener;
-import com.hazelcast.partition.PartitionLostEvent;
-import com.hazelcast.partition.PartitionLostListener;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.TaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -37,13 +35,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * task. Gradual cleanup is in place for IMap since {@code 3.3} and ICache since {@code 3.11}
  */
 @SuppressWarnings("checkstyle:linelength")
-public final class ExpirationManager implements LifecycleListener, PartitionLostListener {
+public final class ExpirationManager implements LifecycleListener {
 
     private final int taskPeriodSeconds;
     private final NodeEngine nodeEngine;
     private final ClearExpiredRecordsTask task;
     private final TaskScheduler globalTaskScheduler;
-    private final AtomicBoolean partitionLostListenerRegistered = new AtomicBoolean(false);
+
     /**
      * @see #rescheduleIfScheduledBefore()
      */
@@ -74,10 +72,6 @@ public final class ExpirationManager implements LifecycleListener, PartitionLost
     public void scheduleExpirationTask() {
         if (nodeEngine.getLocalMember().isLiteMember() || scheduled.get() || !scheduled.compareAndSet(false, true)) {
             return;
-        }
-
-        if (partitionLostListenerRegistered.compareAndSet(false, true)) {
-            getHazelcastInstance().getPartitionService().addPartitionLostListener(this);
         }
 
         scheduledExpirationTask = globalTaskScheduler.scheduleWithRepetition(task, taskPeriodSeconds,
@@ -122,11 +116,6 @@ public final class ExpirationManager implements LifecycleListener, PartitionLost
 
     public ClearExpiredRecordsTask getTask() {
         return task;
-    }
-
-    @Override
-    public void partitionLost(PartitionLostEvent event) {
-        task.onPartitionLost();
     }
 
     /**
