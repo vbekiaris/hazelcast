@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.metrics.impl;
 
+import com.hazelcast.internal.metrics.LongProbeFunction;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.metrics.ProbeLevel;
 import com.hazelcast.internal.metrics.impl.MethodProbe.LongMethodProbe;
@@ -25,6 +26,7 @@ import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.test.annotation.Repeat;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -128,6 +130,23 @@ public class MethodProbeTest extends HazelcastTestSupport {
         double value = doubleMethodProbe.get(source);
 
         assertEquals(expected, value, 0.1);
+    }
+
+    @Test
+    @Repeat(20)
+    public void poorMansBenchMark() throws Throwable {
+        SomeSource source = new SomeSource();
+        Method method = source.getClass().getDeclaredMethod("longMethod");
+        Probe probe = method.getAnnotation(Probe.class);
+        MethodProbe methodProbe = createMethodProbe(method, probe);
+        LongProbeFunction<SomeSource> probeFunction = (LongProbeFunction<SomeSource>) methodProbe;
+
+        long nanoStart = System.nanoTime();
+        for (int i = 0; i < 100000000; i++) {
+            probeFunction.get(source);
+        }
+        long nanoEnd = System.nanoTime();
+        System.out.println("Took " + (nanoEnd - nanoStart) / 1000 + " μs to execute 100,000,000 ops");
     }
 
 

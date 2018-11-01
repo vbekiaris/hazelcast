@@ -78,6 +78,7 @@
                     </signature>
                     <ignores>
                         <ignore>sun.misc.Unsafe</ignore>
+                        <ignore>java.lang.invoke.MethodHandle*</ignore>
                     </ignores>
                 </configuration>
                 <executions>

@@ -20,6 +20,7 @@ import com.hazelcast.internal.metrics.DoubleProbeFunction;
 import com.hazelcast.internal.metrics.LongProbeFunction;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.metrics.ProbeFunction;
+import com.hazelcast.internal.util.JavaVersion;
 import com.hazelcast.internal.util.counters.Counter;
 
 import java.lang.reflect.Method;
@@ -90,7 +91,12 @@ abstract class MethodProbe implements ProbeFunction {
         if (isDouble(type)) {
             return new DoubleMethodProbe<S>(method, probe, type);
         } else {
-            return new LongMethodProbe<S>(method, probe, type);
+            if (JavaVersion.isAtLeast(JavaVersion.JAVA_1_8)) {
+                System.out.println("Returning LongMethodProbe using MethodHandles");
+                return new LongMethodProbeJdk8<S>(method, probe, type);
+            } else {
+                return new LongMethodProbe<S>(method, probe, type);
+            }
         }
     }
 

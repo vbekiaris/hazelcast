@@ -331,6 +331,8 @@ public class MetricsRegistryImpl implements MetricsRegistry {
             }
         } catch (Exception e) {
             renderer.renderException(name, e);
+        } catch (Throwable e) {
+            renderer.renderException(name, new RuntimeException(e));
         }
     }
 
