@@ -104,8 +104,9 @@ public final class ClusterDataSerializerHook implements DataSerializerHook {
     public static final int HEARTBEAT_COMPLAINT = 41;
     public static final int PROMOTE_LITE_MEMBER = 42;
     public static final int VECTOR_CLOCK = 43;
+    public static final int EXTENDED_BIND_MESSAGE = 44;
 
-    static final int LEN = VECTOR_CLOCK + 1;
+    static final int LEN = EXTENDED_BIND_MESSAGE + 1;
 
     @Override
     public int getFactoryId() {
@@ -331,6 +332,11 @@ public final class ClusterDataSerializerHook implements DataSerializerHook {
         constructors[VECTOR_CLOCK] = new ConstructorFunction<Integer, IdentifiedDataSerializable>() {
             public IdentifiedDataSerializable createNew(Integer arg) {
                 return new VectorClock();
+            }
+        };
+        constructors[EXTENDED_BIND_MESSAGE] = new ConstructorFunction<Integer, IdentifiedDataSerializable>() {
+            public IdentifiedDataSerializable createNew(Integer arg) {
+                return new ExtendedBindMessage();
             }
         };
         return new ArrayDataSerializableFactory(constructors);

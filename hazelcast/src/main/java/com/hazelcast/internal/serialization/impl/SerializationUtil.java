@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -153,7 +154,7 @@ public final class SerializationUtil {
     /**
      * Read a list written by {@link #writeNullableList(List, ObjectDataOutput)}
      *
-     * It does not gurantee to use the same implementation of a list as was written
+     * It does not guarantee to use the same implementation of a list as was written
      * into the stream.
      *
      * @param in data input to read from
@@ -173,5 +174,45 @@ public final class SerializationUtil {
             }
         }
         return list;
+    }
+
+    /**
+     * Writes a collection to an {@link ObjectDataOutput}. The collection's size is written
+     * to the data output, then each object in the collection is serialized.
+     *
+     * @param items collection of items to be serialized
+     * @param out   data output to write to
+     * @param <T>   type of items
+     * @throws NullPointerException if {@code items} or {@code out} is {@code null}
+     * @throws IOException
+     */
+    public static <T> void writeCollection(Collection<T> items, ObjectDataOutput out) throws IOException {
+        out.writeInt(items.size());
+        for (T item : items) {
+            out.writeObject(item);
+        }
+    }
+
+    /**
+     * Reads a collection from the given {@link ObjectDataInput}. It is expected that
+     * the next int read from the data input is the collection's size, then that
+     * many objects are read from the data input and returned as a collection.
+     *
+     * @param in    data input to read from
+     * @param <T>   type of items
+     * @return      collection of items read from data input
+     * @throws IOException
+     */
+    public static <T> Collection<T> readCollection(ObjectDataInput in) throws IOException {
+        int size = in.readInt();
+        if (size == 0) {
+            return Collections.emptyList();
+        }
+        Collection<T> collection = new ArrayList<T>(size);
+        for (int i = 0; i < size; i++) {
+            T item = in.readObject();
+            collection.add(item);
+        }
+        return collection;
     }
 }

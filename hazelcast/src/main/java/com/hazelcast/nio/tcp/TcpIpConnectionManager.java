@@ -17,6 +17,7 @@
 package com.hazelcast.nio.tcp;
 
 import com.hazelcast.internal.cluster.impl.BindMessage;
+import com.hazelcast.internal.cluster.impl.ExtendedBindMessage;
 import com.hazelcast.internal.metrics.MetricsRegistry;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.networking.Channel;
@@ -353,9 +354,16 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
         if (logger.isFinestEnabled()) {
             logger.finest("Sending bind packet to " + remoteEndPoint);
         }
-        BindMessage bind = new BindMessage(ioService.getThisAddress(), remoteEndPoint, reply);
+        // since 3.12, send the new bind message followed by the pre-3.12 BindMessage
+        // todo: determine whether we can stop sending the old BindMessage in 3.13
+        ExtendedBindMessage bind = new ExtendedBindMessage();
         byte[] bytes = ioService.getSerializationService().toBytes(bind);
         Packet packet = new Packet(bytes).setPacketType(Packet.Type.BIND);
+        connection.write(packet);
+
+        BindMessage oldbind = new BindMessage(ioService.getThisAddress(), remoteEndPoint, reply);
+        bytes = ioService.getSerializationService().toBytes(oldbind);
+        packet = new Packet(bytes).setPacketType(Packet.Type.BIND);
         connection.write(packet);
         //now you can send anything...
     }
