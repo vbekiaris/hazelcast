@@ -53,6 +53,9 @@ public class TcpIpConnection implements Connection {
 
     private final AtomicBoolean alive = new AtomicBoolean(true);
 
+    // indicate whether connection bind exchange is in progress/done (true) or not yet initiated (when false)
+    private final AtomicBoolean binding = new AtomicBoolean();
+
     private final ILogger logger;
 
     private final int connectionId;
@@ -217,6 +220,10 @@ public class TcpIpConnection implements Connection {
         if (cause != null && errorHandler != null) {
             errorHandler.onError(cause);
         }
+    }
+
+    public boolean setBinding() {
+        return binding.compareAndSet(false, true);
     }
 
     private void logClose() {

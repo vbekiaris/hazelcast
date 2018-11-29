@@ -18,6 +18,7 @@ package com.hazelcast.nio.tcp;
 
 import com.hazelcast.internal.cluster.impl.BindMessage;
 import com.hazelcast.internal.cluster.impl.ExtendedBindMessage;
+import com.hazelcast.internal.cluster.impl.ProtocolType;
 import com.hazelcast.internal.metrics.MetricsRegistry;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.networking.Channel;
@@ -45,6 +46,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -60,6 +64,7 @@ import static com.hazelcast.nio.IOUtil.closeResource;
 import static com.hazelcast.util.Preconditions.checkNotNull;
 import static com.hazelcast.util.ThreadUtil.createThreadPoolName;
 import static java.util.Collections.newSetFromMap;
+import static java.util.Collections.singletonList;
 
 public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packet> {
 
@@ -199,10 +204,36 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
 
     @Override
     public void accept(Packet packet)  {
-        assert packet.getPacketType() == Packet.Type.BIND;
+        Packet.Type packetType = packet.getPacketType();
+        assert packetType == Packet.Type.BIND || packetType == Packet.Type.UNDEFINED5;
 
-        BindMessage bind = ioService.getSerializationService().toObject(packet);
-        bind((TcpIpConnection) packet.getConn(), bind.getLocalAddress(), bind.getTargetAddress(), bind.shouldReply());
+        Object bind = ioService.getSerializationService().toObject(packet);
+        TcpIpConnection connection = (TcpIpConnection) packet.getConn();
+        if (connection.setBinding()) {
+            if (bind instanceof ExtendedBindMessage) {
+                // incoming connection from a 3.12 member
+                ExtendedBindMessage extendedBindMessage = (ExtendedBindMessage) bind;
+                bind(connection, extendedBindMessage);
+            } else {
+                BindMessage bindMessage = (BindMessage) bind;
+                bind(connection, bindMessage.getLocalAddress(), bindMessage.getTargetAddress(), bindMessage.shouldReply());
+            }
+        } else {
+            if (logger.isFinestEnabled()) {
+                logger.finest("Connection " + connection + " is already bound, ignoring incoming " + bind);
+            }
+        }
+    }
+
+    private synchronized boolean bind(TcpIpConnection connection, ExtendedBindMessage bindMessage) {
+        if (logger.isFinestEnabled()) {
+            logger.finest("Extended binding " + connection + ", complete message is " + bindMessage);
+        }
+
+        // todo: no spoofing checks yet
+        Address remoteAddress = bindMessage.getLocalAddresses().values().iterator().next().iterator().next();
+
+        return bind0(connection, remoteAddress, bindMessage.isReply());
     }
 
     /**
@@ -229,17 +260,25 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
             return false;
         }
 
-        connection.setEndPoint(remoteEndPoint);
-        ioService.onSuccessfulConnection(remoteEndPoint);
+        return bind0(connection, remoteEndPoint, reply);
+    }
+
+    // must be invoked from a synchronized block
+    // performs the actual binding (sets the endpoint on the Connection, registers the connection)
+    // without any spoofing or other validation checks
+    private boolean bind0(TcpIpConnection connection, Address remoteEndpoint, boolean reply) {
+        connection.setEndPoint(remoteEndpoint);
+        ioService.onSuccessfulConnection(remoteEndpoint);
         if (reply) {
-            sendBindRequest(connection, remoteEndPoint, false);
+            logger.severe("<<< send bind request with reply false to " + connection);
+            sendBindRequest(connection, remoteEndpoint, false);
         }
 
-        if (checkAlreadyConnected(connection, remoteEndPoint)) {
+        if (checkAlreadyConnected(connection, remoteEndpoint)) {
             return false;
         }
 
-        return registerConnection(remoteEndPoint, connection);
+        return registerConnection(remoteEndpoint, connection);
     }
 
     private boolean ensureValidBindSource(TcpIpConnection connection, Address remoteEndPoint) {
@@ -355,10 +394,14 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
             logger.finest("Sending bind packet to " + remoteEndPoint);
         }
         // since 3.12, send the new bind message followed by the pre-3.12 BindMessage
-        // todo: determine whether we can stop sending the old BindMessage in 3.13
-        ExtendedBindMessage bind = new ExtendedBindMessage();
+        ExtendedBindMessage bind = new ExtendedBindMessage((byte) 1, getConfiguredLocalAddresses(),
+                remoteEndPoint, reply);
         byte[] bytes = ioService.getSerializationService().toBytes(bind);
-        Packet packet = new Packet(bytes).setPacketType(Packet.Type.BIND);
+        // using one of the undefined packet types we can avoid old members
+        // logging a serialization exception because they cannot deserialize the
+        // ExtendedBindMessage
+        // instead, a SEVERE entry about undefined packet type will be logged
+        Packet packet = new Packet(bytes).setPacketType(Packet.Type.UNDEFINED5);
         connection.write(packet);
 
         BindMessage oldbind = new BindMessage(ioService.getThisAddress(), remoteEndPoint, reply);
@@ -372,6 +415,13 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
         Channel channel = networking.register(socketChannel, clientMode);
         acceptedChannels.add(channel);
         return channel;
+    }
+
+    Map<ProtocolType, Collection<Address>> getConfiguredLocalAddresses() {
+        // todo properly populate this from config
+        Map<ProtocolType, Collection<Address>> addressMap = new HashMap<ProtocolType, Collection<Address>>();
+        addressMap.put(ProtocolType.MEMBER, singletonList(ioService.getThisAddress()));
+        return addressMap;
     }
 
     synchronized TcpIpConnection newConnection(Channel channel, Address endpoint) {

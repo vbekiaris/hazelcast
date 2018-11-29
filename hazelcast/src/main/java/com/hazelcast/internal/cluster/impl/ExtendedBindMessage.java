@@ -109,4 +109,10 @@ public class ExtendedBindMessage implements IdentifiedDataSerializable {
         }
         this.localAddresses = addressesPerProtocolType;
     }
+
+    @Override
+    public String toString() {
+        return "ExtendedBindMessage{" + "schemaVersion=" + schemaVersion + ", localAddresses=" + localAddresses
+                + ", targetAddress=" + targetAddress + ", reply=" + reply + '}';
+    }
 }
