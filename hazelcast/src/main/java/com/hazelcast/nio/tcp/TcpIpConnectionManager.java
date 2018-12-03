@@ -47,7 +47,9 @@ import java.net.UnknownHostException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +67,7 @@ import static com.hazelcast.util.Preconditions.checkNotNull;
 import static com.hazelcast.util.ThreadUtil.createThreadPoolName;
 import static java.util.Collections.newSetFromMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableSet;
 
 public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packet> {
 
@@ -72,7 +75,7 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
     private static final long DELAY_FACTOR = 100L;
     private static final int SCHEDULER_POOL_SIZE = 4;
 
-    final LoggingService loggingService;
+    private final LoggingService loggingService;
 
     @Probe(name = "connectionListenerCount")
     final Set<ConnectionListener> connectionListeners = new CopyOnWriteArraySet<ConnectionListener>();
@@ -123,6 +126,8 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
 
     private final ScheduledExecutorService scheduler;
 
+    private final Set<ProtocolType> supportedProtocolTypes;
+
     // accessed only in synchronized block
     private volatile TcpIpAcceptor acceptor;
 
@@ -144,6 +149,26 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
                                   MetricsRegistry metricsRegistry,
                                   Networking networking,
                                   HazelcastProperties properties) {
+        this(ioService, serverSocketChannel, loggingService, metricsRegistry, networking, properties, null);
+    }
+
+    public TcpIpConnectionManager(IOService ioService,
+                                  ServerSocketChannel serverSocketChannel,
+                                  LoggingService loggingService,
+                                  MetricsRegistry metricsRegistry,
+                                  Networking networking,
+                                  HazelcastProperties properties,
+                                  ProtocolType[] protocolTypes) {
+        Set<ProtocolType> protocolTypeSet;
+        if (protocolTypes == null || protocolTypes.length == 0) {
+            protocolTypeSet = ProtocolType.valuesAsSet();
+        } else {
+            protocolTypeSet = EnumSet.noneOf(ProtocolType.class);
+            for (ProtocolType protocolType : protocolTypes) {
+                protocolTypeSet.add(protocolType);
+            }
+        }
+        this.supportedProtocolTypes = unmodifiableSet(protocolTypeSet);
         this.ioService = ioService;
         this.networking = networking;
         this.serverSocketChannel = serverSocketChannel;
@@ -231,9 +256,15 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
         }
 
         // todo: no spoofing checks yet
-        Address remoteAddress = bindMessage.getLocalAddresses().values().iterator().next().iterator().next();
+        Map<ProtocolType, Collection<Address>> remoteAddressesPerProtocolType = bindMessage.getLocalAddresses();
+        Set<Address> allAliases = new HashSet<Address>();
+        for (Map.Entry<ProtocolType, Collection<Address>> remoteAddresses : remoteAddressesPerProtocolType.entrySet()) {
+            if (supportedProtocolTypes.contains(remoteAddresses.getKey())) {
+                allAliases.addAll(remoteAddresses.getValue());
+            }
+        }
 
-        return bind0(connection, remoteAddress, bindMessage.isReply());
+        return bind0(connection, null, allAliases, bindMessage.isReply());
     }
 
     /**
@@ -260,13 +291,35 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
             return false;
         }
 
-        return bind0(connection, remoteEndPoint, reply);
+        return bind0(connection, remoteEndPoint, null, reply);
     }
 
-    // must be invoked from a synchronized block
-    // performs the actual binding (sets the endpoint on the Connection, registers the connection)
-    // without any spoofing or other validation checks
-    private boolean bind0(TcpIpConnection connection, Address remoteEndpoint, boolean reply) {
+    /**
+     * Performs the actual binding (sets the endpoint on the Connection, registers the connection)
+     * without any spoofing or other validation checks.
+     * When executed on the connection initiator side, the connection is registered on the remote address
+     * with which it was registered in {@link #connectionsInProgress}, ignoring the {@code remoteEndpoint} argument.
+     *
+     * @param connection            the connection to bind
+     * @param remoteEndpoint        the address of the remote endpoint
+     * @param remoteAddressAliases  alias addresses as provided by the remote endpoint, under which the connection
+     *                              will be registered. These are the public addresses configured on the remote.
+     */
+    private synchronized boolean bind0(TcpIpConnection connection, Address remoteEndpoint,
+                                       Collection<Address> remoteAddressAliases, boolean reply) {
+        final Address remoteAddress = new Address(connection.getRemoteSocketAddress());
+        if (connectionsInProgress.contains(remoteAddress)) {
+            // this is the connection initiator side --> register the connection under the address that was requested
+            remoteEndpoint = remoteAddress;
+        }
+        if (remoteEndpoint == null) {
+            if (remoteAddressAliases == null) {
+                throw new IllegalStateException("Remote endpoint and remote address aliases cannot be both null");
+            } else {
+                // let it fail if no remoteEndpoint and no aliases are defined
+                remoteEndpoint = remoteAddressAliases.iterator().next();
+            }
+        }
         connection.setEndPoint(remoteEndpoint);
         ioService.onSuccessfulConnection(remoteEndpoint);
         if (reply) {
@@ -278,7 +331,15 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
             return false;
         }
 
-        return registerConnection(remoteEndpoint, connection);
+        boolean returnValue = registerConnection(remoteEndpoint, connection);
+
+        if (remoteAddressAliases != null) {
+            for (Address remoteAddressAlias : remoteAddressAliases) {
+                connectionsMap.putIfAbsent(remoteAddressAlias, connection);
+            }
+        }
+
+        return returnValue;
     }
 
     private boolean ensureValidBindSource(TcpIpConnection connection, Address remoteEndPoint) {
@@ -419,6 +480,7 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
 
     Map<ProtocolType, Collection<Address>> getConfiguredLocalAddresses() {
         // todo properly populate this from config
+        //  depends on configuration changes
         Map<ProtocolType, Collection<Address>> addressMap = new HashMap<ProtocolType, Collection<Address>>();
         addressMap.put(ProtocolType.MEMBER, singletonList(ioService.getThisAddress()));
         return addressMap;
@@ -712,7 +774,11 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
         }
         sb.append("\nlive=");
         sb.append(live);
-        sb.append("\n}");
+        sb.append("\nsupportedProtocolTypes={");
+        for (ProtocolType protocolType : supportedProtocolTypes) {
+            sb.append("\n").append(protocolType);
+        }
+        sb.append("\n}\n}");
         return sb.toString();
     }
 }

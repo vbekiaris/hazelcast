@@ -16,13 +16,38 @@
 
 package com.hazelcast.internal.cluster.impl;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
 public enum ProtocolType {
-    MEMBER,
-    CLIENT,
-    WAN,
-    TEXT; // todo maybe separate REST / MEMCACHE
+    MEMBER(1),
+    CLIENT(1),
+    WAN(Integer.MAX_VALUE),
+    TEXT(Integer.MAX_VALUE);
+
+    private static final Set<ProtocolType> ALL_PROTOCOL_TYPES;
+
+    static {
+        Set<ProtocolType> allProtocolTypes = EnumSet.allOf(ProtocolType.class);
+        ALL_PROTOCOL_TYPES = Collections.unmodifiableSet(allProtocolTypes);
+    }
 
     public static ProtocolType valueOf(int ordinal) {
         return ProtocolType.values()[ordinal];
+    }
+
+    public static Set<ProtocolType> valuesAsSet() {
+        return ALL_PROTOCOL_TYPES;
+    }
+
+    private final int listeningSocketCardinality;
+
+    ProtocolType(int listeningSocketCardinality) {
+        this.listeningSocketCardinality = listeningSocketCardinality;
+    }
+
+    public int getListeningSocketCardinality() {
+        return listeningSocketCardinality;
     }
 }
