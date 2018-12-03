@@ -230,7 +230,7 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
     @Override
     public void accept(Packet packet)  {
         Packet.Type packetType = packet.getPacketType();
-        assert packetType == Packet.Type.BIND || packetType == Packet.Type.UNDEFINED5;
+        assert packetType == Packet.Type.BIND || packetType == Packet.Type.EXTENDED_BIND;
 
         Object bind = ioService.getSerializationService().toObject(packet);
         TcpIpConnection connection = (TcpIpConnection) packet.getConn();
@@ -462,7 +462,7 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
         // logging a serialization exception because they cannot deserialize the
         // ExtendedBindMessage
         // instead, a SEVERE entry about undefined packet type will be logged
-        Packet packet = new Packet(bytes).setPacketType(Packet.Type.UNDEFINED5);
+        Packet packet = new Packet(bytes).setPacketType(Packet.Type.EXTENDED_BIND);
         connection.write(packet);
 
         BindMessage oldbind = new BindMessage(ioService.getThisAddress(), remoteEndPoint, reply);

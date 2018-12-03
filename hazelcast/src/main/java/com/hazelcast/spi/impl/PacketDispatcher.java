@@ -71,7 +71,7 @@ public final class PacketDispatcher implements Consumer<Packet> {
                     eventService.accept(packet);
                     break;
                 case BIND:
-                case UNDEFINED5:
+                case EXTENDED_BIND:
                     connectionManager.accept(packet);
                     break;
                 case JET:

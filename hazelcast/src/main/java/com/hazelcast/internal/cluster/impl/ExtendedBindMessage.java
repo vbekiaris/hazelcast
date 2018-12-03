@@ -30,6 +30,19 @@ import java.util.Map;
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.readCollection;
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.writeCollection;
 
+/**
+ * Extended bind message, conveying information about all kinds of public
+ * addresses per protocol type. Used as a replacement of the older
+ * {@link BindMessage}. It is the first message exchanged on a new connection
+ * so {@link com.hazelcast.nio.serialization.impl.Versioned Versioned}
+ * serialization cannot be used as there may be no cluster version
+ * established yet. The {@code ExtendedBindMessage} itself includes a
+ * schema version so it can be extended in future versions without having
+ * to use another packet type.
+ *
+ * @since 3.12
+ * @see BindMessage
+ */
 public class ExtendedBindMessage implements IdentifiedDataSerializable {
 
     private byte schemaVersion;

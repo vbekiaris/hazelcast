@@ -49,8 +49,7 @@ public class ExtendedBindMessageTest {
     private Address targetAddress;
 
     @Before
-    public void setup()
-            throws UnknownHostException {
+    public void setup() throws UnknownHostException {
         targetAddress = new Address("127.0.0.1", 9999);
         serializationService = new DefaultSerializationServiceBuilder().build();
     }
