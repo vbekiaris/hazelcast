@@ -228,7 +228,7 @@ public class TcpIpConnectionManager implements ConnectionManager, Consumer<Packe
     }
 
     @Override
-    public void accept(Packet packet)  {
+    public void accept(Packet packet) {
         Packet.Type packetType = packet.getPacketType();
         assert packetType == Packet.Type.BIND || packetType == Packet.Type.EXTENDED_BIND;
 
