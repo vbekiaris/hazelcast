@@ -16,6 +16,8 @@
 
 package com.hazelcast.internal.usercodedeployment.impl;
 
+import com.hazelcast.util.MutableInteger;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,43 +29,42 @@ import java.util.Map;
 public final class ThreadLocalClassCache {
 
     public static final ThreadLocal<ThreadLocalClassCache> THREAD_LOCAL_CLASS_CACHE = new ThreadLocal<ThreadLocalClassCache>();
+    public static final ThreadLocal<MutableInteger> SERIALIZATION_NESTED_LEVEL = new ThreadLocal<MutableInteger>() {
+        @Override
+        protected MutableInteger initialValue() {
+            return new MutableInteger();
+        }
+    };
 
-    private int counter = 1;
     private Map<String, ClassSource> map = new HashMap<String, ClassSource>();
 
     private ThreadLocalClassCache() {
     }
 
-    private int decCounter() {
-        counter--;
-        return counter;
-    }
-
-    private void incCounter() {
-        counter++;
-    }
-
     public static void onStartDeserialization() {
-        ThreadLocalClassCache threadLocalClassCache = THREAD_LOCAL_CLASS_CACHE.get();
-        if (threadLocalClassCache != null) {
-            threadLocalClassCache.incCounter();
-        }
-    }
-
-    public static void onFinishDeserialization() {
-        ThreadLocalClassCache threadLocalClassCache = THREAD_LOCAL_CLASS_CACHE.get();
-        if (threadLocalClassCache != null && threadLocalClassCache.decCounter() == 0) {
+        int nestedLevel = SERIALIZATION_NESTED_LEVEL.get().value++;
+        if (nestedLevel == 0 && THREAD_LOCAL_CLASS_CACHE.get() != null) {
+            // starting a new deserialization request, clean up any existing
             THREAD_LOCAL_CLASS_CACHE.remove();
         }
     }
 
+    public static void onFinishDeserialization() {
+        int nestedLevel = --SERIALIZATION_NESTED_LEVEL.get().value;
+        if (nestedLevel <= 0) {
+            SERIALIZATION_NESTED_LEVEL.remove();
+        }
+    }
+
     public static void store(String name, ClassSource classSource) {
+        int nestedLevel = SERIALIZATION_NESTED_LEVEL.get().value;
         ThreadLocalClassCache threadLocalClassCache = THREAD_LOCAL_CLASS_CACHE.get();
-        if (threadLocalClassCache == null) {
+        // only create the thread local class cache when serialization is in progress
+        if (threadLocalClassCache == null && nestedLevel > 0) {
             threadLocalClassCache = new ThreadLocalClassCache();
             THREAD_LOCAL_CLASS_CACHE.set(threadLocalClassCache);
+            threadLocalClassCache.map.put(name, classSource);
         }
-        threadLocalClassCache.map.put(name, classSource);
     }
 
     public static ClassSource getFromCache(String name) {
