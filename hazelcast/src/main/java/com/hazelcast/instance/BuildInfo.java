@@ -36,22 +36,25 @@ public class BuildInfo {
     private final int buildNumber;
     private final boolean enterprise;
     private final byte serializationVersion;
+    // the value of the -target compiler option used at build time (6 or 8)
+    private final int targetJvmVersion;
     private final BuildInfo upstreamBuildInfo;
     private final JetBuildInfo jetBuildInfo;
 
     public BuildInfo(String version, String build, String revision, int buildNumber, boolean enterprise,
-                     byte serializationVersion) {
-        this(version, build, revision, buildNumber, enterprise, serializationVersion, null);
+                     byte serializationVersion, int targetJvmVersion) {
+        this(version, build, revision, buildNumber, enterprise, serializationVersion, null, targetJvmVersion);
     }
 
     public BuildInfo(String version, String build, String revision, int buildNumber, boolean enterprise,
-                     byte serializationVersion, BuildInfo upstreamBuildInfo) {
+                     byte serializationVersion, BuildInfo upstreamBuildInfo, int targetJvmVersion) {
         this(version, build, revision, buildNumber, enterprise, serializationVersion, upstreamBuildInfo,
-                null);
+                null, targetJvmVersion);
     }
 
     private BuildInfo(String version, String build, String revision, int buildNumber, boolean enterprise,
-                     byte serializationVersion, BuildInfo upstreamBuildInfo, JetBuildInfo jetBuildInfo) {
+                     byte serializationVersion, BuildInfo upstreamBuildInfo, JetBuildInfo jetBuildInfo,
+                     int targetJvmVersion) {
         this.version = version;
         this.build = build;
         this.revision = revision;
@@ -60,12 +63,13 @@ public class BuildInfo {
         this.serializationVersion = serializationVersion;
         this.upstreamBuildInfo = upstreamBuildInfo;
         this.jetBuildInfo = jetBuildInfo;
+        this.targetJvmVersion = targetJvmVersion;
     }
 
     private BuildInfo(BuildInfo buildInfo, JetBuildInfo jetBuildInfo) {
         this(buildInfo.getVersion(), buildInfo.getBuild(), buildInfo.getRevision(), buildInfo.getBuildNumber(),
                 buildInfo.isEnterprise(), buildInfo.getSerializationVersion(), buildInfo.getUpstreamBuildInfo(),
-                jetBuildInfo);
+                jetBuildInfo, buildInfo.getTargetJvmVersion());
     }
 
     public String getRevision() {
@@ -92,6 +96,10 @@ public class BuildInfo {
         return serializationVersion;
     }
 
+    public int getTargetJvmVersion() {
+        return targetJvmVersion;
+    }
+
     public BuildInfo getUpstreamBuildInfo() {
         return upstreamBuildInfo;
     }
@@ -116,6 +124,7 @@ public class BuildInfo {
                 + ", revision=" + revision
                 + ", enterprise=" + enterprise
                 + ", serializationVersion=" + serializationVersion
+                + ", targetJvmVersion=" + targetJvmVersion
                 + (jetBuildInfo == null ? "" : ", jet=" + jetBuildInfo)
                 + (upstreamBuildInfo == null ? "" : ", upstream=" + upstreamBuildInfo)
                 + '}';

@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.metrics.impl;
 
+import com.hazelcast.internal.PlatformSpecific;
 import com.hazelcast.internal.metrics.DoubleProbeFunction;
 import com.hazelcast.internal.metrics.LongProbeFunction;
 import com.hazelcast.internal.metrics.Probe;
@@ -43,7 +44,7 @@ import static java.lang.String.format;
 /**
  * A MethodProbe is a {@link ProbeFunction} that invokes a method that is annotated with {@link Probe}.
  */
-abstract class MethodProbe implements ProbeFunction {
+public abstract class MethodProbe implements ProbeFunction {
 
     private static final Object[] EMPTY_ARGS = new Object[0];
 
@@ -90,11 +91,11 @@ abstract class MethodProbe implements ProbeFunction {
         if (isDouble(type)) {
             return new DoubleMethodProbe<S>(method, probe, type);
         } else {
-            return new LongMethodProbe<S>(method, probe, type);
+            return PlatformSpecific.createLongMethodProbe(method, probe, type);
         }
     }
 
-    static class LongMethodProbe<S> extends MethodProbe implements LongProbeFunction<S> {
+    public static class LongMethodProbe<S> extends MethodProbe implements LongProbeFunction<S> {
 
         public LongMethodProbe(Method method, Probe probe, int type) {
             super(method, probe, type);

@@ -37,6 +37,7 @@ public final class GeneratedBuildProperties {
     public static final String REVISION = "${git.commit.id.abbrev}";
     public static final String DISTRIBUTION = "${hazelcast.distribution}";
     public static final String SERIALIZATION_VERSION = "${hazelcast.serialization.version}";
+    public static final String TARGET_JAVA_RUNTIME_VERSION = "${jdk.version}";
 
     private GeneratedBuildProperties() {
     }

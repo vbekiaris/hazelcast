@@ -129,7 +129,10 @@ public final class BuildInfoProvider {
 
         String serialVersionString = readStaticStringField(clazz, "SERIALIZATION_VERSION");
         byte serialVersion = Byte.parseByte(serialVersionString);
-        return overrides.apply(version, build, revision, buildNumber, enterprise, serialVersion, upstreamBuildInfo);
+        String targetJvmVersionString = readStaticStringField(clazz, "TARGET_JAVA_RUNTIME_VERSION");
+        int targetJvmVersion = Integer.parseInt(targetJvmVersionString);
+        return overrides.apply(version, build, revision, buildNumber, enterprise, serialVersion,
+                upstreamBuildInfo, targetJvmVersion);
     }
 
     //todo: move elsewhere
@@ -158,7 +161,8 @@ public final class BuildInfoProvider {
         }
 
         private BuildInfo apply(String version, String build, String revision, int buildNumber,
-                                boolean enterprise, byte serialVersion, BuildInfo upstreamBuildInfo) {
+                                boolean enterprise, byte serialVersion, BuildInfo upstreamBuildInfo,
+                                int targetJvmVersion) {
             if (buildNo != -1) {
                 build = String.valueOf(buildNo);
                 buildNumber = buildNo;
@@ -171,7 +175,8 @@ public final class BuildInfoProvider {
                 LOGGER.info("Overriding hazelcast enterprise flag with system property value " + this.enterprise);
                 enterprise = this.enterprise;
             }
-            return new BuildInfo(version, build, revision, buildNumber, enterprise, serialVersion, upstreamBuildInfo);
+            return new BuildInfo(version, build, revision, buildNumber, enterprise, serialVersion,
+                    upstreamBuildInfo, targetJvmVersion);
 
         }
 
