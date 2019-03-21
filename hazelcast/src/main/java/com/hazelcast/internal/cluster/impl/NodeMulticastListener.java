@@ -71,7 +71,8 @@ public class NodeMulticastListener implements MulticastListener {
         } else if (joinMessage.getAddress().equals(masterAddress)) {
             MemberImpl master = node.getClusterService().getMember(masterAddress);
             if (master != null && !master.getUuid().equals(joinMessage.getUuid())) {
-                String message = "New join request has been received from current master. Suspecting " + masterAddress;
+                String message = "New join request has been received from current master. Suspecting " + masterAddress +
+                        " because uuid in join message was " + joinMessage.getUuid();
                 logger.warning(message);
                 // I just make a local suspicion. Probably other nodes will eventually suspect as well.
                 clusterService.suspectMember(master, message, false);
