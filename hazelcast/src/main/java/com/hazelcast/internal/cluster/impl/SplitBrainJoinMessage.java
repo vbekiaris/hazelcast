@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.cluster.impl;
 
+import com.hazelcast.instance.EndpointQualifier;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -25,6 +26,11 @@ import com.hazelcast.version.Version;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
+
+import static com.hazelcast.internal.cluster.Versions.V3_12;
+import static com.hazelcast.internal.serialization.impl.SerializationUtil.readMap;
+import static com.hazelcast.internal.serialization.impl.SerializationUtil.writeMap;
 
 /**
  * A {@code JoinMessage} issued by the master node of a subcluster to the master of another subcluster
@@ -53,16 +59,21 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
 
     private int memberListVersion;
 
+    // see Member.getAddressMap
+    private Map<EndpointQualifier, Address> addresses;
+
     public SplitBrainJoinMessage() {
     }
 
     @SuppressWarnings("checkstyle:parameternumber")
     public SplitBrainJoinMessage(byte packetVersion, int buildNumber, MemberVersion version, Address address, String uuid,
                                  boolean liteMember, ConfigCheck configCheck, Collection<Address> memberAddresses,
-                                 int dataMemberCount, Version clusterVersion, int memberListVersion) {
+                                 int dataMemberCount, Version clusterVersion, int memberListVersion,
+                                 Map<EndpointQualifier, Address> addresses) {
         super(packetVersion, buildNumber, version, address, uuid, liteMember, configCheck, memberAddresses, dataMemberCount);
         this.clusterVersion = clusterVersion;
         this.memberListVersion = memberListVersion;
+        this.addresses = addresses;
     }
 
     @Override
@@ -71,6 +82,9 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
         super.readData(in);
         clusterVersion = in.readObject();
         memberListVersion = in.readInt();
+        if (in.getVersion().isGreaterOrEqual(V3_12)) {
+            this.addresses = readMap(in);
+        }
     }
 
     @Override
@@ -79,6 +93,9 @@ public class SplitBrainJoinMessage extends JoinMessage implements Versioned {
         super.writeData(out);
         out.writeObject(clusterVersion);
         out.writeInt(memberListVersion);
+        if (out.getVersion().isGreaterOrEqual(V3_12)) {
+            writeMap(addresses, out);
+        }
     }
 
     @Override

@@ -107,9 +107,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.config.AliasedDiscoveryConfigUtils.allUsePublicAddress;
 import static com.hazelcast.config.ConfigAccessor.getActiveMemberNetworkConfig;
-import static com.hazelcast.instance.NodeShutdownHelper.shutdownNodeByFiringEvents;
 import static com.hazelcast.instance.EndpointQualifier.CLIENT;
 import static com.hazelcast.instance.EndpointQualifier.MEMBER;
+import static com.hazelcast.instance.NodeShutdownHelper.shutdownNodeByFiringEvents;
 import static com.hazelcast.internal.cluster.impl.MulticastService.createMulticastService;
 import static com.hazelcast.internal.config.ConfigValidator.checkAdvancedNetworkConfig;
 import static com.hazelcast.spi.properties.GroupProperty.DISCOVERY_SPI_ENABLED;
@@ -769,7 +769,8 @@ public class Node {
         Version clusterVersion = clusterService.getClusterVersion();
         int memberListVersion = clusterService.getMembershipManager().getMemberListVersion();
         return new SplitBrainJoinMessage(Packet.VERSION, buildInfo.getBuildNumber(), version, address, localMember.getUuid(),
-                liteMember, createConfigCheck(), memberAddresses, dataMemberCount, clusterVersion, memberListVersion);
+                liteMember, createConfigCheck(), memberAddresses, dataMemberCount, clusterVersion, memberListVersion,
+                localMember.getAddressMap());
     }
 
     public JoinRequest createJoinRequest(boolean withCredentials) {
