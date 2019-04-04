@@ -21,6 +21,7 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapIndexConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.IMap;
+import com.hazelcast.internal.util.ThreadLocalRandomProvider;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
@@ -35,8 +36,14 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.results.format.ResultFormatType;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.AverageTime)
@@ -93,6 +100,31 @@ public class CompositeIndexesBenchmark {
         map.values(new SqlPredicate("f7 = 0 and f8 < 1"));
     }
 
+    @Benchmark
+    public void mixedLoad_readAndWrite() {
+        Random threadLocalRandom = ThreadLocalRandomProvider.get();
+        Object readObject;
+        for (int i = 0; i < 10000; i++) {
+            if (threadLocalRandom.nextInt(100) < 10) {
+                readObject = map.get(i);
+            } else {
+                map.put(i, new Pojo(0, i, 0, i, 0, i % 100, 0, i % 100));
+            }
+        }
+    }
+
+    @Benchmark
+    public void mixedLoad_queryAndWrite() {
+        Random threadLocalRandom = ThreadLocalRandomProvider.get();
+        for (int i = 0; i < 100; i++) {
+            if (threadLocalRandom.nextInt(100) < 50) {
+                map.values(new SqlPredicate("f1 = 0 and f2 = 1"));
+            } else {
+                map.put(i, new Pojo(0, i, 0, i, 0, i % 100, 0, i % 100));
+            }
+        }
+    }
+
     public static class Pojo implements DataSerializable {
 
         private int f1;
@@ -143,6 +175,39 @@ public class CompositeIndexesBenchmark {
             f8 = in.readInt();
         }
 
+    }
+
+    /*
+     * 16 threads, 10% read + 90% write mixed load, query f1 + f2
+     *
+     * JDK8 Stamped Lock (+ a single optimistic read impl)
+     * # Run complete. Total time: 00:04:38
+     *
+     * Benchmark                                          Mode  Cnt     Score     Error  Units
+     * CompositeIndexesBenchmark.mixedLoad_queryAndWrite  avgt   10  5276,369 ± 321,982  ms/op
+     * CompositeIndexesBenchmark.mixedLoad_readAndWrite   avgt   10   726,128 ±  25,284  ms/op
+     *
+     *
+     * JDK6 ReentrantReadWriteLock (executed on JDK8)
+     * Benchmark                                          Mode  Cnt     Score     Error  Units
+     * CompositeIndexesBenchmark.mixedLoad_queryAndWrite  avgt   10  4247,451 ± 507,855  ms/op
+     * CompositeIndexesBenchmark.mixedLoad_readAndWrite   avgt   10   922,682 ±  28,159  ms/op
+     */
+
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder()
+                .include(CompositeIndexesBenchmark.class.getSimpleName())
+                .exclude("benchmark.*")
+                .resultFormat(ResultFormatType.JSON)
+                .threads(16)
+                //                .addProfiler(GCProfiler.class)
+                //                .addProfiler(LinuxPerfProfiler.class)
+                //                .addProfiler(HotspotMemoryProfiler.class)
+                //                .shouldDoGC(true)
+                //                .verbosity(VerboseMode.SILENT)
+                .build();
+
+        new Runner(opt).run();
     }
 
 }

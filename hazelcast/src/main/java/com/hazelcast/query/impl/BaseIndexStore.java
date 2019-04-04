@@ -16,7 +16,9 @@
 
 package com.hazelcast.query.impl;
 
+import com.hazelcast.internal.PlatformSpecific;
 import com.hazelcast.internal.json.NonTerminalJsonValue;
+import com.hazelcast.internal.util.lock.StampedLock;
 import com.hazelcast.monitor.impl.IndexOperationStats;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.query.impl.getters.MultiResult;
@@ -25,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.hazelcast.query.impl.AbstractIndex.NULL;
 
@@ -36,9 +37,7 @@ public abstract class BaseIndexStore implements IndexStore {
 
     static final float LOAD_FACTOR = 0.75F;
 
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    private final ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
-    private final ReentrantReadWriteLock.WriteLock writeLock = lock.writeLock();
+    protected final StampedLock lock = PlatformSpecific.createStampedLock();
 
     private final CopyFunctor<Data, QueryableEntry> resultCopyFunctor;
 
@@ -96,22 +95,6 @@ public abstract class BaseIndexStore implements IndexStore {
      */
     abstract Object removeInternal(Comparable value, Data recordKey);
 
-    void takeWriteLock() {
-        writeLock.lock();
-    }
-
-    void releaseWriteLock() {
-        writeLock.unlock();
-    }
-
-    void takeReadLock() {
-        readLock.lock();
-    }
-
-    void releaseReadLock() {
-        readLock.unlock();
-    }
-
     final MultiResultSet createMultiResultSet() {
         return multiResultHasToDetectDuplicates ? new DuplicateDetectingMultiResult() : new FastMultiResultSet();
     }
@@ -126,33 +109,33 @@ public abstract class BaseIndexStore implements IndexStore {
 
     @Override
     public final void insert(Object value, QueryableEntry record, IndexOperationStats operationStats) {
-        takeWriteLock();
+        long stamp = lock.writeLock();
         try {
             unwrapAndInsertToIndex(value, record, operationStats);
         } finally {
-            releaseWriteLock();
+            lock.unlockWrite(stamp);
         }
     }
 
     @Override
     public final void update(Object oldValue, Object newValue, QueryableEntry entry, IndexOperationStats operationStats) {
-        takeWriteLock();
+        long stamp = lock.writeLock();
         try {
             Data indexKey = entry.getKeyData();
             unwrapAndRemoveFromIndex(oldValue, indexKey, operationStats);
             unwrapAndInsertToIndex(newValue, entry, operationStats);
         } finally {
-            releaseWriteLock();
+            lock.unlockWrite(stamp);
         }
     }
 
     @Override
     public final void remove(Object value, Data indexKey, IndexOperationStats operationStats) {
-        takeWriteLock();
+        long stamp = lock.writeLock();
         try {
             unwrapAndRemoveFromIndex(value, indexKey, operationStats);
         } finally {
-            releaseWriteLock();
+            lock.unlockWrite(stamp);
         }
     }
 

@@ -83,18 +83,25 @@ public class OrderedIndexStore extends BaseIndexStore {
 
     @Override
     public void clear() {
-        takeWriteLock();
+        long stamp = lock.writeLock();
         try {
             recordsWithNullValue.clear();
             recordMap.clear();
         } finally {
-            releaseWriteLock();
+            lock.unlockWrite(stamp);
         }
     }
 
     @Override
     public Set<QueryableEntry> getRecords(Comparable value) {
-        takeReadLock();
+        Set<QueryableEntry> entries;
+        long stamp = lock.tryOptimisticRead();
+        entries = value == NULL ? toSingleResultSet(recordsWithNullValue)
+                : toSingleResultSet(recordMap.get(value));
+        if (lock.validate(stamp)) {
+            return entries;
+        }
+        stamp = lock.readLock();
         try {
             if (value == NULL) {
                 return toSingleResultSet(recordsWithNullValue);
@@ -102,13 +109,14 @@ public class OrderedIndexStore extends BaseIndexStore {
                 return toSingleResultSet(recordMap.get(value));
             }
         } finally {
-            releaseReadLock();
+            lock.unlockRead(stamp);
         }
     }
 
     @Override
     public Set<QueryableEntry> getRecords(Set<Comparable> values) {
-        takeReadLock();
+        // todo compare with optimistic read
+        long stamp = lock.readLock();
         try {
             MultiResultSet results = createMultiResultSet();
             for (Comparable value : values) {
@@ -124,13 +132,14 @@ public class OrderedIndexStore extends BaseIndexStore {
             }
             return results;
         } finally {
-            releaseReadLock();
+            lock.unlockRead(stamp);
         }
     }
 
     @Override
     public Set<QueryableEntry> getRecords(Comparison comparison, Comparable searchedValue) {
-        takeReadLock();
+        // todo compare with optimistic read
+        long stamp = lock.readLock();
         try {
             MultiResultSet results = createMultiResultSet();
             SortedMap<Comparable, Map<Data, QueryableEntry>> subMap;
@@ -162,13 +171,14 @@ public class OrderedIndexStore extends BaseIndexStore {
             }
             return results;
         } finally {
-            releaseReadLock();
+            lock.unlockRead(stamp);
         }
     }
 
     @Override
     public Set<QueryableEntry> getRecords(Comparable from, boolean fromInclusive, Comparable to, boolean toInclusive) {
-        takeReadLock();
+        // todo compare with optimistic read
+        long stamp = lock.readLock();
         try {
             int order = Comparables.compare(from, to);
             if (order == 0) {
@@ -187,7 +197,7 @@ public class OrderedIndexStore extends BaseIndexStore {
             }
             return results;
         } finally {
-            releaseReadLock();
+            lock.unlockRead(stamp);
         }
     }
 

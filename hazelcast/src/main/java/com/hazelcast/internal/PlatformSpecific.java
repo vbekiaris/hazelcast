@@ -16,6 +16,13 @@
 
 package com.hazelcast.internal;
 
+import com.hazelcast.internal.util.JavaVersion;
+import com.hazelcast.internal.util.lock.DefaultStampedLock;
+import com.hazelcast.internal.util.lock.Jdk8StampedLock;
+import com.hazelcast.internal.util.lock.StampedLock;
+
+import static com.hazelcast.internal.util.JavaVersion.JAVA_1_8;
+
 /**
  * Utility class to construct instances depending on the runtime platform.
  * Steps to introduce Java 6 / 8 alternative implementations:
@@ -60,7 +67,19 @@ package com.hazelcast.internal;
  */
 public final class PlatformSpecific {
 
+    private static final boolean IS_AT_LEAST_JAVA_8 = JavaVersion.isAtLeast(JAVA_1_8);
+
     private PlatformSpecific() {
 
+    }
+
+    public static StampedLock createStampedLock() {
+//        if (IS_AT_LEAST_JAVA_8) {
+//            System.out.println("Using JDK8 stamped lock");
+//            return new Jdk8StampedLock();
+//        } else {
+            System.out.println("Using JDK6 ReentrantReadWriteLock");
+            return new DefaultStampedLock();
+//        }
     }
 }
