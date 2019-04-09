@@ -101,6 +101,84 @@ public class BitSetTest extends HazelcastTestSupport {
     }
 
     @Test
+    public void testLogicalAndByNameOperation() {
+        HazelcastInstance hz = createHazelcastInstance();
+        IBitSet bitSet = hz.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        bitSet.set(1);
+        bitSet.set(2);
+        bitSet.set(5);
+
+        IBitSet bitSet2 = hz.getDistributedObject(BitSetService.SERVICE_NAME, "test2");
+        bitSet2.set(1);
+        bitSet2.set(3);
+        bitSet2.set(5);
+
+        bitSet.and("test2");
+
+        assertFalse(bitSet.get(0));
+        assertTrue(bitSet.get(1));
+        assertFalse(bitSet.get(2));
+        assertFalse(bitSet.get(3));
+        assertFalse(bitSet.get(4));
+        assertTrue(bitSet.get(5));
+    }
+
+    @Test
+    public void testLogicalAndBackupOperation() {
+        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
+        HazelcastInstance hz1 = factory.newHazelcastInstance();
+        HazelcastInstance hz2 = factory.newHazelcastInstance();
+        IBitSet bitSet = hz1.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        bitSet.set(1);
+        bitSet.set(2);
+        bitSet.set(5);
+
+        BitSet bitSetArgument = new BitSet();
+        bitSetArgument.set(1);
+        bitSetArgument.set(3);
+        bitSetArgument.set(5);
+        bitSet.and(bitSetArgument);
+        hz1.shutdown();
+        waitAllForSafeState(hz2);
+
+        IBitSet bitSet6 = hz2.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        assertFalse(bitSet6.get(0));
+        assertTrue(bitSet6.get(1));
+        assertFalse(bitSet6.get(2));
+        assertFalse(bitSet6.get(3));
+        assertFalse(bitSet6.get(4));
+        assertTrue(bitSet6.get(5));
+    }
+
+    @Test
+    public void testLogicalAndByNameBackupOperation() {
+        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
+        HazelcastInstance hz1 = factory.newHazelcastInstance();
+        HazelcastInstance hz2 = factory.newHazelcastInstance();
+        IBitSet bitSet = hz1.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        bitSet.set(1);
+        bitSet.set(2);
+        bitSet.set(5);
+
+        IBitSet bitSet2 = hz2.getDistributedObject(BitSetService.SERVICE_NAME, "test2");
+        bitSet2.set(1);
+        bitSet2.set(3);
+        bitSet2.set(5);
+        bitSet.and("test2");
+
+        hz1.shutdown();
+        waitAllForSafeState(hz2);
+
+        IBitSet bitSet6 = hz2.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        assertFalse(bitSet6.get(0));
+        assertTrue(bitSet6.get(1));
+        assertFalse(bitSet6.get(2));
+        assertFalse(bitSet6.get(3));
+        assertFalse(bitSet6.get(4));
+        assertTrue(bitSet6.get(5));
+    }
+
+    @Test
     public void bitSetOr() {
         TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
         HazelcastInstance hz1 = factory.newHazelcastInstance();

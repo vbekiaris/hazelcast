@@ -1,6 +1,7 @@
 package com.hazelcast.bitset.impl.operations;
 
 import com.hazelcast.bitset.BitSetDataSerializerHook;
+import com.hazelcast.bitset.impl.BitSetContainer;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.BackupAwareOperation;
@@ -19,6 +20,11 @@ public class AndOperation extends AbstractBitSetOperation implements BackupAware
     public AndOperation(String name, BitSet bitSet) {
         super(name);
         this.bitSet = bitSet;
+    }
+
+    public AndOperation(String name, BitSetContainer bitSetContainer) {
+        super(name);
+        this.bitSet = bitSetContainer.getBitSet();
     }
 
     @Override

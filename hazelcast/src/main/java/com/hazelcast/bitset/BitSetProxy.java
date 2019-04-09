@@ -105,6 +105,14 @@ public class BitSetProxy extends AbstractDistributedObject<BitSetService> implem
     }
 
     @Override
+    public void and(String setName) {
+        BitSetContainer container = getContainer(setName);
+        AndOperation orOperation = new AndOperation(name, container);
+        orOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(orOperation).join();
+    }
+
+    @Override
     public String getServiceName() {
         return BitSetService.SERVICE_NAME;
     }

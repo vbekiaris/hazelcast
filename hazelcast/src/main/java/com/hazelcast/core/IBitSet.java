@@ -34,5 +34,7 @@ public interface IBitSet {
 
     void and(BitSet bitSet);
 
+    void and(String setName);
+
     void or(String setName);
 }
