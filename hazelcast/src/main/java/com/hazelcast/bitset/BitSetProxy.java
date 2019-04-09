@@ -18,10 +18,13 @@ package com.hazelcast.bitset;
 
 import com.hazelcast.bitset.impl.BitSetContainer;
 import com.hazelcast.bitset.impl.operations.AndOperation;
+import com.hazelcast.bitset.impl.operations.CardinalityOperation;
+import com.hazelcast.bitset.impl.operations.ClearOperation;
 import com.hazelcast.bitset.impl.operations.GetContainerOperation;
 import com.hazelcast.bitset.impl.operations.GetOperation;
 import com.hazelcast.bitset.impl.operations.OrOperation;
 import com.hazelcast.bitset.impl.operations.SetOperation;
+import com.hazelcast.bitset.impl.operations.SizeOperation;
 import com.hazelcast.core.IBitSet;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.partition.strategy.StringPartitioningStrategy;
@@ -84,17 +87,25 @@ public class BitSetProxy extends AbstractDistributedObject<BitSetService> implem
 
     @Override
     public void clear() {
-
-    }
-
-    @Override
-    public int cardinality() {
-        return 0;
+        ClearOperation clearOperation = new ClearOperation(name);
+        clearOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(clearOperation).join();
     }
 
     @Override
     public int size() {
-        return 0;
+        SizeOperation sizeOperation = new SizeOperation(name);
+        sizeOperation.setPartitionId(partitionId);
+        Integer size = (Integer) getOperationService().invokeOnPartition(sizeOperation).join();
+        return size;
+    }
+
+    @Override
+    public int cardinality() {
+        CardinalityOperation cardinalityOperation = new CardinalityOperation(name);
+        cardinalityOperation.setPartitionId(partitionId);
+        Integer cardinality = (Integer) getOperationService().invokeOnPartition(cardinalityOperation).join();
+        return cardinality;
     }
 
     @Override

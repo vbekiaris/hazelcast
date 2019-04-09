@@ -17,7 +17,18 @@
 package com.hazelcast.bitset;
 
 import com.hazelcast.bitset.impl.BitSetContainer;
-import com.hazelcast.bitset.impl.operations.*;
+import com.hazelcast.bitset.impl.operations.AndBackupOperation;
+import com.hazelcast.bitset.impl.operations.AndOperation;
+import com.hazelcast.bitset.impl.operations.CardinalityOperation;
+import com.hazelcast.bitset.impl.operations.ClearOperation;
+import com.hazelcast.bitset.impl.operations.GetContainerOperation;
+import com.hazelcast.bitset.impl.operations.GetOperation;
+import com.hazelcast.bitset.impl.operations.OrBackupOperation;
+import com.hazelcast.bitset.impl.operations.OrOperation;
+import com.hazelcast.bitset.impl.operations.ReplicationOperation;
+import com.hazelcast.bitset.impl.operations.SetBackupOperation;
+import com.hazelcast.bitset.impl.operations.SetOperation;
+import com.hazelcast.bitset.impl.operations.SizeOperation;
 import com.hazelcast.internal.serialization.DataSerializerHook;
 import com.hazelcast.internal.serialization.impl.FactoryIdHelper;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
@@ -38,6 +49,10 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
     public static final int OR_OPERATION = 7;
     public static final int OR_BACKUP_OPERATION = 8;
     public static final int GET_CONTAINER_OPERATION = 9;
+    public static final int CLEAR_OPERATION = 10;
+    public static final int CARDINALITY_OPERATION = 11;
+    public static final int SIZE_OPERATION = 12;
+    public static final int CLEAR_BACKUP_OPERATION = 13;
 
     @Override
     public int getFactoryId() {
@@ -70,6 +85,12 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
                         return new OrBackupOperation();
                     case GET_CONTAINER_OPERATION:
                         return new GetContainerOperation();
+                    case CLEAR_OPERATION:
+                        return new ClearOperation();
+                    case SIZE_OPERATION:
+                        return new SizeOperation();
+                    case CARDINALITY_OPERATION:
+                        return new CardinalityOperation();
                     default:
                         return null;
                 }

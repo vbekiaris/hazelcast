@@ -24,7 +24,9 @@ import org.junit.Test;
 
 import java.util.BitSet;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class BitSetTest extends HazelcastTestSupport {
 
@@ -36,6 +38,15 @@ public class BitSetTest extends HazelcastTestSupport {
         assertTrue(bitSet.get(1));
         bitSet.clear(1);
         assertFalse(bitSet.get(1));
+
+        for (int i = 0; i < 50; i++) {
+            bitSet.set(i);
+        }
+        assertTrue(bitSet.size() >= 50);
+        assertEquals(50, bitSet.cardinality());
+
+        bitSet.clear();
+        assertEquals(0, bitSet.cardinality());
     }
 
     @Test

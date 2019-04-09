@@ -48,6 +48,14 @@ public class BitSetContainer implements IdentifiedDataSerializable {
         bitSet.clear();
     }
 
+    public int size() {
+        return bitSet.size();
+    }
+
+    public int cardinality() {
+        return bitSet.cardinality();
+    }
+
     public BitSet getBitSet() {
         return bitSet;
     }
