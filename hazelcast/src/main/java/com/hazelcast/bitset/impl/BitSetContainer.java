@@ -52,6 +52,10 @@ public class BitSetContainer implements IdentifiedDataSerializable {
         return bitSet;
     }
 
+    public void or(BitSetContainer set) {
+        bitSet.or(set.bitSet);
+    }
+
     @Override
     public int getFactoryId() {
         return BitSetDataSerializerHook.F_ID;

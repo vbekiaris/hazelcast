@@ -29,4 +29,6 @@ public interface IBitSet {
     int cardinality();
 
     int size();
+
+    void or(String setName);
 }

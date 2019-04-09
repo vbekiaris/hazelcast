@@ -75,4 +75,23 @@ public class BitSetTest extends HazelcastTestSupport {
             assertTrue(bitSetBackup.get(i));
         }
     }
+
+    @Test
+    public void bitSetOr() {
+        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
+        HazelcastInstance hz1 = factory.newHazelcastInstance();
+        HazelcastInstance hz2 = factory.newHazelcastInstance();
+
+        String name1 = generateKeyOwnedBy(hz1);
+        IBitSet bitSet1 = hz1.getDistributedObject(BitSetService.SERVICE_NAME, name1);
+
+        String name2 = generateKeyOwnedBy(hz2);
+        IBitSet bitSet2 = hz1.getDistributedObject(BitSetService.SERVICE_NAME, name2);
+
+        bitSet1.set(1);
+        bitSet2.set(2);
+
+        bitSet1.or(name2);
+        assertTrue(bitSet1.get(2));
+    }
 }

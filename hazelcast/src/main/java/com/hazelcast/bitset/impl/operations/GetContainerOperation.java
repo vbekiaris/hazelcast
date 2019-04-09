@@ -17,44 +17,49 @@
 package com.hazelcast.bitset.impl.operations;
 
 import com.hazelcast.bitset.BitSetDataSerializerHook;
-import com.hazelcast.bitset.BitSetService;
 import com.hazelcast.bitset.impl.BitSetContainer;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.NamedOperation;
-import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.PartitionAwareOperation;
 
 import java.io.IOException;
 
-public abstract class AbstractBitSetOperation extends Operation
-        implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
+public class GetContainerOperation extends AbstractBitSetOperation {
+    
+    private transient BitSetContainer response;
 
-    protected String name;
-
-    public AbstractBitSetOperation() {
+    public GetContainerOperation() {
     }
 
-    public AbstractBitSetOperation(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public int getFactoryId() {
-        return BitSetDataSerializerHook.F_ID;
+    public GetContainerOperation(String name) {
+        super(name);
     }
 
     @Override
-    public String getName() {
-        return name;
+    public void run()
+            throws Exception {
+        response = getContainer();
+    }
+
+    @Override
+    public int getId() {
+        return BitSetDataSerializerHook.GET_CONTAINER_OPERATION;
+    }
+
+    @Override
+    public boolean returnsResponse() {
+        return true;
+    }
+
+    @Override
+    public Object getResponse() {
+        return response;
     }
 
     @Override
     protected void readInternal(ObjectDataInput in)
             throws IOException {
         super.readInternal(in);
-        name = in.readUTF();
+        this.name = in.readUTF();
     }
 
     @Override
@@ -63,19 +68,4 @@ public abstract class AbstractBitSetOperation extends Operation
         super.writeInternal(out);
         out.writeUTF(name);
     }
-
-    @Override
-    public String getServiceName() {
-        return BitSetService.SERVICE_NAME;
-    }
-
-    protected BitSetContainer getContainer() {
-        return getContainer(name);
-    }
-
-    protected BitSetContainer getContainer(String set) {
-        BitSetService service = getService();
-        return service.getContainer(set);
-    }
-
 }

@@ -17,10 +17,7 @@
 package com.hazelcast.bitset;
 
 import com.hazelcast.bitset.impl.BitSetContainer;
-import com.hazelcast.bitset.impl.operations.GetOperation;
-import com.hazelcast.bitset.impl.operations.ReplicationOperation;
-import com.hazelcast.bitset.impl.operations.SetBackupOperation;
-import com.hazelcast.bitset.impl.operations.SetOperation;
+import com.hazelcast.bitset.impl.operations.*;
 import com.hazelcast.internal.serialization.DataSerializerHook;
 import com.hazelcast.internal.serialization.impl.FactoryIdHelper;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
@@ -36,6 +33,9 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
     public static final int SET_BACKUP_OPERATION = 2;
     public static final int REPLICATION_OPERATION = 3;
     public static final int BITSET_CONTAINER = 4;
+    public static final int OR_OPERATION = 7;
+    public static final int OR_BACKUP_OPERATION = 8;
+    public static final int GET_CONTAINER_OPERATION = 9;
 
     @Override
     public int getFactoryId() {
@@ -58,6 +58,12 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
                         return new ReplicationOperation();
                     case BITSET_CONTAINER:
                         return new BitSetContainer();
+                    case OR_OPERATION:
+                        return new OrOperation();
+                    case OR_BACKUP_OPERATION:
+                        return new OrBackupOperation();
+                    case GET_CONTAINER_OPERATION:
+                        return new GetContainerOperation();
                     default:
                         return null;
                 }

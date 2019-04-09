@@ -19,63 +19,68 @@ package com.hazelcast.bitset.impl.operations;
 import com.hazelcast.bitset.BitSetDataSerializerHook;
 import com.hazelcast.bitset.BitSetService;
 import com.hazelcast.bitset.impl.BitSetContainer;
+import com.hazelcast.core.IBitSet;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.NamedOperation;
+import com.hazelcast.spi.BackupAwareOperation;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.PartitionAwareOperation;
 
 import java.io.IOException;
 
-public abstract class AbstractBitSetOperation extends Operation
-        implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
+public class OrOperation extends AbstractBitSetOperation implements BackupAwareOperation {
 
-    protected String name;
+    private BitSetContainer set;
 
-    public AbstractBitSetOperation() {
+    public OrOperation() {
     }
 
-    public AbstractBitSetOperation(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public int getFactoryId() {
-        return BitSetDataSerializerHook.F_ID;
+    public OrOperation(String name, BitSetContainer set) {
+        super(name);
+        this.set = set;
     }
 
     @Override
-    public String getName() {
-        return name;
+    public void run()
+            throws Exception {
+        getContainer().or(set);
     }
 
     @Override
     protected void readInternal(ObjectDataInput in)
             throws IOException {
         super.readInternal(in);
-        name = in.readUTF();
+        this.set = in.readObject();
     }
 
     @Override
     protected void writeInternal(ObjectDataOutput out)
             throws IOException {
         super.writeInternal(out);
-        out.writeUTF(name);
+        out.writeObject(set);
     }
 
     @Override
-    public String getServiceName() {
-        return BitSetService.SERVICE_NAME;
+    public int getId() {
+        return BitSetDataSerializerHook.OR_OPERATION;
     }
 
-    protected BitSetContainer getContainer() {
-        return getContainer(name);
+    @Override
+    public boolean shouldBackup() {
+        return true;
     }
 
-    protected BitSetContainer getContainer(String set) {
-        BitSetService service = getService();
-        return service.getContainer(set);
+    @Override
+    public int getSyncBackupCount() {
+        return 1;
     }
 
+    @Override
+    public int getAsyncBackupCount() {
+        return 0;
+    }
+
+    @Override
+    public Operation getBackupOperation() {
+        return new OrBackupOperation(name, set);
+    }
 }

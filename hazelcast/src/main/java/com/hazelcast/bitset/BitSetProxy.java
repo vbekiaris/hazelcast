@@ -16,11 +16,19 @@
 
 package com.hazelcast.bitset;
 
+import com.hazelcast.bitset.impl.BitSetContainer;
+import com.hazelcast.bitset.impl.operations.GetContainerOperation;
 import com.hazelcast.bitset.impl.operations.GetOperation;
+import com.hazelcast.bitset.impl.operations.OrOperation;
 import com.hazelcast.bitset.impl.operations.SetOperation;
 import com.hazelcast.core.IBitSet;
+import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.strategy.StringPartitioningStrategy;
 import com.hazelcast.spi.AbstractDistributedObject;
+import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
+
+import java.util.concurrent.Future;
 
 public class BitSetProxy extends AbstractDistributedObject<BitSetService> implements IBitSet {
 
@@ -53,6 +61,24 @@ public class BitSetProxy extends AbstractDistributedObject<BitSetService> implem
         SetOperation setOperation = new SetOperation(name, bitIndex, false);
         setOperation.setPartitionId(partitionId);
         getOperationService().invokeOnPartition(setOperation).join();
+    }
+
+    @Override
+    public void or(String setName) {
+        BitSetContainer container = getContainer(setName);
+        OrOperation orOperation = new OrOperation(name, container);
+        orOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(orOperation).join();
+    }
+
+    private BitSetContainer getContainer(String setName) {
+        NodeEngine nodeEngine = getNodeEngine();
+        Data nameAsData = nodeEngine.getSerializationService().toData(setName, StringPartitioningStrategy.INSTANCE);
+        int setPartitionId = nodeEngine.getPartitionService().getPartitionId(nameAsData);
+        GetContainerOperation getContainerOperation = new GetContainerOperation(setName);
+        getContainerOperation.setPartitionId(setPartitionId);
+        InternalCompletableFuture<BitSetContainer> future = getOperationService().invokeOnPartition(getContainerOperation);
+        return future.join();
     }
 
     @Override
