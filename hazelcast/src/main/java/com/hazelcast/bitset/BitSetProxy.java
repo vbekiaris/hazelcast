@@ -16,11 +16,14 @@
 
 package com.hazelcast.bitset;
 
+import com.hazelcast.bitset.impl.operations.AndOperation;
 import com.hazelcast.bitset.impl.operations.GetOperation;
 import com.hazelcast.bitset.impl.operations.SetOperation;
 import com.hazelcast.core.IBitSet;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.NodeEngine;
+
+import java.util.BitSet;
 
 public class BitSetProxy extends AbstractDistributedObject<BitSetService> implements IBitSet {
 
@@ -68,6 +71,13 @@ public class BitSetProxy extends AbstractDistributedObject<BitSetService> implem
     @Override
     public int size() {
         return 0;
+    }
+
+    @Override
+    public void and(BitSet bitSet) {
+        AndOperation andOperation = new AndOperation(name, bitSet);
+        andOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(andOperation).join();
     }
 
     @Override

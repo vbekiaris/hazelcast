@@ -16,6 +16,8 @@
 
 package com.hazelcast.core;
 
+import java.util.BitSet;
+
 public interface IBitSet {
 
     boolean get(int bitIndex);
@@ -29,4 +31,6 @@ public interface IBitSet {
     int cardinality();
 
     int size();
+
+    void and(BitSet bitSet);
 }

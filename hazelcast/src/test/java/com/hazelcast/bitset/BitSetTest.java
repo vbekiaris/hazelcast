@@ -22,6 +22,8 @@ import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.junit.Test;
 
+import java.util.BitSet;
+
 import static org.junit.Assert.*;
 
 public class BitSetTest extends HazelcastTestSupport {
@@ -74,5 +76,27 @@ public class BitSetTest extends HazelcastTestSupport {
         for (int i = 0; i < 100; i++) {
             assertTrue(bitSetBackup.get(i));
         }
+    }
+
+    @Test
+    public void testLogicalAndOperation() {
+        HazelcastInstance hz = createHazelcastInstance();
+        IBitSet bitSet = hz.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        bitSet.set(1);
+        bitSet.set(2);
+        bitSet.set(5);
+
+        BitSet bitSetArgument = new BitSet();
+        bitSetArgument.set(1);
+        bitSetArgument.set(3);
+        bitSetArgument.set(5);
+        bitSet.and(bitSetArgument);
+
+        assertFalse(bitSet.get(0));
+        assertTrue(bitSet.get(1));
+        assertFalse(bitSet.get(2));
+        assertFalse(bitSet.get(3));
+        assertFalse(bitSet.get(4));
+        assertTrue(bitSet.get(5));
     }
 }
