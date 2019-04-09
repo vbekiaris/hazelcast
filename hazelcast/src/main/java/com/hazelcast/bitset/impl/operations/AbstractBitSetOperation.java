@@ -16,5 +16,57 @@
 
 package com.hazelcast.bitset.impl.operations;
 
-public class AbstractBitSetOperation {
+import com.hazelcast.bitset.BitSetDataSerializerHook;
+import com.hazelcast.bitset.BitSetService;
+import com.hazelcast.bitset.impl.BitSetContainer;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+import com.hazelcast.spi.NamedOperation;
+import com.hazelcast.spi.Operation;
+import com.hazelcast.spi.PartitionAwareOperation;
+
+import java.io.IOException;
+
+public class AbstractBitSetOperation extends Operation
+        implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
+
+    protected String name;
+
+    public AbstractBitSetOperation() {
+    }
+
+    @Override
+    public int getFactoryId() {
+        return BitSetDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return BitSetDataSerializerHook.GET_OPERATION;
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    protected void readInternal(ObjectDataInput in)
+            throws IOException {
+        super.readInternal(in);
+        name = in.readUTF();
+    }
+
+    @Override
+    protected void writeInternal(ObjectDataOutput out)
+            throws IOException {
+        super.writeInternal(out);
+        out.writeUTF(name);
+    }
+
+    protected BitSetContainer getContainer() {
+        BitSetService service = getService();
+        return service.getContainer(name);
+    }
 }

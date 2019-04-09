@@ -30,7 +30,7 @@ import java.io.IOException;
 
 public abstract class AbstractCardinalityEstimatorOperation
         extends Operation
-        implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
+implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
 
     protected String name;
 

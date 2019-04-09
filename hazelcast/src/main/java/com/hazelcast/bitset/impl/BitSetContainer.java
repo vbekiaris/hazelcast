@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-package com.hazelcast.bitset.impl.operations;
+package com.hazelcast.bitset.impl;
 
-import com.hazelcast.spi.Operation;
+import java.util.BitSet;
 
-public class GetOperation extends AbstractBitSetOperation {
+public class BitSetContainer {
 
-    private int bitIndex;
+    private BitSet bitSet;
 
-
-
-    @Override
-    public void run()
-            throws Exception {
-        getContainer().get()
+    public boolean get(int bitIndex) {
+        return bitSet.get(bitIndex);
     }
+
+    public void set(int bitIndex) {
+        bitSet.set(bitIndex);
+    }
+
+    public void clear() {
+        bitSet.clear();
+    }
+
 }

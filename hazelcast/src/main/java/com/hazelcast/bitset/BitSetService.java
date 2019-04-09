@@ -16,6 +16,7 @@
 
 package com.hazelcast.bitset;
 
+import com.hazelcast.bitset.impl.BitSetContainer;
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.MigrationAwareService;
@@ -25,12 +26,25 @@ import com.hazelcast.spi.PartitionMigrationEvent;
 import com.hazelcast.spi.PartitionReplicationEvent;
 import com.hazelcast.spi.RemoteService;
 import com.hazelcast.spi.SplitBrainHandlerService;
+import com.hazelcast.util.ConcurrencyUtil;
+import com.hazelcast.util.ConstructorFunction;
 
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BitSetService implements RemoteService, MigrationAwareService, SplitBrainHandlerService, ManagedService {
 
     public static final String SERVICE_NAME = "hz:impl:bitset";
+
+    private static final ConstructorFunction<String, BitSetContainer> CONTAINER_CONSTRUCTOR =
+            new ConstructorFunction<String, BitSetContainer>() {
+                @Override
+                public BitSetContainer createNew(String arg) {
+                    return new BitSetContainer();
+                }
+            };
+
+    private final ConcurrentHashMap<String, BitSetContainer> containers = new ConcurrentHashMap<String, BitSetContainer>();
 
     @Override
     public void init(NodeEngine nodeEngine, Properties properties) {
@@ -80,5 +94,9 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
     @Override
     public Runnable prepareMergeRunnable() {
         return null;
+    }
+
+    public BitSetContainer getContainer(String name) {
+        return ConcurrencyUtil.getOrPutIfAbsent(containers, name, CONTAINER_CONSTRUCTOR);
     }
 }
