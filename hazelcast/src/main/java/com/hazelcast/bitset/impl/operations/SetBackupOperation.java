@@ -19,42 +19,37 @@ package com.hazelcast.bitset.impl.operations;
 import com.hazelcast.bitset.BitSetDataSerializerHook;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.spi.BackupOperation;
 
 import java.io.IOException;
 
-public class GetOperation extends AbstractBitSetOperation {
+public class SetBackupOperation extends AbstractBitSetOperation implements BackupOperation {
 
     private int bitIndex;
+    private boolean set;
 
-    private transient boolean response;
-
-    public GetOperation() {
+    public SetBackupOperation() {
     }
 
-    public GetOperation(String name, int bitIndex) {
+    public SetBackupOperation(String name, int bitIndex, boolean set) {
         super(name);
         this.bitIndex = bitIndex;
+        this.set = set;
     }
 
     @Override
     public void run()
             throws Exception {
-        response = getContainer().get(bitIndex);
+        if (set) {
+            getContainer().set(bitIndex);
+        } else {
+            getContainer().clear(bitIndex);
+        }
     }
 
     @Override
     public int getId() {
-        return BitSetDataSerializerHook.GET_OPERATION;
-    }
-
-    @Override
-    public boolean returnsResponse() {
-        return true;
-    }
-
-    @Override
-    public Object getResponse() {
-        return response;
+        return BitSetDataSerializerHook.SET_BACKUP_OPERATION;
     }
 
     @Override
@@ -62,6 +57,7 @@ public class GetOperation extends AbstractBitSetOperation {
             throws IOException {
         super.readInternal(in);
         this.bitIndex = in.readInt();
+        this.set = in.readBoolean();
     }
 
     @Override
@@ -69,5 +65,6 @@ public class GetOperation extends AbstractBitSetOperation {
             throws IOException {
         super.writeInternal(out);
         out.writeInt(bitIndex);
+        out.writeBoolean(set);
     }
 }

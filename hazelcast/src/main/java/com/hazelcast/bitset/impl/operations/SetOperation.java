@@ -16,12 +16,15 @@
 
 package com.hazelcast.bitset.impl.operations;
 
+import com.hazelcast.bitset.BitSetDataSerializerHook;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.spi.BackupAwareOperation;
+import com.hazelcast.spi.Operation;
 
 import java.io.IOException;
 
-public class SetOperation extends AbstractBitSetOperation {
+public class SetOperation extends AbstractBitSetOperation implements BackupAwareOperation {
 
     private int bitIndex;
     private boolean set;
@@ -59,5 +62,30 @@ public class SetOperation extends AbstractBitSetOperation {
         super.writeInternal(out);
         out.writeInt(bitIndex);
         out.writeBoolean(set);
+    }
+
+    @Override
+    public int getId() {
+        return BitSetDataSerializerHook.SET_OPERATION;
+    }
+
+    @Override
+    public boolean shouldBackup() {
+        return true;
+    }
+
+    @Override
+    public int getSyncBackupCount() {
+        return 1;
+    }
+
+    @Override
+    public int getAsyncBackupCount() {
+        return 0;
+    }
+
+    @Override
+    public Operation getBackupOperation() {
+        return new SetBackupOperation(name, bitIndex, set);
     }
 }

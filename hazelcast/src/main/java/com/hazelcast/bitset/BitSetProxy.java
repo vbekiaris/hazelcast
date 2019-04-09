@@ -19,7 +19,6 @@ package com.hazelcast.bitset;
 import com.hazelcast.bitset.impl.operations.GetOperation;
 import com.hazelcast.bitset.impl.operations.SetOperation;
 import com.hazelcast.core.IBitSet;
-import com.hazelcast.cp.internal.datastructures.atomicref.operation.SetOp;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.NodeEngine;
 

@@ -28,7 +28,7 @@ import com.hazelcast.spi.PartitionAwareOperation;
 
 import java.io.IOException;
 
-public class AbstractBitSetOperation extends Operation
+public abstract class AbstractBitSetOperation extends Operation
         implements NamedOperation, PartitionAwareOperation, IdentifiedDataSerializable {
 
     protected String name;
@@ -43,11 +43,6 @@ public class AbstractBitSetOperation extends Operation
     @Override
     public int getFactoryId() {
         return BitSetDataSerializerHook.F_ID;
-    }
-
-    @Override
-    public int getId() {
-        return BitSetDataSerializerHook.GET_OPERATION;
     }
 
     @Override

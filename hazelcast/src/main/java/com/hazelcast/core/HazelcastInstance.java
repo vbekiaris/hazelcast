@@ -374,7 +374,6 @@ public interface HazelcastInstance {
      * @return returns registration ID
      */
     String addDistributedObjectListener(DistributedObjectListener distributedObjectListener);
-
     /**
      * Removes the specified Distributed Object listener. Returns silently
      * if the specified instance listener does not exist.
