@@ -46,9 +46,11 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
 
     private final ConcurrentHashMap<String, BitSetContainer> containers = new ConcurrentHashMap<String, BitSetContainer>();
 
+    private volatile NodeEngine nodeEngine;
+
     @Override
     public void init(NodeEngine nodeEngine, Properties properties) {
-
+        this.nodeEngine = nodeEngine;
     }
 
     @Override
@@ -63,12 +65,12 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
 
     @Override
     public DistributedObject createDistributedObject(String objectName) {
-        return null;
+        return new BitSetProxy(nodeEngine, this, objectName);
     }
 
     @Override
     public void destroyDistributedObject(String objectName) {
-
+        containers.remove(objectName);
     }
 
     @Override

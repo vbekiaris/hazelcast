@@ -21,34 +21,28 @@ import com.hazelcast.nio.ObjectDataOutput;
 
 import java.io.IOException;
 
-public class GetOperation extends AbstractBitSetOperation {
+public class SetOperation extends AbstractBitSetOperation {
 
     private int bitIndex;
+    private boolean set;
 
-    private transient boolean response;
-
-    public GetOperation() {
+    public SetOperation() {
     }
 
-    public GetOperation(String name, int bitIndex) {
+    public SetOperation(String name, int bitIndex, boolean set) {
         super(name);
         this.bitIndex = bitIndex;
+        this.set = set;
     }
 
     @Override
     public void run()
             throws Exception {
-        response = getContainer().get(bitIndex);
-    }
-
-    @Override
-    public boolean returnsResponse() {
-        return true;
-    }
-
-    @Override
-    public Object getResponse() {
-        return response;
+        if (set) {
+            getContainer().set(bitIndex);
+        } else {
+            getContainer().clear(bitIndex);
+        }
     }
 
     @Override
@@ -56,6 +50,7 @@ public class GetOperation extends AbstractBitSetOperation {
             throws IOException {
         super.readInternal(in);
         this.bitIndex = in.readInt();
+        this.set = in.readBoolean();
     }
 
     @Override
@@ -63,5 +58,6 @@ public class GetOperation extends AbstractBitSetOperation {
             throws IOException {
         super.writeInternal(out);
         out.writeInt(bitIndex);
+        out.writeBoolean(set);
     }
 }

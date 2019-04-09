@@ -22,6 +22,8 @@ public interface IBitSet {
 
     void set(int bitIndex);
 
+    void clear(int bitIndex);
+
     void clear();
 
     int cardinality();

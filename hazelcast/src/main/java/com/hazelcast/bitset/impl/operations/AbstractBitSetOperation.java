@@ -36,6 +36,10 @@ public class AbstractBitSetOperation extends Operation
     public AbstractBitSetOperation() {
     }
 
+    public AbstractBitSetOperation(String name) {
+        this.name = name;
+    }
+
     @Override
     public int getFactoryId() {
         return BitSetDataSerializerHook.F_ID;
@@ -65,8 +69,15 @@ public class AbstractBitSetOperation extends Operation
         out.writeUTF(name);
     }
 
+    @Override
+    public String getServiceName() {
+        return BitSetService.SERVICE_NAME;
+    }
+
     protected BitSetContainer getContainer() {
         BitSetService service = getService();
         return service.getContainer(name);
     }
+
+
 }

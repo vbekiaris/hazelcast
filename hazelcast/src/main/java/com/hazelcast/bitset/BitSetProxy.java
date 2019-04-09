@@ -16,9 +16,10 @@
 
 package com.hazelcast.bitset;
 
-import com.hazelcast.cache.impl.AbstractCacheService;
-import com.hazelcast.core.DistributedObject;
+import com.hazelcast.bitset.impl.operations.GetOperation;
+import com.hazelcast.bitset.impl.operations.SetOperation;
 import com.hazelcast.core.IBitSet;
+import com.hazelcast.cp.internal.datastructures.atomicref.operation.SetOp;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.NodeEngine;
 
@@ -35,12 +36,24 @@ public class BitSetProxy extends AbstractDistributedObject<BitSetService> implem
 
     @Override
     public boolean get(int bitIndex) {
-        return false;
+        GetOperation getOperation = new GetOperation(name, bitIndex);
+        getOperation.setPartitionId(partitionId);
+        Boolean returnValue = (Boolean) getOperationService().invokeOnPartition(getOperation).join();
+        return returnValue;
     }
 
     @Override
     public void set(int bitIndex) {
+        SetOperation setOperation = new SetOperation(name, bitIndex, true);
+        setOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(setOperation).join();
+    }
 
+    @Override
+    public void clear(int bitIndex) {
+        SetOperation setOperation = new SetOperation(name, bitIndex, false);
+        setOperation.setPartitionId(partitionId);
+        getOperationService().invokeOnPartition(setOperation).join();
     }
 
     @Override

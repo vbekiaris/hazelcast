@@ -16,6 +16,7 @@
 
 package com.hazelcast.spi.impl.servicemanager.impl;
 
+import com.hazelcast.bitset.BitSetService;
 import com.hazelcast.cache.impl.ICacheService;
 import com.hazelcast.cache.impl.JCacheDetector;
 import com.hazelcast.cardinality.impl.CardinalityEstimatorService;
@@ -171,6 +172,7 @@ public final class ServiceManagerImpl implements ServiceManager {
         registerService(PNCounterService.SERVICE_NAME, new PNCounterService());
         registerService(CRDTReplicationMigrationService.SERVICE_NAME, new CRDTReplicationMigrationService());
         registerService(DistributedScheduledExecutorService.SERVICE_NAME, new DistributedScheduledExecutorService());
+        registerService(BitSetService.SERVICE_NAME, new BitSetService());
         registerCacheServiceIfAvailable();
         readServiceDescriptors();
     }

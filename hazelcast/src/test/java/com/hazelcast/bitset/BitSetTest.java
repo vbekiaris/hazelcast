@@ -14,32 +14,25 @@
  * limitations under the License.
  */
 
-package com.hazelcast.bitset.impl;
+package com.hazelcast.bitset;
 
-import java.util.BitSet;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IBitSet;
+import com.hazelcast.test.HazelcastTestSupport;
+import org.junit.Test;
 
-public class BitSetContainer {
+import static org.junit.Assert.*;
 
-    private BitSet bitSet;
+public class BitSetTest extends HazelcastTestSupport {
 
-    public BitSetContainer() {
-        this.bitSet = new BitSet();
+
+    @Test
+    public void bitsetWorks() {
+        HazelcastInstance hz = createHazelcastInstance();
+        IBitSet bitSet = hz.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        bitSet.set(1);
+        assertTrue(bitSet.get(1));
+        bitSet.clear(1);
+        assertFalse(bitSet.get(1));
     }
-
-    public boolean get(int bitIndex) {
-        return bitSet.get(bitIndex);
-    }
-
-    public void set(int bitIndex) {
-        bitSet.set(bitIndex);
-    }
-
-    public void clear(int bitIndex) {
-        bitSet.clear(bitIndex);
-    }
-
-    public void clear() {
-        bitSet.clear();
-    }
-
 }
