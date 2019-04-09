@@ -18,6 +18,7 @@ package com.hazelcast.bitset;
 
 import com.hazelcast.bitset.impl.BitSetContainer;
 import com.hazelcast.bitset.impl.operations.GetOperation;
+import com.hazelcast.bitset.impl.operations.ReplicationOperation;
 import com.hazelcast.bitset.impl.operations.SetBackupOperation;
 import com.hazelcast.bitset.impl.operations.SetOperation;
 import com.hazelcast.internal.serialization.DataSerializerHook;
@@ -54,7 +55,7 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
                     case SET_BACKUP_OPERATION:
                         return new SetBackupOperation();
                     case REPLICATION_OPERATION:
-                        return new SetBackupOperation();
+                        return new ReplicationOperation();
                     case BITSET_CONTAINER:
                         return new BitSetContainer();
                     default:

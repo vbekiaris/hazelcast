@@ -55,4 +55,24 @@ public class BitSetTest extends HazelcastTestSupport {
             assertTrue(bitSetBackup.get(i));
         }
     }
+
+    @Test
+    public void bitSetReplication() {
+        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
+        HazelcastInstance hz1 = factory.newHazelcastInstance();
+
+        IBitSet bitSet = hz1.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        for (int i = 0; i < 100; i++) {
+            bitSet.set(i);
+        }
+
+        HazelcastInstance hz2 = factory.newHazelcastInstance();
+        hz1.shutdown();
+        waitAllForSafeState(hz2);
+
+        IBitSet bitSetBackup = hz2.getDistributedObject(BitSetService.SERVICE_NAME, "test");
+        for (int i = 0; i < 100; i++) {
+            assertTrue(bitSetBackup.get(i));
+        }
+    }
 }

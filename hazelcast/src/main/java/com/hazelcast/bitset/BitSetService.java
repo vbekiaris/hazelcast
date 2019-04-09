@@ -32,7 +32,6 @@ import com.hazelcast.spi.SplitBrainHandlerService;
 import com.hazelcast.util.ConcurrencyUtil;
 import com.hazelcast.util.ConstructorFunction;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -81,15 +80,14 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
 
     @Override
     public Operation prepareReplicationOperation(PartitionReplicationEvent event) {
-        // todo return replication operation including all bitsets for partition being migrated
-        Map<String, BitSet> map = new HashMap<String, BitSet>();
+        Map<String, BitSetContainer> map = new HashMap<String, BitSetContainer>();
         for (Map.Entry<String, BitSetContainer> container : containers.entrySet()) {
             int partitionId = getPartitionId(container.getKey());
             if (event.getPartitionId() == partitionId) {
-                map.put(container.getKey(), container.getValue().getBitSet());
+                map.put(container.getKey(), container.getValue());
             }
         }
-        return new ReplicationOperation();
+        return new ReplicationOperation(map);
     }
 
     @Override
