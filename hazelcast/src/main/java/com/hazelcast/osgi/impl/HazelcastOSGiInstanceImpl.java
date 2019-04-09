@@ -27,6 +27,7 @@ import com.hazelcast.core.Endpoint;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IAtomicReference;
+import com.hazelcast.core.IBitSet;
 import com.hazelcast.core.ICacheManager;
 import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.core.IExecutorService;
@@ -293,6 +294,11 @@ class HazelcastOSGiInstanceImpl
     @Override
     public CPSubsystem getCPSubsystem() {
         return delegatedInstance.getCPSubsystem();
+    }
+
+    @Override
+    public IBitSet getBitSet(String name) {
+        return delegatedInstance.getBitSet(name);
     }
 
     @Override

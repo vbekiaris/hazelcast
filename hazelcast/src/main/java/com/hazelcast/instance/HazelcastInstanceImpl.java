@@ -16,6 +16,7 @@
 
 package com.hazelcast.instance;
 
+import com.hazelcast.bitset.BitSetService;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.cardinality.impl.CardinalityEstimatorService;
 import com.hazelcast.client.impl.ClientServiceProxy;
@@ -37,6 +38,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IAtomicReference;
+import com.hazelcast.core.IBitSet;
 import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.core.IExecutorService;
 import com.hazelcast.core.IList;
@@ -434,6 +436,12 @@ public class HazelcastInstanceImpl implements HazelcastInstance, SerializationSe
             throw new UnsupportedOperationException("CP Subsystem is not available before version 3.12!");
         }
         return cpSubsystem;
+    }
+
+    @Override
+    public IBitSet getBitSet(String name) {
+        checkNotNull(name, "Retrieving a bitset with a null name is not allowed!");
+        return getDistributedObject(BitSetService.SERVICE_NAME, name);
     }
 
     @Override
