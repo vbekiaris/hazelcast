@@ -33,6 +33,8 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
     public static final int SET_BACKUP_OPERATION = 2;
     public static final int REPLICATION_OPERATION = 3;
     public static final int BITSET_CONTAINER = 4;
+    public static final int AND_OPERATION = 5;
+    public static final int AND_BACKUP_OPERATION = 6;
     public static final int OR_OPERATION = 7;
     public static final int OR_BACKUP_OPERATION = 8;
     public static final int GET_CONTAINER_OPERATION = 9;
@@ -58,6 +60,10 @@ public class BitSetDataSerializerHook implements DataSerializerHook {
                         return new ReplicationOperation();
                     case BITSET_CONTAINER:
                         return new BitSetContainer();
+                    case AND_OPERATION:
+                        return new AndOperation();
+                    case AND_BACKUP_OPERATION:
+                        return new AndBackupOperation();
                     case OR_OPERATION:
                         return new OrOperation();
                     case OR_BACKUP_OPERATION:

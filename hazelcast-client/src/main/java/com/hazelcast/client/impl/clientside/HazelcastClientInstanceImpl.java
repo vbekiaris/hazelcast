@@ -81,6 +81,7 @@ import com.hazelcast.core.DistributedObjectListener;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IAtomicReference;
+import com.hazelcast.core.IBitSet;
 import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.core.IExecutorService;
 import com.hazelcast.core.IList;
@@ -657,6 +658,11 @@ public class HazelcastClientInstanceImpl implements HazelcastInstance, Serializa
     public IScheduledExecutorService getScheduledExecutorService(String name) {
         checkNotNull(name, "Retrieving a scheduled executor instance with a null name is not allowed!");
         return getDistributedObject(DistributedScheduledExecutorService.SERVICE_NAME, name);
+    }
+
+    @Override
+    public IBitSet getBitSet(String name) {
+        return null;
     }
 
     @Override

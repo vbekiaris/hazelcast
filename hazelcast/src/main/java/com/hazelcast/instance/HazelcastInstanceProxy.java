@@ -26,6 +26,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IAtomicReference;
+import com.hazelcast.core.IBitSet;
 import com.hazelcast.core.ICacheManager;
 import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.core.IExecutorService;
@@ -303,6 +304,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance, Serializ
     @Override
     public CPSubsystem getCPSubsystem() {
         return getOriginal().getCPSubsystem();
+    }
+
+    @Override
+    public IBitSet getBitSet(String name) {
+        return getOriginal().getBitSet(name);
     }
 
     @Override

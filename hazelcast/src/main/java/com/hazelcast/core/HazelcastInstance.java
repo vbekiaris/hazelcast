@@ -524,6 +524,8 @@ public interface HazelcastInstance {
      */
     CPSubsystem getCPSubsystem();
 
+    IBitSet getBitSet(String name);
+
     /**
      * Shuts down this HazelcastInstance. For more information see {@link com.hazelcast.core.LifecycleService#shutdown()}.
      */
