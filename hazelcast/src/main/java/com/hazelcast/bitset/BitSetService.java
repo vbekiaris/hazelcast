@@ -17,7 +17,10 @@
 package com.hazelcast.bitset;
 
 import com.hazelcast.bitset.impl.BitSetContainer;
+import com.hazelcast.bitset.impl.operations.ReplicationOperation;
 import com.hazelcast.core.DistributedObject;
+import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.strategy.StringPartitioningStrategy;
 import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.MigrationAwareService;
 import com.hazelcast.spi.NodeEngine;
@@ -29,6 +32,9 @@ import com.hazelcast.spi.SplitBrainHandlerService;
 import com.hazelcast.util.ConcurrencyUtil;
 import com.hazelcast.util.ConstructorFunction;
 
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,7 +81,15 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
 
     @Override
     public Operation prepareReplicationOperation(PartitionReplicationEvent event) {
-        return null;
+        // todo return replication operation including all bitsets for partition being migrated
+        Map<String, BitSet> map = new HashMap<String, BitSet>();
+        for (Map.Entry<String, BitSetContainer> container : containers.entrySet()) {
+            int partitionId = getPartitionId(container.getKey());
+            if (event.getPartitionId() == partitionId) {
+                map.put(container.getKey(), container.getValue().getBitSet());
+            }
+        }
+        return new ReplicationOperation();
     }
 
     @Override
@@ -100,5 +114,14 @@ public class BitSetService implements RemoteService, MigrationAwareService, Spli
 
     public BitSetContainer getContainer(String name) {
         return ConcurrencyUtil.getOrPutIfAbsent(containers, name, CONTAINER_CONSTRUCTOR);
+    }
+
+    public void addContainers(Map<String, BitSetContainer> bitsets) {
+        containers.putAll(bitsets);
+    }
+
+    private int getPartitionId(String name) {
+        Data nameAsData = nodeEngine.getSerializationService().toData(name, StringPartitioningStrategy.INSTANCE);
+        return nodeEngine.getPartitionService().getPartitionId(nameAsData);
     }
 }

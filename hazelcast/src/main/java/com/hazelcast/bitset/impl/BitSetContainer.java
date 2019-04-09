@@ -16,9 +16,15 @@
 
 package com.hazelcast.bitset.impl;
 
+import com.hazelcast.bitset.BitSetDataSerializerHook;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+
+import java.io.IOException;
 import java.util.BitSet;
 
-public class BitSetContainer {
+public class BitSetContainer implements IdentifiedDataSerializable {
 
     private BitSet bitSet;
 
@@ -42,4 +48,29 @@ public class BitSetContainer {
         bitSet.clear();
     }
 
+    public BitSet getBitSet() {
+        return bitSet;
+    }
+
+    @Override
+    public int getFactoryId() {
+        return BitSetDataSerializerHook.F_ID;
+    }
+
+    @Override
+    public int getId() {
+        return BitSetDataSerializerHook.BITSET_CONTAINER;
+    }
+
+    @Override
+    public void writeData(ObjectDataOutput out)
+            throws IOException {
+        out.writeObject(bitSet);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in)
+            throws IOException {
+        bitSet = in.readObject();
+    }
 }
