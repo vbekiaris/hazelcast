@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.hazelcast.util.EmptyStatement.ignore;
+
 /**
  * Classloader created on a local member to define a class from a bytecode loaded from a remote source.
  *
@@ -36,6 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * 3. Finally it delegates to {@link ClassLocator} which may initiate a remote lookup
  */
 public final class ClassSource extends ClassLoader {
+
+    static {
+        registerClassLoaderAsParallelCapable();
+    }
 
     private final Map<String, Class> classes = new ConcurrentHashMap<String, Class>();
     private final Map<String, byte[]> classDefinitions = new ConcurrentHashMap<String, byte[]>();
@@ -55,14 +61,16 @@ public final class ClassSource extends ClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        Class aClass = classes.get(name);
-        if (aClass != null) {
-            return aClass;
-        }
-        try {
-            return super.loadClass(name, resolve);
-        } catch (ClassNotFoundException e) {
-            return classLocator.handleClassNotFoundException(name);
+        synchronized (getClassLoadingLockOrThis(name)) {
+            Class aClass = classes.get(name);
+            if (aClass != null) {
+                return aClass;
+            }
+            try {
+                return super.loadClass(name, resolve);
+            } catch (ClassNotFoundException e) {
+                return classLocator.handleClassNotFoundException(name);
+            }
         }
     }
 
@@ -81,5 +89,24 @@ public final class ClassSource extends ClassLoader {
         classData.setInnerClassDefinitions(innerClassDefinitions);
         classData.setMainClassDefinition(mainClassDefinition);
         return classData;
+    }
+
+    private Object getClassLoadingLockOrThis(String className) {
+        Object lock = this;
+        try {
+            lock = this.getClassLoadingLock(className);
+        } catch (Throwable t) {
+            ignore(t);
+        }
+        return lock;
+    }
+
+    private static void registerClassLoaderAsParallelCapable() {
+        try {
+            ClassLoader.registerAsParallelCapable();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            ignore(t);
+        }
     }
 }

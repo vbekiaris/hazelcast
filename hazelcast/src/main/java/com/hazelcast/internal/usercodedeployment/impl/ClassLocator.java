@@ -135,6 +135,9 @@ public final class ClassLocator {
         // Java 7+ can use locks with per-class granularity while Java 6 has to use a single lock
         // mutexFactory abstract these differences away
         String mainClassName = extractMainClassName(name);
+        // todo no need to lock with a mutex here because this is already executed under
+        //  synchronized block from ClassSource.loadClass or UserCodeDeploymentClassLoader.loadClass
+        //  UNLESS we want to avoid getClassFromRemote executing in parallel to defineClassFromClient
         Closeable classMutex = mutexFactory.getMutexForClass(mainClassName);
         try {
             synchronized (classMutex) {
