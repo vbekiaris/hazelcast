@@ -16,12 +16,19 @@
 
 package com.hazelcast.internal.usercodedeployment;
 
+import com.hazelcast.internal.RequiresJdk8;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
+
+import static com.hazelcast.util.EmptyStatement.ignore;
 
 public class UserCodeDeploymentClassLoader extends ClassLoader {
 
     private static final ILogger LOG = Logger.getLogger(UserCodeDeploymentClassLoader.class);
+
+    static {
+        registerClassLoaderAsParallelCapable();
+    }
 
     private UserCodeDeploymentService userCodeDeploymentService;
 
@@ -38,29 +45,53 @@ public class UserCodeDeploymentClassLoader extends ClassLoader {
             throws ClassNotFoundException {
         Class<?> clazz = null;
 
-        if (userCodeDeploymentService != null) {
-            // this looks racy, but it's an optimistic optimization - if the class is already loaded
-            // by the user code deployment service then it means the parent classloader failed to load it at some
-            // point in time. -> we can use it directly without consulting the parent classloader
-            // when the class is not found then we will consult the parent classloader and eventually the classloading
-            // service
-            clazz = userCodeDeploymentService.findLoadedClass(name);
-        }
-        if (clazz == null) {
-            try {
-                return super.loadClass(name, resolve);
-            } catch (ClassNotFoundException e) {
-                if (userCodeDeploymentService == null) {
-                    LOG.finest("User Code Deployment classloader is not initialized yet. ");
-                    throw e;
-                }
-                clazz = userCodeDeploymentService.handleClassNotFoundException(name);
-                if (resolve) {
-                    resolveClass(clazz);
-                }
-                return clazz;
+        synchronized (getClassLoadingLockOrThis(name)) {
+
+            if (userCodeDeploymentService != null) {
+                // this looks racy, but it's an optimistic optimization - if the class is already loaded
+                // by the user code deployment service then it means the parent classloader failed to load it at some
+                // point in time. -> we can use it directly without consulting the parent classloader
+                // when the class is not found then we will consult the parent classloader and eventually the classloading
+                // service
+                clazz = userCodeDeploymentService.findLoadedClass(name);
             }
+            if (clazz == null) {
+                try {
+                    return super.loadClass(name, resolve);
+                } catch (ClassNotFoundException e) {
+                    if (userCodeDeploymentService == null) {
+                        LOG.finest("User Code Deployment classloader is not initialized yet. ");
+                        throw e;
+                    }
+                    clazz = userCodeDeploymentService.handleClassNotFoundException(name);
+                    if (resolve) {
+                        resolveClass(clazz);
+                    }
+                    return clazz;
+                }
+            }
+            return clazz;
         }
-        return clazz;
+    }
+
+    @RequiresJdk8
+    private Object getClassLoadingLockOrThis(String className) {
+        Object lock = this;
+        try {
+            lock = this.getClassLoadingLock(className);
+        } catch (Throwable t) {
+            ignore(t);
+        }
+        return lock;
+    }
+
+    @RequiresJdk8
+    private static void registerClassLoaderAsParallelCapable() {
+        try {
+            ClassLoader.registerAsParallelCapable();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            ignore(t);
+        }
     }
 }

@@ -26,10 +26,13 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.LifecycleEvent;
 import com.hazelcast.core.LifecycleListener;
+import com.hazelcast.internal.usercodedeployment.UserCodeDeploymentClassLoader;
 import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.test.HazelcastParametersRunnerFactory;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.FilteringClassLoader;
 import org.junit.After;
 import org.junit.Test;
@@ -110,6 +113,44 @@ public class ClientUserCodeDeploymentTest extends HazelcastTestSupport {
         HazelcastInstance client = factory.newHazelcastClient(clientConfig);
 
         assertCodeDeploymentWorking(client, new IncrementingEntryProcessor());
+    }
+
+    @Test
+    public void testParallelClassLoading()
+            throws InterruptedException {
+        ClientConfig clientConfig = createClientConfig();
+        Config config = createNodeConfig();
+
+        HazelcastInstance member = factory.newHazelcastInstance(config);
+        HazelcastInstance client = factory.newHazelcastClient(clientConfig);
+
+        ClassLoader classLoader = getNode(member).getConfigClassLoader();
+        assertInstanceOf(UserCodeDeploymentClassLoader.class, classLoader);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        Thread[] workers = new Thread[200];
+        for (int i = 0; i < 200; i++) {
+            workers[i] = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        latch.await();
+                        Class loadedClass = ClassLoaderUtil.loadClass(classLoader, "usercodedeployment.IncrementingEntryProcessor");
+                    } catch (Throwable t) {
+                        ExceptionUtil.rethrow(t);
+                    }
+                }
+            });
+            workers[i].start();
+        }
+
+        latch.countDown();
+
+        for (int i = 0; i < 200; i++) {
+            workers[i].join();
+        }
+
     }
 
     @Test
