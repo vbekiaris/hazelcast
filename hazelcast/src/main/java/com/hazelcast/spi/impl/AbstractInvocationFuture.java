@@ -17,12 +17,14 @@
 package com.hazelcast.spi.impl;
 
 import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.internal.util.executor.UnblockableThread;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.InternalCompletableFuture;
-import com.hazelcast.internal.util.executor.UnblockableThread;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -30,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.Preconditions.isNotNull;
@@ -50,13 +54,15 @@ import static java.util.concurrent.locks.LockSupport.unpark;
  * TODO:
  * - thread value protection
  *
+ * TODO 4.0:
+ * - allow for exceptions as proper values
  * @param <V>
  */
 @SuppressWarnings("Since15")
 @SuppressFBWarnings(value = "DLS_DEAD_STORE_OF_CLASS_LITERAL", justification = "Recommended way to prevent classloading bug")
 public abstract class AbstractInvocationFuture<V> implements InternalCompletableFuture<V> {
 
-    static final Object VOID = "VOID";
+    protected static final Object UNRESOLVED = "UNRESOLVED";
 
     // reduce the risk of rare disastrous classloading in first call to
     // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
@@ -75,7 +81,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
      * This field contain the state of the future. If the future is not
      * complete, the state can be:
      * <ol>
-     * <li>{@link #VOID}: no response is available.</li>
+     * <li>{@link #UNRESOLVED}: no response is available.</li>
      * <li>Thread instance: no response is available and a thread has
      * blocked on completion (e.g. future.get)</li>
      * <li>{@link ExecutionCallback} instance: no response is available
@@ -94,7 +100,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
      * response is an atomic operation and therefore not prone to data-races.
      * There is no need to use synchronized blocks.
      */
-    private volatile Object state = VOID;
+    // TODO can we avoid making this one protected?
+    protected volatile Object state = UNRESOLVED;
 
     protected AbstractInvocationFuture(Executor defaultExecutor, ILogger logger) {
         this.defaultExecutor = defaultExecutor;
@@ -119,10 +126,13 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             return true;
         }
 
-        return !(state == VOID
+        return !(state == UNRESOLVED
                 || state instanceof WaitNode
                 || state instanceof Thread
-                || state instanceof ExecutionCallback);
+                || state instanceof ExecutionCallback
+                || state instanceof RunNode
+                || state instanceof ApplyNode
+                || state instanceof AcceptNode);
     }
 
     protected void onInterruptDetected() {
@@ -150,7 +160,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     @Override
     public final V get() throws InterruptedException, ExecutionException {
         Object response = registerWaiter(Thread.currentThread(), null);
-        if (response != VOID) {
+        if (response != UNRESOLVED) {
             // no registration was done since a value is available.
             return resolveAndThrowIfException(response);
         }
@@ -175,7 +185,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     public final V get(final long timeout, final TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
         Object response = registerWaiter(Thread.currentThread(), null);
-        if (response != VOID) {
+        if (response != UNRESOLVED) {
             return resolveAndThrowIfException(response);
         }
 
@@ -219,7 +229,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         isNotNull(executor, "executor");
 
         Object response = registerWaiter(callback, executor);
-        if (response != VOID) {
+        if (response != UNRESOLVED) {
             unblock(callback, executor);
         }
     }
@@ -237,30 +247,35 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 unblockAll(waitNode.waiter, waitNode.executor);
                 waiter = waitNode.next;
             } else {
+                unblockOtherNode(waiter, executor);
                 return;
             }
         }
     }
 
-    private void unblock(final ExecutionCallback<V> callback, Executor executor) {
-        try {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Object value = resolve(state);
-                        if (value instanceof Throwable) {
-                            Throwable error = unwrap((Throwable) value);
-                            callback.onFailure(error);
-                        } else {
-                            callback.onResponse((V) value);
-                        }
-                    } catch (Throwable cause) {
-                        logger.severe("Failed asynchronous execution of execution callback: " + callback
-                                + "for call " + invocationToString(), cause);
-                    }
-                }
+    /**
+     *
+     * @param waiter    the current wait node, see javadoc of {@link #state state field}
+     * @param executor  the {@lin Executor} on which to execute the action associated with {@code waiter}
+     */
+    protected void unblockOtherNode(Object waiter, Executor executor) {
+    }
 
+    protected void unblock(final ExecutionCallback<V> callback, Executor executor) {
+        try {
+            executor.execute(() -> {
+                try {
+                    Object value = resolve(state);
+                    if (value instanceof Throwable) {
+                        Throwable error = unwrap((Throwable) value);
+                        callback.onFailure(error);
+                    } else {
+                        callback.onResponse((V) value);
+                    }
+                } catch (Throwable cause) {
+                    logger.severe("Failed asynchronous execution of execution callback: " + callback
+                            + "for call " + invocationToString(), cause);
+                }
             });
         } catch (RejectedExecutionException e) {
             callback.onFailure(e);
@@ -292,10 +307,10 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
      * @param waiter   the waiter
      * @param executor the {@link Executor} to use in case of an
      *                 {@link ExecutionCallback}.
-     * @return VOID if the registration was a success, anything else but void
+     * @return UNRESOLVED if the registration was a success, anything else but void
      * is the response.
      */
-    private Object registerWaiter(Object waiter, Executor executor) {
+    protected Object registerWaiter(Object waiter, Executor executor) {
         assert !(waiter instanceof UnblockableThread) : "Waiting for response on this thread is illegal";
         WaitNode waitNode = null;
         for (; ; ) {
@@ -305,7 +320,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             }
 
             Object newState;
-            if (oldState == VOID && (executor == null || executor == defaultExecutor)) {
+            if (oldState == UNRESOLVED && (executor == null || executor == defaultExecutor)) {
                 // nothing is syncing on this future, so instead of creating a WaitNode, we just try to cas the waiter
                 newState = waiter;
             } else {
@@ -319,7 +334,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
 
             if (compareAndSetState(oldState, newState)) {
                 // we have successfully registered
-                return VOID;
+                return UNRESOLVED;
             }
         }
     }
@@ -336,7 +351,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 // it is the item we are looking for, so lets try to remove it
                 if (prev == null) {
                     // it's the first item of the stack, so we need to change the head to the next
-                    Object n = next == null ? VOID : next;
+                    Object n = next == null ? UNRESOLVED : next;
                     // if we manage to CAS we are done, else we need to restart
                     current = compareAndSetState(current, n) ? null : state;
                 } else {
@@ -389,7 +404,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         if (s0 != s1 && !(s0 instanceof CancellationException) && !(s1 instanceof CancellationException)) {
             logger.warning(String.format("Future.complete(Object) on completed future. "
                             + "Request: %s, current value: %s, offered value: %s",
-                    invocationToString(), s0, s1));
+                    invocationToString(), s0, s1), new Exception());
         }
     }
 
@@ -429,4 +444,87 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             this.executor = executor;
         }
     }
+
+    // a WaitNode for a Function<V, R>
+    protected static final class ApplyNode<V, R> {
+        final CompletableFuture<R> future;
+        final Function<V, R> function;
+
+        public ApplyNode(CompletableFuture<R> future, Function<V, R> function) {
+            this.future = future;
+            this.function = function;
+        }
+
+        public void execute(Executor executor, V value) {
+            if (executor == null) {
+                future.complete(function.apply(value));
+            } else {
+                executor.execute(() -> {
+                    future.complete(function.apply(value));
+                });
+            }
+        }
+    }
+
+    // a WaitNode for a Consumer<? super V>
+    protected static final class AcceptNode<T> {
+        final CompletableFuture<Void> future;
+        final Consumer<T> consumer;
+
+        public AcceptNode(CompletableFuture<Void> future, Consumer<T> consumer) {
+            this.future = future;
+            this.consumer = consumer;
+        }
+
+        public void execute(Executor executor, T value) {
+            if (executor == null) {
+                consumer.accept(value);
+                future.complete(null);
+                return;
+            }
+            executor.execute(() -> {
+                consumer.accept(value);
+                future.complete(null);
+            });
+        }
+    }
+
+    // a WaitNode for a Runnable
+    protected static final class RunNode {
+        final CompletableFuture<Void> future;
+        final Runnable runnable;
+
+        public RunNode(CompletableFuture<Void> future, Runnable runnable) {
+            this.future = future;
+            this.runnable = runnable;
+        }
+
+        public void execute(Executor executor) {
+            if (executor == null) {
+                runnable.run();
+                future.complete(null);
+                return;
+            }
+            executor.execute(() -> {
+                runnable.run();
+                future.complete(null);
+            });
+        }
+    }
+
+    // todo
+    protected static final class ComposeNode<T, U> {
+        final CompletableFuture<U> future;
+        final Function<? extends T, ? extends CompletionStage<U>> function;
+
+        public ComposeNode(CompletableFuture<U> future, Function<? extends T, ? extends CompletionStage<U>> function) {
+            this.future = future;
+            this.function = function;
+        }
+
+        public void execute(T value, Executor executor) {
+
+        }
+    }
+
 }

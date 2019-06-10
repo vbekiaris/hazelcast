@@ -46,7 +46,7 @@ import static com.hazelcast.util.StringUtil.timeToString;
  *
  * @param <E>
  */
-final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
+class InvocationFuture<E> extends AbstractInvocationFuture<E> {
 
     volatile boolean interrupted;
     final Invocation invocation;
