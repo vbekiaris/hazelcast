@@ -210,7 +210,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRun_whenCompletedFuture() {
         CompletionStage<Object> future = invokeSync();
-        CompletableFuture<Void> chained = future.thenRun(() -> ignore()).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRun(this::ignore).toCompletableFuture();
 
         assertTrue(chained.isDone());
     }
@@ -218,7 +218,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRun_whenIncompleteFuture() {
         CompletionStage<Object> future = invokeAsync();
-        CompletableFuture<Void> chained = future.thenRun(() -> ignore()).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRun(this::ignore).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
     }
@@ -226,7 +226,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRunAsync_whenCompletedFuture() {
         CompletionStage<Object> future = invokeSync();
-        CompletableFuture<Void> chained = future.thenRunAsync(() -> ignore()).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
     }
@@ -234,7 +234,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRunAsync_whenIncompleteFuture() {
         CompletionStage<Object> future = invokeAsync();
-        CompletableFuture<Void> chained = future.thenRunAsync(() -> ignore()).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
     }
@@ -242,7 +242,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRunAsync_withExecutor_whenCompletedFuture() {
         CompletionStage<Object> future = invokeSync();
-        CompletableFuture<Void> chained = future.thenRunAsync(() -> ignore(), countingExecutor).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore, countingExecutor).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
     }
@@ -250,7 +250,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRunAsync_withExecutor_whenIncompleteFuture() {
         CompletionStage<Object> future = invokeAsync();
-        CompletableFuture<Void> chained = future.thenRunAsync(() -> ignore(), countingExecutor).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore, countingExecutor).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
         assertEquals(1, countingExecutor.counter.get());
@@ -259,7 +259,168 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     @Test
     public void thenRunAsync_whenChained() {
         CompletionStage<Object> future = invokeAsync();
-        CompletableFuture<Void> chained = future.thenRunAsync(() -> ignore(), countingExecutor).toCompletableFuture();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void whenComplete_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }).toCompletableFuture();
+
+        assertTrue(chained.isDone());
+        assertNull(chained.join());
+    }
+
+    @Test
+    public void whenComplete_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertNull(chained.join());
+    }
+
+    @Test
+    public void whenCompleteAsync_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+    }
+
+    @Test
+    public void whenCompleteAsync_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+    }
+
+    @Test
+    public void whenCompleteAsync_withExecutor_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void whenCompleteAsync_withExecutor_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void whenCompleteAsync_whenChained() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            assertNull(v);
+            assertNull(t);
+        }, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void handle_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            return chainedReturnValue;
+        }).toCompletableFuture();
+
+        assertTrue(chained.isDone());
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handle_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            return chainedReturnValue;
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            return chainedReturnValue;
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            return chainedReturnValue;
+        }).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_withExecutor_whenCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            return chainedReturnValue;
+        }, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_withExecutor_whenIncompleteFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            return chainedReturnValue;
+        }, countingExecutor).toCompletableFuture();
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(1, countingExecutor.counter.get());
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_whenChained() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            return chainedReturnValue;
+        }, countingExecutor).toCompletableFuture();
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
         assertEquals(1, countingExecutor.counter.get());

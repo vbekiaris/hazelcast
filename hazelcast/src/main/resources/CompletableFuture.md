@@ -40,7 +40,7 @@ A `Future` backed by an invocation. Resolution of an invocation's outcome and cu
 
 ## Random thoughts
 
-### Exceptions an normal completion values
+### Exceptions as normal completion values
 
 See also: https://github.com/hazelcast/hazelcast/pull/13284, https://github.com/hazelcast/hazelcast/issues/13138
 
@@ -49,6 +49,12 @@ Cleanup todo before: unify resolveAndThrowIfException (actually, is this a real 
 Design issue: is `ExceptionalResult` an impl detail of `AbstractInvocationFuture` (therefore private inner class)
 or can it be reused (eg in `Invocation.pendingResponse` it models the same thing, because we may want to hold on to
 the exceptional value until backups are done).
+
+### Code deduplication
+
+Execution of composed stages can happen in a few combinations. Code is repeated across all these
+places, sometimes within an executor submit, sometimes in calling thread. Exception handling needs to uniformly
+apply complete/completeExceptionally on each dependent completion stage.
 
 
 ### Deserialization of result

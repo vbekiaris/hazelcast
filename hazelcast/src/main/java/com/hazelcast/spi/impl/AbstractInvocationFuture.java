@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -54,8 +56,6 @@ import static java.util.concurrent.locks.LockSupport.unpark;
  * TODO:
  * - thread value protection
  *
- * TODO 4.0:
- * - allow for exceptions as proper values
  * @param <V>
  */
 @SuppressWarnings("Since15")
@@ -132,6 +132,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 || state instanceof ExecutionCallback
                 || state instanceof RunNode
                 || state instanceof ApplyNode
+                || state instanceof CompleteNode
+                || state instanceof HandleNode
                 || state instanceof AcceptNode);
     }
 
@@ -484,6 +486,58 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    // a WaitNode for a BiFunction<V, T, R>
+    protected static final class HandleNode<V, T, R> {
+        final CompletableFuture<R> future;
+        final BiFunction<V, T, R> biFunction;
+
+        public HandleNode(CompletableFuture<R> future, BiFunction<V, T, R> biFunction) {
+            this.future = future;
+            this.biFunction = biFunction;
+        }
+
+        public void execute(Executor executor, V value, T throwable) {
+            if (executor == null) {
+                future.complete(biFunction.apply(value, throwable));
+            } else {
+                executor.execute(() -> {
+                    future.complete(biFunction.apply(value, throwable));
+                });
+            }
+        }
+    }
+
+    // a WaitNode for a BiConsumer<V, T>
+    protected static final class CompleteNode<V, T extends Throwable> {
+        final CompletableFuture<V> future;
+        final BiConsumer<V, T> biFunction;
+
+        public CompleteNode(CompletableFuture<V> future, BiConsumer<V, T> biFunction) {
+            this.future = future;
+            this.biFunction = biFunction;
+        }
+
+        public void execute(Executor executor, V value, T throwable) {
+            if (executor == null) {
+                biFunction.accept(value, throwable);
+                complete(value, throwable);
+            } else {
+                executor.execute(() -> {
+                    biFunction.accept(value, throwable);
+                    complete(value, throwable);
+                });
+            }
+        }
+
+        private void complete(V value, T throwable) {
+            if (throwable == null) {
+                future.complete(value);
+            } else {
+                future.completeExceptionally(throwable);
+            }
+        }
+    }
+
     // a WaitNode for a Consumer<? super V>
     protected static final class AcceptNode<T> {
         final CompletableFuture<Void> future;
@@ -555,5 +609,13 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             return (ExceptionalResult) value;
         }
         return new ExceptionalResult((Throwable) value);
+    }
+
+    protected static <V> void completeFuture(CompletableFuture<V> future, V value, Throwable throwable) {
+        if (throwable == null) {
+            future.complete(value);
+        } else {
+            future.completeExceptionally(throwable);
+        }
     }
 }

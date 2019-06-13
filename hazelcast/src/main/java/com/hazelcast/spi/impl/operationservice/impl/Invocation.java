@@ -153,7 +153,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
     volatile long lastHeartbeatMillis;
 
     final Context context;
-    final InvocationFuture future;
+    final InvocationCompletionStage future;
     final long callTimeoutMillis;
 
     /**
@@ -229,7 +229,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         this.tryCount = tryCount;
         this.tryPauseMillis = tryPauseMillis;
         this.callTimeoutMillis = getCallTimeoutMillis(callTimeoutMillis);
-        this.future = new InvocationFuture(this, deserialize);
+        this.future = new InvocationCompletionStage(this, deserialize);
         this.endpointManager = getEndpointManager(endpointManager);
     }
 
