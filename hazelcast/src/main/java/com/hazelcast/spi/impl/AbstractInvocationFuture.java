@@ -62,7 +62,7 @@ import static java.util.concurrent.locks.LockSupport.unpark;
 @SuppressFBWarnings(value = "DLS_DEAD_STORE_OF_CLASS_LITERAL", justification = "Recommended way to prevent classloading bug")
 public abstract class AbstractInvocationFuture<V> implements InternalCompletableFuture<V> {
 
-    protected static final Object UNRESOLVED = "UNRESOLVED";
+    protected static final Object UNRESOLVED = new Object();
 
     // reduce the risk of rare disastrous classloading in first call to
     // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
@@ -140,12 +140,12 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-        return complete(new CancellationException());
+        return completeExceptionally(new CancellationException());
     }
 
     @Override
     public boolean isCancelled() {
-        return state instanceof CancellationException;
+        return isStateCancelled(state);
     }
 
     @Override
@@ -256,7 +256,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     /**
      *
      * @param waiter    the current wait node, see javadoc of {@link #state state field}
-     * @param executor  the {@lin Executor} on which to execute the action associated with {@code waiter}
+     * @param executor  the {@link Executor} on which to execute the action associated with {@code waiter}
      */
     protected void unblockOtherNode(Object waiter, Executor executor) {
     }
@@ -266,8 +266,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             executor.execute(() -> {
                 try {
                     Object value = resolve(state);
-                    if (value instanceof Throwable) {
-                        Throwable error = unwrap((Throwable) value);
+                    if (value instanceof ExceptionalResult) {
+                        Throwable error = unwrap((ExceptionalResult) value);
                         callback.onFailure(error);
                     } else {
                         callback.onResponse((V) value);
@@ -283,7 +283,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     // this method should not be needed; but there is a difference between client and server how it handles async throwables
-    protected Throwable unwrap(Throwable throwable) {
+    protected Throwable unwrap(ExceptionalResult result) {
+        Throwable throwable = result.cause;
         if (throwable instanceof ExecutionException && throwable.getCause() != null) {
             return throwable.getCause();
         }
@@ -380,6 +381,14 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
      */
     @Override
     public final boolean complete(Object value) {
+        return complete0(value);
+    }
+
+    public final boolean completeExceptionally(Object value) {
+        return complete0(wrapThrowable(value));
+    }
+
+    private boolean complete0(Object value) {
         for (; ; ) {
             final Object oldState = state;
             if (isDone(oldState)) {
@@ -401,7 +410,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     // it can be that this future is already completed, e.g. when an invocation already
     // received a response, but before it cleans up itself, it receives a HazelcastInstanceNotActiveException
     private void warnIfSuspiciousDoubleCompletion(Object s0, Object s1) {
-        if (s0 != s1 && !(s0 instanceof CancellationException) && !(s1 instanceof CancellationException)) {
+        if (s0 != s1 && !(isStateCancelled(s0)) && !(isStateCancelled(s0))) {
             logger.warning(String.format("Future.complete(Object) on completed future. "
                             + "Request: %s, current value: %s, offered value: %s",
                     invocationToString(), s0, s1), new Exception());
@@ -442,6 +451,15 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         WaitNode(Object waiter, Executor executor) {
             this.waiter = waiter;
             this.executor = executor;
+        }
+    }
+
+    // todo this should be an implementation detail but is currently reused in Invocation.pendingResponse
+    public static final class ExceptionalResult {
+        public final Throwable cause;
+
+        public ExceptionalResult(Throwable cause) {
+            this.cause = cause;
         }
     }
 
@@ -527,4 +545,15 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    private static boolean isStateCancelled(final Object state) {
+        return ((state instanceof ExceptionalResult) &&
+                (((ExceptionalResult) state).cause instanceof CancellationException));
+    }
+
+    private ExceptionalResult wrapThrowable(Object value) {
+        if (value instanceof ExceptionalResult) {
+            return (ExceptionalResult) value;
+        }
+        return new ExceptionalResult((Throwable) value);
+    }
 }

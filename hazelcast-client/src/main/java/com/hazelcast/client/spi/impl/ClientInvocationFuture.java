@@ -21,6 +21,7 @@ import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.AbstractInvocationFuture;
 import com.hazelcast.spi.impl.sequence.CallIdSequence;
+import com.hazelcast.util.ExceptionUtil;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -54,7 +55,7 @@ public class ClientInvocationFuture extends AbstractInvocationFuture<ClientMessa
 
     @Override
     protected void onInterruptDetected() {
-        complete(new InterruptedException());
+        completeExceptionally(new InterruptedException());
     }
 
     @Override
@@ -63,8 +64,8 @@ public class ClientInvocationFuture extends AbstractInvocationFuture<ClientMessa
     }
 
     @Override
-    protected Throwable unwrap(Throwable throwable) {
-        return throwable;
+    protected Throwable unwrap(ExceptionalResult result) {
+        return result.cause;
     }
 
     @Override

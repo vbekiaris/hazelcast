@@ -21,6 +21,7 @@ import com.hazelcast.logging.Logger;
 import com.hazelcast.test.HazelcastTestSupport;
 import org.junit.Before;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -56,7 +57,7 @@ public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTes
         @Override
         protected void onInterruptDetected() {
             interruptDetected = true;
-            complete(new InterruptedException());
+            completeExceptionally(new InterruptedException());
         }
 
         @Override
@@ -66,18 +67,24 @@ public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTes
 
         @Override
         protected Object resolveAndThrowIfException(Object state) throws ExecutionException, InterruptedException {
-            if (state instanceof Throwable) {
-                if (state instanceof Error) {
-                    throw (Error) state;
-                } else if (state instanceof RuntimeException) {
-                    throw (RuntimeException) state;
-                } else if (state instanceof InterruptedException) {
-                    throw (InterruptedException) state;
+            Object value = resolve(state);
+
+            if (!(value instanceof ExceptionalResult)) {
+                return value;
+            } else {
+                Throwable cause = ((ExceptionalResult) value).cause;
+                if (cause instanceof CancellationException) {
+                    throw (CancellationException) cause;
+                } else if (cause instanceof ExecutionException) {
+                    throw (ExecutionException) cause;
+                } else if (cause instanceof InterruptedException) {
+                    throw (InterruptedException) cause;
+                } else if (cause instanceof Error) {
+                    throw (Error) cause;
                 } else {
-                    throw new ExecutionException((Throwable) state);
+                    throw new ExecutionException(cause);
                 }
             }
-            return state;
         }
 
         @Override

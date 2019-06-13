@@ -83,8 +83,11 @@ public class RaftInvocation extends Invocation<CPMember> {
         if (!(value instanceof IndeterminateOperationState) && indeterminateException != null && isRetryable(value)) {
             value = indeterminateException;
         }
-
-        super.notifyNormalResponse(value, expectedBackups);
+        if (value instanceof Throwable) {
+            super.notifyThrowable((Throwable) value, expectedBackups);
+        } else {
+            super.notifyNormalResponse(value, expectedBackups);
+        }
         // TODO [basri] maybe we should update known leader only if the result is not an exception?
         raftInvocationContext.setKnownLeader(groupId, lastInvocationEndpoint);
     }

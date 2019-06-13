@@ -23,6 +23,7 @@ import com.hazelcast.nio.Packet;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.impl.AbstractInvocationFuture;
 import com.hazelcast.spi.impl.operationservice.impl.responses.NormalResponse;
+import com.hazelcast.util.ExceptionUtil;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -33,7 +34,6 @@ import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.CA
 import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.HEARTBEAT_TIMEOUT;
 import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.INTERRUPTED;
 import static com.hazelcast.util.Clock.currentTimeMillis;
-import static com.hazelcast.util.ExceptionUtil.fixAsyncStackTrace;
 import static com.hazelcast.util.StringUtil.timeToString;
 
 /**
@@ -78,18 +78,21 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
     protected E resolveAndThrowIfException(Object unresolved) throws ExecutionException, InterruptedException {
         Object value = resolve(unresolved);
 
-        if (value == null || !(value instanceof Throwable)) {
+        if (!(value instanceof ExceptionalResult)) {
             return (E) value;
-        } else if (value instanceof CancellationException) {
-            throw (CancellationException) value;
-        } else if (value instanceof ExecutionException) {
-            throw (ExecutionException) value;
-        } else if (value instanceof InterruptedException) {
-            throw (InterruptedException) value;
-        } else if (value instanceof Error) {
-            throw (Error) value;
         } else {
-            throw new ExecutionException((Throwable) value);
+            Throwable cause = ((ExceptionalResult) value).cause;
+            if (cause instanceof CancellationException) {
+                throw (CancellationException) cause;
+            } else if (cause instanceof ExecutionException) {
+                throw (ExecutionException) cause;
+            } else if (cause instanceof InterruptedException) {
+                throw (InterruptedException) cause;
+            } else if (cause instanceof Error) {
+                throw (Error) cause;
+            } else {
+                throw new ExecutionException(cause);
+            }
         }
     }
 
@@ -99,11 +102,12 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         if (unresolved == null) {
             return null;
         } else if (unresolved == INTERRUPTED) {
-            return new InterruptedException(invocation.op.getClass().getSimpleName() + " was interrupted. " + invocation);
+            return new ExceptionalResult(
+                    new InterruptedException(invocation.op.getClass().getSimpleName() + " was interrupted. " + invocation));
         } else if (unresolved == CALL_TIMEOUT) {
-            return newOperationTimeoutException(false);
+            return new ExceptionalResult(newOperationTimeoutException(false));
         } else if (unresolved == HEARTBEAT_TIMEOUT) {
-            return newOperationTimeoutException(true);
+            return new ExceptionalResult(newOperationTimeoutException(true));
         } else if (unresolved.getClass() == Packet.class) {
             NormalResponse response = invocation.context.serializationService.toObject(unresolved);
             unresolved = response.getValue();
@@ -118,19 +122,20 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         }
 
         if (invocation.shouldFailOnIndeterminateOperationState() && (value instanceof IndeterminateOperationState)) {
-            value = new IndeterminateOperationStateException("indeterminate operation state", (Throwable) value);
+            value = new ExceptionalResult(
+                    new IndeterminateOperationStateException("indeterminate operation state", (Throwable) value));
         }
 
         if (value instanceof Throwable) {
             Throwable throwable = ((Throwable) value);
-            fixAsyncStackTrace((Throwable) value, Thread.currentThread().getStackTrace());
-            return throwable;
+            ExceptionUtil.fixAsyncStackTrace((Throwable) value, Thread.currentThread().getStackTrace());
+            return new ExceptionalResult(throwable);
         }
 
         return value;
     }
 
-    private Object newOperationTimeoutException(boolean heartbeatTimeout) {
+    private ExecutionException newOperationTimeoutException(boolean heartbeatTimeout) {
         StringBuilder sb = new StringBuilder();
         if (heartbeatTimeout) {
             sb.append(invocation.op.getClass().getSimpleName())
