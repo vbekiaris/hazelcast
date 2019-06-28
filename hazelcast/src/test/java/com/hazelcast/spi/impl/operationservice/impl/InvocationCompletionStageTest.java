@@ -22,23 +22,31 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.Operation;
+import com.hazelcast.test.ExpectedRuntimeException;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.RootCauseMatcher;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -55,6 +63,9 @@ import static org.junit.Assert.assertTrue;
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
 public class InvocationCompletionStageTest extends HazelcastTestSupport {
+
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     private final Object returnValue = new Object();
     private final Object chainedReturnValue = new Object();
@@ -109,7 +120,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         CompletableFuture<Object> future = invokeSync(new DummyOperation(null));
         CompletableFuture<Void> chained = prepareThenAccept(future, true, true);
 
-        assertTrueEventually(() -> Assert.assertTrue(chained.isDone()));
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
         assertEquals(1, countingExecutor.counter.get());
     }
 
@@ -118,7 +129,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         InvocationCompletionStage<Object> future = invokeAsync(new SlowOperation(3000, "#"));
         CompletableFuture<Void> chained = prepareThenAccept(future, true, true);
 
-        assertTrueEventually(() -> Assert.assertTrue(chained.isDone()));
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
         assertEquals(1, countingExecutor.counter.get());
     }
 
@@ -129,9 +140,33 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         CompletableFuture<Void> chained1 = prepareThenAccept(future, true, true);
         CompletableFuture<Void> chained2 = prepareThenAccept(chained1, true, true);
 
-        assertTrueEventually(() -> Assert.assertTrue(chained2.isDone()));
+        assertTrueEventually(() -> assertTrue(chained2.isDone()));
         assertTrue(chained1.isDone());
         assertEquals(2, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void thenAccept_exceptional() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Void> chained = prepareThenAccept(future, false, false);
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void thenAcceptAsync_exceptional() {
+        InvocationCompletionStage<Object> future = invokeAsync_withException();
+        CompletableFuture<Void> chained = prepareThenAccept(future, true, false);
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
     }
 
     @Test
@@ -208,6 +243,30 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     }
 
     @Test
+    public void thenApply_exceptional() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.thenApply(Function.identity());
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void thenApplyAsync_exceptional() {
+        InvocationCompletionStage<Object> future = invokeAsync_withException();
+        CompletableFuture<Object> chained = future.thenApplyAsync(Function.identity()).toCompletableFuture();
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
     public void thenRun_whenCompletedFuture() {
         CompletionStage<Object> future = invokeSync();
         CompletableFuture<Void> chained = future.thenRun(this::ignore).toCompletableFuture();
@@ -263,6 +322,30 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
 
         assertTrueEventually(() -> assertTrue(chained.isDone()));
         assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void thenRun_exceptional() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Void> chained = future.thenRun(this::ignore);
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void thenRunAsync_exceptional() {
+        InvocationCompletionStage<Object> future = invokeAsync_withException();
+        CompletableFuture<Void> chained = future.thenRunAsync(this::ignore).toCompletableFuture();
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
     }
 
     @Test
@@ -348,6 +431,106 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     }
 
     @Test
+    public void whenComplete_exceptional() {
+        CountDownLatch executed = new CountDownLatch(1);
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            assertNull(v);
+            assertInstanceOf(ExpectedRuntimeException.class, t);
+            executed.countDown();
+        });
+
+        assertOpenEventually(executed);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+    }
+
+    @Test
+    public void whenCompleteAsync_exceptional() {
+        CountDownLatch executed = new CountDownLatch(1);
+        CompletionStage<Object> future = invokeAsync_withException();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            assertNull(v);
+            assertInstanceOf(ExpectedRuntimeException.class, t);
+            executed.countDown();
+        }).toCompletableFuture();
+
+        assertOpenEventually(executed);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+    }
+
+    @Test
+    public void whenComplete_withExceptionFromBiConsumer() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            throw new ExpectedRuntimeException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void whenComplete_withExceptionFromFirstStage_failsWithFirstException() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            throw new IllegalArgumentException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void whenCompleteAsync_withExceptionFromBiConsumer() {
+        CompletableFuture<Object> future = invokeAsync().toCompletableFuture();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            throw new ExpectedRuntimeException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void whenCompleteAsync_withExceptionFromFirstStage_failsWithFirstException() {
+        CompletableFuture<Object> future = invokeAsync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.whenComplete((v, t) -> {
+            throw new IllegalArgumentException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void whenCompleteAsync_withExecutor_withExceptionFromBiConsumer() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            throw new ExpectedRuntimeException();
+        }, countingExecutor);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void whenCompleteAsync_withExecutor_withExceptionFromFirstStage_failsWithFirstException() {
+        CompletableFuture<Object> future = invokeSync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.whenCompleteAsync((v, t) -> {
+            throw new IllegalArgumentException();
+        }, countingExecutor);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
     public void handle_whenCompletedFuture() {
         CompletionStage<Object> future = invokeSync();
         CompletableFuture<Object> chained = future.handle((v, t) -> {
@@ -426,6 +609,116 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         assertEquals(1, countingExecutor.counter.get());
     }
 
+    @Test
+    public void handle_exceptional() {
+        CountDownLatch executed = new CountDownLatch(1);
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            assertNull(v);
+            assertInstanceOf(ExpectedRuntimeException.class, t);
+            executed.countDown();
+            return returnValue;
+        });
+
+        assertOpenEventually(executed);
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertFalse(chained.isCompletedExceptionally());
+        assertEquals(returnValue, chained.join());
+    }
+
+    @Test
+    public void handleAsync_exceptional() {
+        CountDownLatch executed = new CountDownLatch(1);
+        InvocationCompletionStage<Object> future = invokeAsync_withException();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            assertNull(v);
+            assertInstanceOf(ExpectedRuntimeException.class, t);
+            executed.countDown();
+            return returnValue;
+        }).toCompletableFuture();
+
+        assertOpenEventually(executed);
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertFalse(chained.isCompletedExceptionally());
+        assertEquals(returnValue, chained.join());
+    }
+
+    @Test
+    public void handle_withExceptionFromBiFunction() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            throw new ExpectedRuntimeException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    // since handle* methods process and substitute processing outcome of first stage,
+    // if the the handler BiFunction fails with an exception, the chained CompletionStage
+    // will fail with the exception thrown from the handler's body (not the one thrown from
+    // the original CompletionStage).
+    @Test
+    public void handle_withExceptionFromFirstStage_failsWithSecondException() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.handle((v, t) -> {
+            throw new IllegalArgumentException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalArgumentException.class));
+        chained.join();
+    }
+
+    @Test
+    public void handleAsync_withExceptionFromBiFunction() {
+        CompletableFuture<Object> future = invokeAsync().toCompletableFuture();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            throw new ExpectedRuntimeException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void handleAsync_withExceptionFromFirstStage_failsWithSecondException() {
+        CompletableFuture<Object> future = invokeAsync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            throw new IllegalArgumentException();
+        });
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalArgumentException.class));
+        chained.join();
+    }
+
+    @Test
+    public void handleAsync_withExecutor_withExceptionFromBiFunction() {
+        CompletableFuture<Object> future = invokeSync().toCompletableFuture();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            throw new ExpectedRuntimeException();
+        }, countingExecutor);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void handleAsync_withExecutor_withExceptionFromFirstStage_failsWithSecondException() {
+        CompletableFuture<Object> future = invokeSync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.handleAsync((v, t) -> {
+            throw new IllegalArgumentException();
+        }, countingExecutor);
+        assertTrueEventually(() -> assertTrue(chained.isCompletedExceptionally()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalArgumentException.class));
+        chained.join();
+    }
+
     private CompletableFuture<Void> prepareThenAccept(CompletionStage invocationFuture,
                                 boolean async,
                                 boolean explicitExecutor) {
@@ -449,6 +742,15 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         return chained.toCompletableFuture();
     }
 
+    private <R> CompletableFuture<R> invokeSync_withException() {
+        return invokeSync(new Operation() {
+            @Override
+            public void run() {
+                throw new ExpectedRuntimeException("expected");
+            }
+        });
+    }
+
     private <R> CompletableFuture<R> invokeSync() {
         return invokeSync(new DummyOperation(null));
     }
@@ -462,6 +764,15 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
                 operation, getAddress(local), InvocationBuilder.DEFAULT_TRY_COUNT, InvocationBuilder.DEFAULT_TRY_PAUSE_MILLIS,
                 InvocationBuilder.DEFAULT_CALL_TIMEOUT, true);
         return (InvocationCompletionStage<R>) invocation.invokeAsync();
+    }
+
+    private <R> InvocationCompletionStage<R> invokeAsync_withException() {
+        return invokeAsync(new Operation() {
+            @Override
+            public void run() {
+                throw new ExpectedRuntimeException("expected");
+            }
+        });
     }
 
     private <R> CompletableFuture<R> invokeSync(Operation operation) {

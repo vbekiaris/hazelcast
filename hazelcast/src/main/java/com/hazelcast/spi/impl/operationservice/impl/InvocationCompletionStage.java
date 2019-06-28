@@ -16,6 +16,8 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
+import com.hazelcast.spi.impl.AbstractInvocationFuture;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -73,9 +75,11 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     protected CompletionStage<Void> unblock(final Consumer<? super V> consumer, Executor executor) {
         final Object value = resolve(state);
-        // todo handle exceptional outcome
         final CompletableFuture<Void> result = newCompletableFuture();
         if (value != UNRESOLVED) {
+            if (cascadeException(value, result)) {
+                return result;
+            }
             if (executor != null) {
                 executor.execute(() -> {
                     consumer.accept((V) value);
@@ -94,26 +98,23 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     protected void unblockOtherNode(Object waiter, Executor executor) {
+        Object value = resolve(state);
         if (waiter instanceof AcceptNode) {
             AcceptNode acceptNode = (AcceptNode) waiter;
-            Object value = resolve(state);
             acceptNode.execute(executor, value);
         } else if (waiter instanceof ApplyNode) {
             ApplyNode applyNode = (ApplyNode) waiter;
-            Object value = resolve(state);
             applyNode.execute(executor, value);
         } else if (waiter instanceof RunNode) {
             RunNode runNode = (RunNode) waiter;
-            runNode.execute(executor);
-        } else if (waiter instanceof CompleteNode) {
-            CompleteNode completeNode = (CompleteNode) waiter;
-            Object value = resolve(state);
+            runNode.execute(executor, value);
+        } else if (waiter instanceof AbstractInvocationFuture.WhenCompleteNode) {
+            WhenCompleteNode whenCompleteNode = (WhenCompleteNode) waiter;
             Throwable t = (value instanceof ExceptionalResult) ? ((ExceptionalResult) value).cause : null;
             value = (value instanceof ExceptionalResult)? null : value;
-            completeNode.execute(executor, value, t);
+            whenCompleteNode.execute(executor, value, t);
         } else if (waiter instanceof HandleNode) {
             HandleNode handleNode = (HandleNode) waiter;
-            Object value = resolve(state);
             Throwable t = (value instanceof ExceptionalResult) ? ((ExceptionalResult) value).cause : null;
             value = (value instanceof ExceptionalResult)? null : value;
             handleNode.execute(executor, value, t);
@@ -121,6 +122,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
     }
 
     <T> CompletableFuture<T> newCompletableFuture() {
+        // todo
         return new CompletableFuture<T>();
     }
 
@@ -142,9 +144,11 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     protected <U> CompletionStage<U> unblock(final Function<? super V, ? extends U> function, Executor executor) {
         final Object value = resolve(state);
-        // todo handle exceptional outcome
         final CompletableFuture<U> result = newCompletableFuture();
         if (value != UNRESOLVED) {
+            if (cascadeException(value, result)) {
+                return result;
+            }
             if (executor != null) {
                 executor.execute(() -> {
                     result.complete(function.apply((V) value));
@@ -177,9 +181,11 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     protected CompletionStage<Void> unblock(final Runnable runnable, Executor executor) {
         final Object value = resolve(state);
-        // todo handle exceptional outcome
         final CompletableFuture<Void> result = newCompletableFuture();
         if (value != UNRESOLVED) {
+            if (cascadeException(value, result)) {
+                return result;
+            }
             if (executor != null) {
                 executor.execute(() -> {
                     runnable.run();
@@ -278,19 +284,28 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
                 throwable = null;
                 value = (V) result;
             }
-
             if (executor != null) {
                 executor.execute(() -> {
-                    runnable.accept((V) value, throwable);
+                    try {
+                        runnable.accept((V) value, throwable);
+                    } catch (Throwable t) {
+                        completeExceptionallyWithPriority(future, throwable, t);
+                        return;
+                    }
                     completeFuture(future, value, throwable);
                 });
             } else {
-                runnable.accept((V) value, throwable);
+                try {
+                    runnable.accept((V) value, throwable);
+                } catch (Throwable t) {
+                    completeExceptionallyWithPriority(future, throwable, t);
+                    return future;
+                }
                 completeFuture(future, value, throwable);
             }
             return future;
         } else {
-            registerWaiter(new CompleteNode(future, runnable), executor);
+            registerWaiter(new WhenCompleteNode(future, runnable), executor);
             return future;
         }
     }
