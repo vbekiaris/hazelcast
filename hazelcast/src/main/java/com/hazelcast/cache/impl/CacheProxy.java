@@ -49,6 +49,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -102,7 +103,7 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
         Operation operation = operationProvider.createContainsKeyOperation(dataKey);
         OperationService operationService = getNodeEngine().getOperationService();
         int partitionId = getPartitionId(dataKey);
-        InternalCompletableFuture<Boolean> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
+        CompletableFuture<Boolean> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
         return future.join();
     }
 
@@ -152,7 +153,7 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
     @Override
     public boolean remove(K key) {
         try {
-            InternalCompletableFuture<Boolean> future = removeAsyncInternal(key, null, false, false, true);
+            CompletableFuture<Boolean> future = removeAsyncInternal(key, null, false, false, true);
             return future.get();
         } catch (Throwable e) {
             throw rethrowAllowedTypeFirst(e, CacheException.class);
@@ -162,7 +163,7 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
     @Override
     public boolean remove(K key, V oldValue) {
         try {
-            InternalCompletableFuture<Boolean> future = removeAsyncInternal(key, oldValue, true, false, true);
+            CompletableFuture<Boolean> future = removeAsyncInternal(key, oldValue, true, false, true);
             return future.get();
         } catch (Throwable e) {
             throw rethrowAllowedTypeFirst(e, CacheException.class);
@@ -172,7 +173,7 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
     @Override
     public V getAndRemove(K key) {
         try {
-            InternalCompletableFuture<V> future = removeAsyncInternal(key, null, false, true, true);
+            CompletableFuture<V> future = removeAsyncInternal(key, null, false, true, true);
             return future.get();
         } catch (Throwable e) {
             throw rethrowAllowedTypeFirst(e, CacheException.class);
@@ -235,7 +236,7 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
         try {
             OperationService operationService = getNodeEngine().getOperationService();
             int partitionId = getPartitionId(keyData);
-            InternalCompletableFuture<T> future = operationService.invokeOnPartition(getServiceName(), op, partitionId);
+            CompletableFuture<T> future = operationService.invokeOnPartition(getServiceName(), op, partitionId);
             T safely = future.join();
             waitCompletionLatch(completionId);
             return safely;
@@ -372,14 +373,14 @@ public class CacheProxy<K, V> extends AbstractCacheProxy<K, V>
     }
 
     @Override
-    public ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
+    public CompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
         final CacheEventJournalSubscribeOperation op = new CacheEventJournalSubscribeOperation(nameWithPrefix);
         op.setPartitionId(partitionId);
         return getNodeEngine().getOperationService().invokeOnPartition(op);
     }
 
     @Override
-    public <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    public <T> CompletableFuture<ReadResultSet<T>> readFromEventJournal(
             long startSequence,
             int minSize,
             int maxSize,

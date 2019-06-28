@@ -22,7 +22,6 @@ import com.hazelcast.config.CacheSimpleConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.EventJournalConfig;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.ringbuffer.ReadResultSet;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.test.HazelcastSerialClassRunner;
@@ -38,6 +37,7 @@ import javax.cache.Cache;
 import javax.cache.CacheManager;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -108,7 +108,7 @@ public class AdvancedCacheJournalTest extends HazelcastTestSupport {
     private static <K, V> int getJournalSize(Cache<K, V> cache) throws ExecutionException, InterruptedException {
         int total = 0;
         for (int i = 0; i < PARTITION_COUNT; i++) {
-            ICompletableFuture<ReadResultSet<Object>> future =
+            CompletableFuture<ReadResultSet<Object>> future =
                     ((CacheProxy<K, V>) cache).readFromEventJournal(0, 0, 10000, i, null, null);
             ReadResultSet<Object> resultSet = future.get();
             int readCount = resultSet.readCount();

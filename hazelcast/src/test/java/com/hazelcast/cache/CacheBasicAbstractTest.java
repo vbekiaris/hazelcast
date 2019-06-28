@@ -17,7 +17,6 @@
 package com.hazelcast.cache;
 
 import com.hazelcast.config.CacheConfig;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.internal.serialization.impl.DefaultSerializationServiceBuilder;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.serialization.SerializationService;
@@ -56,6 +55,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -151,7 +151,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
         ICache<String, String> cache = createCache();
         String key = randomString();
 
-        ICompletableFuture<Boolean> iCompletableFuture = cache.putIfAbsentAsync(key, randomString());
+        CompletableFuture<Boolean> iCompletableFuture = cache.putIfAbsentAsync(key, randomString());
         assertTrue(iCompletableFuture.get());
     }
 
@@ -161,7 +161,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
         String key = randomString();
         cache.put(key, randomString());
 
-        ICompletableFuture<Boolean> iCompletableFuture = cache.putIfAbsentAsync(key, randomString());
+        CompletableFuture<Boolean> iCompletableFuture = cache.putIfAbsentAsync(key, randomString());
         assertFalse(iCompletableFuture.get());
     }
 
@@ -188,7 +188,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
         String newValue = randomString();
         cache.put(key, oldValue);
 
-        ICompletableFuture<String> iCompletableFuture = cache.getAndReplaceAsync(key, newValue);
+        CompletableFuture<String> iCompletableFuture = cache.getAndReplaceAsync(key, newValue);
         assertEquals(iCompletableFuture.get(), oldValue);
         assertEquals(cache.get(key), newValue);
     }
@@ -552,7 +552,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
         String value = randomString();
 
         cache.put(key, value);
-        ICompletableFuture<Boolean> future = cache.removeAsync(key);
+        CompletableFuture<Boolean> future = cache.removeAsync(key);
         assertTrue(future.get());
     }
 
@@ -560,7 +560,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
     public void testRemoveAsyncWhenEntryNotFound() throws Exception {
         ICache<String, String> cache = createCache();
 
-        ICompletableFuture<Boolean> future = cache.removeAsync(randomString());
+        CompletableFuture<Boolean> future = cache.removeAsync(randomString());
         assertFalse(future.get());
     }
 
@@ -571,7 +571,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
         String value = randomString();
 
         cache.put(key, value);
-        ICompletableFuture<Boolean> future = cache.removeAsync(key, value);
+        CompletableFuture<Boolean> future = cache.removeAsync(key, value);
         assertTrue(future.get());
     }
 
@@ -579,7 +579,7 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
     public void testRemoveAsyncWhenEntryNotFound_withOldValue() throws Exception {
         ICache<String, String> cache = createCache();
 
-        ICompletableFuture<Boolean> future = cache.removeAsync(randomString(), randomString());
+        CompletableFuture<Boolean> future = cache.removeAsync(randomString(), randomString());
         assertFalse(future.get());
     }
 
@@ -594,9 +594,9 @@ public abstract class CacheBasicAbstractTest extends CacheTestSupport {
 
         CacheConfig<Integer, String> config = createCacheConfig();
         final CacheFromDifferentNodesTest.SimpleEntryListener<Integer, String> listener
-                = new CacheFromDifferentNodesTest.SimpleEntryListener<Integer, String>();
+                = new CacheFromDifferentNodesTest.SimpleEntryListener<>();
         MutableCacheEntryListenerConfiguration<Integer, String> listenerConfiguration
-                = new MutableCacheEntryListenerConfiguration<Integer, String>(
+                = new MutableCacheEntryListenerConfiguration<>(
                 FactoryBuilder.factoryOf(listener), null, true, true);
 
         config.addCacheEntryListenerConfiguration(listenerConfiguration);

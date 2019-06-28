@@ -73,7 +73,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
 
     @Test
     public void thenAccept_onCompletedFuture() {
-        InvocationCompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> future = invokeSync();
 
         CompletableFuture<Void> chained = prepareThenAccept(future, false, false);
 
@@ -92,7 +92,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
 
     @Test
     public void thenAcceptAsync_onCompletedFuture() {
-        InvocationCompletionStage<Object> future = invokeSync(new DummyOperation(null));
+        CompletableFuture<Object> future = invokeSync(new DummyOperation(null));
         CompletableFuture<Void> chained = prepareThenAccept(future, true, false);
         assertTrueEventually(() -> Assert.assertTrue(chained.isDone()));
     }
@@ -106,7 +106,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
 
     @Test
     public void thenAcceptAsync_withExecutor_onCompletedFuture() {
-        InvocationCompletionStage<Object> future = invokeSync(new DummyOperation(null));
+        CompletableFuture<Object> future = invokeSync(new DummyOperation(null));
         CompletableFuture<Void> chained = prepareThenAccept(future, true, true);
 
         assertTrueEventually(() -> Assert.assertTrue(chained.isDone()));
@@ -449,7 +449,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         return chained.toCompletableFuture();
     }
 
-    private <R> InvocationCompletionStage<R> invokeSync() {
+    private <R> CompletableFuture<R> invokeSync() {
         return invokeSync(new DummyOperation(null));
     }
 
@@ -464,8 +464,8 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         return (InvocationCompletionStage<R>) invocation.invokeAsync();
     }
 
-    private <R> InvocationCompletionStage<R> invokeSync(Operation operation) {
-        return (InvocationCompletionStage<R>) operationService.invokeOnTarget(null, operation, getAddress(local));
+    private <R> CompletableFuture<R> invokeSync(Operation operation) {
+        return operationService.invokeOnTarget(null, operation, getAddress(local));
     }
 
     static final class CountingExecutor implements Executor {

@@ -19,7 +19,6 @@ package com.hazelcast.internal.ascii.rest;
 import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastJsonValue;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroup;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.CPMember;
@@ -38,9 +37,11 @@ import com.hazelcast.nio.Address;
 import com.hazelcast.nio.AggregateEndpointManager;
 import com.hazelcast.nio.EndpointManager;
 import com.hazelcast.nio.NetworkingService;
+import com.hazelcast.spi.impl.operationservice.impl.BiConsumerExecutionCallbackAdapter;
 import com.hazelcast.util.StringUtil;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.instance.EndpointQualifier.CLIENT;
 import static com.hazelcast.internal.ascii.TextCommandConstants.MIME_TEXT_PLAIN;
@@ -190,8 +191,8 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
     }
 
     private void handleGetCPGroupIds(final HttpGetCommand command) {
-        ICompletableFuture<Collection<CPGroupId>> f = getCpSubsystemManagementService().getCPGroupIds();
-        f.andThen(new ExecutionCallback<Collection<CPGroupId>>() {
+        CompletableFuture<Collection<CPGroupId>> f = getCpSubsystemManagementService().getCPGroupIds();
+        f.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(new ExecutionCallback<Collection<CPGroupId>>() {
             @Override
             public void onResponse(Collection<CPGroupId> groupIds) {
                 JsonArray arr = new JsonArray();
@@ -207,7 +208,7 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
                 command.send500();
                 textCommandService.sendResponse(command);
             }
-        });
+        }));
     }
 
     private void handleGetCPSessions(final HttpGetCommand command) {
@@ -217,7 +218,8 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
         String groupName = uri.substring(prefix.length(), i).trim();
         getCpSubsystem().getCPSessionManagementService()
                         .getAllSessions(groupName)
-                        .andThen(new ExecutionCallback<Collection<CPSession>>() {
+                        .whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(
+                                new ExecutionCallback<Collection<CPSession>>() {
                             @Override
                             public void onResponse(Collection<CPSession> sessions) {
                                 JsonArray sessionsArr = new JsonArray();
@@ -239,14 +241,14 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
 
                                 textCommandService.sendResponse(command);
                             }
-                        });
+                        }));
     }
 
     private void handleGetCPGroupByName(final HttpGetCommand command) {
         String prefix = URI_CP_GROUPS_URL + "/";
         String groupName = command.getURI().substring(prefix.length()).trim();
-        ICompletableFuture<CPGroup> f = getCpSubsystemManagementService().getCPGroup(groupName);
-        f.andThen(new ExecutionCallback<CPGroup>() {
+        CompletableFuture<CPGroup> f = getCpSubsystemManagementService().getCPGroup(groupName);
+        f.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(new ExecutionCallback<CPGroup>() {
             @Override
             public void onResponse(CPGroup group) {
                 if (group != null) {
@@ -274,12 +276,12 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
                 command.send500();
                 textCommandService.sendResponse(command);
             }
-        });
+        }));
     }
 
     private void handleGetCPMembers(final HttpGetCommand command) {
-        ICompletableFuture<Collection<CPMember>> f = getCpSubsystemManagementService().getCPMembers();
-        f.andThen(new ExecutionCallback<Collection<CPMember>>() {
+        CompletableFuture<Collection<CPMember>> f = getCpSubsystemManagementService().getCPMembers();
+        f.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(new ExecutionCallback<Collection<CPMember>>() {
             @Override
             public void onResponse(Collection<CPMember> cpMembers) {
                 JsonArray arr = new JsonArray();
@@ -296,7 +298,7 @@ public class HttpGetCommandProcessor extends HttpCommandProcessor<HttpGetCommand
                 command.send500();
                 textCommandService.sendResponse(command);
             }
-        });
+        }));
     }
 
     private void handleGetLocalCPMember(final HttpGetCommand command) {

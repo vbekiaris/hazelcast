@@ -23,6 +23,7 @@ import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -163,14 +164,16 @@ public interface CPSubsystemManagementService {
 
     /**
      * Returns all active CP group ids.
+     * @return
      */
-    ICompletableFuture<Collection<CPGroupId>> getCPGroupIds();
+    CompletableFuture<Collection<CPGroupId>> getCPGroupIds();
 
     /**
      * Returns the active CP group with the given name.
      * There can be at most one active CP group with a given name.
+     * @return
      */
-    ICompletableFuture<CPGroup> getCPGroup(String name);
+    CompletableFuture<CPGroup> getCPGroup(String name);
 
     /**
      * Unconditionally destroys the given active CP group without using
@@ -190,13 +193,15 @@ public interface CPSubsystemManagementService {
      * <p>
      * This method is idempotent. It has no effect if the given CP group is
      * already destroyed.
+     * @return
      */
-    ICompletableFuture<Void> forceDestroyCPGroup(String groupName);
+    CompletableFuture<Void> forceDestroyCPGroup(String groupName);
 
     /**
      * Returns the current list of CP members
+     * @return
      */
-    ICompletableFuture<Collection<CPMember>> getCPMembers();
+    CompletableFuture<Collection<CPMember>> getCPMembers();
 
     /**
      * Promotes the local Hazelcast member to a CP member.
@@ -275,8 +280,9 @@ public interface CPSubsystemManagementService {
      * @throws IllegalStateException if current member count of the cluster
      *         is smaller than {@link CPSubsystemConfig#getCPMemberCount()}
      *
+     * @return
      */
-    ICompletableFuture<Void> restart();
+    CompletableFuture<Void> restart();
 
     /**
      * Returns whether CP discovery process is completed or not.

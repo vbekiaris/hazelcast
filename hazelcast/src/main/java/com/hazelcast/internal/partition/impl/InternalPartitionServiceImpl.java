@@ -17,12 +17,9 @@
 package com.hazelcast.internal.partition.impl;
 
 import com.hazelcast.cluster.ClusterState;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberLeftException;
-import com.hazelcast.partition.MigrationListener;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.cluster.ClusterStateListener;
 import com.hazelcast.internal.cluster.impl.ClusterServiceImpl;
@@ -33,6 +30,7 @@ import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.MigrationInfo.MigrationStatus;
+import com.hazelcast.internal.partition.PartitionEventListener;
 import com.hazelcast.internal.partition.PartitionReplica;
 import com.hazelcast.internal.partition.PartitionReplicaVersionManager;
 import com.hazelcast.internal.partition.PartitionRuntimeState;
@@ -46,18 +44,18 @@ import com.hazelcast.internal.partition.operation.ShutdownRequestOperation;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.MigrationListener;
 import com.hazelcast.partition.NoDataMemberInClusterException;
 import com.hazelcast.partition.PartitionEvent;
-import com.hazelcast.internal.partition.PartitionEventListener;
 import com.hazelcast.partition.PartitionLostListener;
 import com.hazelcast.spi.EventPublishingService;
 import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.PartitionAwareService;
 import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.spi.partition.IPartition;
 import com.hazelcast.spi.partition.IPartitionLostEvent;
@@ -79,6 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -266,22 +265,18 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
 
         if (masterTriggered.compareAndSet(false, true)) {
             OperationServiceImpl operationService = nodeEngine.getOperationService();
-            ICompletableFuture<PartitionRuntimeState> future =
+            CompletableFuture<PartitionRuntimeState> future =
                     operationService.invokeOnTarget(SERVICE_NAME, new AssignPartitions(), masterAddress);
-            future.andThen(new ExecutionCallback<PartitionRuntimeState>() {
-                @Override
-                public void onResponse(PartitionRuntimeState partitionState) {
+            future.whenCompleteAsync((partitionState, throwable) -> {
+                if (throwable == null) {
                     resetMasterTriggeredFlag();
                     if (partitionState != null) {
                         partitionState.setMaster(masterAddress);
                         processPartitionRuntimeState(partitionState);
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+                } else {
                     resetMasterTriggeredFlag();
-                    logger.severe(t);
+                    logger.severe(throwable);
                 }
             });
 
@@ -580,19 +575,15 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         for (final Member member : members) {
             if (!member.localMember()) {
                 Operation op = new PartitionStateVersionCheckOperation(partitionStateVersion);
-                ICompletableFuture<Boolean> future = operationService.invokeOnTarget(SERVICE_NAME, op, member.getAddress());
-                future.andThen(new ExecutionCallback<Boolean>() {
-                    @Override
-                    public void onResponse(Boolean response) {
+                CompletableFuture<Boolean> future = operationService.invokeOnTarget(SERVICE_NAME, op, member.getAddress());
+                future.whenCompleteAsync((response, throwable) -> {
+                    if (throwable == null) {
                         if (!Boolean.TRUE.equals(response)) {
                             logger.fine(member + " has a stale partition state. Will send the most recent partition state now.");
                             sendPartitionRuntimeState(member.getAddress());
                         }
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        logger.fine("Failure while checking partition state on " + member, t);
+                    } else {
+                        logger.fine("Failure while checking partition state on " + member, throwable);
                         sendPartitionRuntimeState(member.getAddress());
                     }
                 });

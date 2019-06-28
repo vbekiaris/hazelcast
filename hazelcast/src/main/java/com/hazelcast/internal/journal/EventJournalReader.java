@@ -19,6 +19,8 @@ package com.hazelcast.internal.journal;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.ringbuffer.ReadResultSet;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * This interface provides methods to subscribe and read from an event journal.
  *
@@ -36,7 +38,7 @@ public interface EventJournalReader<E> {
      *                                       configured for this data structure
      * @since 3.9
      */
-    ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId);
+    CompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId);
 
     /**
      * Reads from the event journal. The returned future may throw {@link UnsupportedOperationException}
@@ -61,7 +63,7 @@ public interface EventJournalReader<E> {
      * @throws IllegalArgumentException if {@code maxSize} is less than {@code minSize}
      * @since 3.9
      */
-    <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    <T> CompletableFuture<ReadResultSet<T>> readFromEventJournal(
             long startSequence,
             int minSize,
             int maxSize,

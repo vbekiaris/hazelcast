@@ -19,13 +19,13 @@ package com.hazelcast.spi.impl.operationservice.impl;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.operationexecutor.impl.OperationExecutorImpl;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.test.HazelcastTestSupport;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 abstract class Invocation_NestedAbstractTest extends HazelcastTestSupport {
 
@@ -57,7 +57,7 @@ abstract class Invocation_NestedAbstractTest extends HazelcastTestSupport {
         public void run() throws Exception {
             int partitionId = innerOperation.getPartitionId();
             OperationService operationService = getNodeEngine().getOperationService();
-            InternalCompletableFuture f;
+            CompletableFuture f;
             if (partitionId >= 0) {
                 f = operationService.invokeOnPartition(null, innerOperation, partitionId);
             } else {

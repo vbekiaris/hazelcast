@@ -16,7 +16,6 @@
 
 package com.hazelcast.internal.adapter;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.monitor.LocalMapStats;
 import com.hazelcast.query.Predicate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -28,6 +27,7 @@ import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,29 +40,29 @@ public interface DataStructureAdapter<K, V> {
 
     V get(K key);
 
-    ICompletableFuture<V> getAsync(K key);
+    CompletableFuture<V> getAsync(K key);
 
     void set(K key, V value);
 
-    ICompletableFuture<Void> setAsync(K key, V value);
+    CompletableFuture<Void> setAsync(K key, V value);
 
-    ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit);
+    CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit);
 
-    ICompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     V put(K key, V value);
 
-    ICompletableFuture<V> putAsync(K key, V value);
+    CompletableFuture<V> putAsync(K key, V value);
 
-    ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit);
+    CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit);
 
-    ICompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     void putTransient(K key, V value, long ttl, TimeUnit timeunit);
 
     boolean putIfAbsent(K key, V value);
 
-    ICompletableFuture<Boolean> putIfAbsentAsync(K key, V value);
+    CompletableFuture<Boolean> putIfAbsentAsync(K key, V value);
 
     void setTtl(K key, long duration, TimeUnit timeUnit);
 
@@ -74,11 +74,11 @@ public interface DataStructureAdapter<K, V> {
 
     boolean remove(K key, V oldValue);
 
-    ICompletableFuture<V> removeAsync(K key);
+    CompletableFuture<V> removeAsync(K key);
 
     void delete(K key);
 
-    ICompletableFuture<Boolean> deleteAsync(K key);
+    CompletableFuture<Boolean> deleteAsync(K key);
 
     boolean evict(K key);
 

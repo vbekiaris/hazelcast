@@ -34,6 +34,7 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.util.Clock;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -299,7 +300,7 @@ public class PartitionReplicaStateChecker {
 
         Operation operation = new HasOngoingMigration();
         OperationService operationService = nodeEngine.getOperationService();
-        InternalCompletableFuture<Boolean> future = operationService
+        CompletableFuture<Boolean> future = operationService
                 .createInvocationBuilder(SERVICE_NAME, operation, masterAddress)
                 .setTryCount(INVOCATION_TRY_COUNT)
                 .setTryPauseMillis(INVOCATION_TRY_PAUSE_MILLIS)

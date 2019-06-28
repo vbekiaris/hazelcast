@@ -16,11 +16,16 @@
 
 package com.hazelcast.internal.management;
 
-import static org.junit.Assert.assertEquals;
-
-import java.security.AccessControlException;
-import java.util.concurrent.ExecutionException;
-
+import com.hazelcast.config.Config;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.instance.HazelcastInstanceFactory;
+import com.hazelcast.internal.management.operation.ScriptExecutorOperation;
+import com.hazelcast.map.impl.MapService;
+import com.hazelcast.test.HazelcastParallelClassRunner;
+import com.hazelcast.test.HazelcastTestSupport;
+import com.hazelcast.test.TestHazelcastInstanceFactory;
+import com.hazelcast.test.annotation.ParallelTest;
+import com.hazelcast.test.annotation.QuickTest;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -30,17 +35,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
-import com.hazelcast.config.Config;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.instance.HazelcastInstanceFactory;
-import com.hazelcast.internal.management.operation.ScriptExecutorOperation;
-import com.hazelcast.map.impl.MapService;
-import com.hazelcast.spi.InternalCompletableFuture;
-import com.hazelcast.test.HazelcastParallelClassRunner;
-import com.hazelcast.test.HazelcastTestSupport;
-import com.hazelcast.test.TestHazelcastInstanceFactory;
-import com.hazelcast.test.annotation.ParallelTest;
-import com.hazelcast.test.annotation.QuickTest;
+import java.security.AccessControlException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests possibility to disable scripting on members.
@@ -89,7 +88,7 @@ public class ScriptingProtectionTest extends HazelcastTestSupport {
         HazelcastInstance hz1 = factory.newHazelcastInstance();
         HazelcastInstance hz2 = factory.newHazelcastInstance();
         ScriptExecutorOperation op = createScriptExecutorOp();
-        InternalCompletableFuture<Object> result = getOperationService(hz1).invokeOnTarget(MapService.SERVICE_NAME, op,
+        CompletableFuture<Object> result = getOperationService(hz1).invokeOnTarget(MapService.SERVICE_NAME, op,
                 getAddress(hz2));
         if (!getScriptingEnabledDefaultValue()) {
             expectedException.expect(ExecutionException.class);
@@ -118,7 +117,7 @@ public class ScriptingProtectionTest extends HazelcastTestSupport {
         HazelcastInstance hz1 = factory.newHazelcastInstance(createConfig(srcEnabled));
         HazelcastInstance hz2 = factory.newHazelcastInstance(createConfig(destEnabled));
         ScriptExecutorOperation op = createScriptExecutorOp();
-        InternalCompletableFuture<Object> result = getOperationService(hz1).invokeOnTarget(MapService.SERVICE_NAME, op,
+        CompletableFuture<Object> result = getOperationService(hz1).invokeOnTarget(MapService.SERVICE_NAME, op,
                 getAddress(hz2));
         if (!destEnabled) {
             expectedException.expect(ExecutionException.class);

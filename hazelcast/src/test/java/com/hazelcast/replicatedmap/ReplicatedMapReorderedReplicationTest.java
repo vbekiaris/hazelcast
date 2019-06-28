@@ -27,7 +27,6 @@ import com.hazelcast.replicatedmap.impl.operation.ReplicateUpdateOperation;
 import com.hazelcast.replicatedmap.impl.operation.ReplicatedMapDataSerializerHook;
 import com.hazelcast.replicatedmap.impl.operation.VersionResponsePair;
 import com.hazelcast.replicatedmap.impl.record.ReplicatedRecordStore;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.exception.RetryableHazelcastException;
 import com.hazelcast.spi.impl.NodeEngineImpl;
@@ -44,6 +43,7 @@ import org.junit.runner.RunWith;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.util.Preconditions.isNotNull;
 import static org.junit.Assert.assertEquals;
@@ -142,8 +142,8 @@ public class ReplicatedMapReorderedReplicationTest extends HazelcastTestSupport 
         Data dataValue = nodeEngine.toData(value);
 
         PutOperation putOperation = new PutOperation(mapName, dataKey, dataValue);
-        InternalCompletableFuture<Object> future = nodeEngine.getOperationService()
-                .invokeOnPartition(ReplicatedMapService.SERVICE_NAME, putOperation,
+        CompletableFuture<Object> future = nodeEngine.getOperationService()
+                     .invokeOnPartition(ReplicatedMapService.SERVICE_NAME, putOperation,
                         partitionId);
         VersionResponsePair result = (VersionResponsePair) future.join();
         return nodeEngine.toObject(result.getResponse());

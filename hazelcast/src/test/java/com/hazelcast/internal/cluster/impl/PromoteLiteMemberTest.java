@@ -25,7 +25,6 @@ import com.hazelcast.core.MemberLeftException;
 import com.hazelcast.internal.cluster.impl.operations.PromoteLiteMemberOp;
 import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.impl.operationservice.impl.Invocation;
 import com.hazelcast.spi.impl.operationservice.impl.InvocationRegistry;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
@@ -45,6 +44,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -127,7 +127,7 @@ public class PromoteLiteMemberTest extends HazelcastTestSupport {
         PromoteLiteMemberOp op = new PromoteLiteMemberOp();
         op.setCallerUuid(getMember(hz2).getUuid());
 
-        InternalCompletableFuture<MembersView> future =
+        CompletableFuture<MembersView> future =
                 getOperationService(hz2).invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, op, getAddress(hz3));
         exception.expect(IllegalStateException.class);
         future.join();
@@ -143,7 +143,7 @@ public class PromoteLiteMemberTest extends HazelcastTestSupport {
         PromoteLiteMemberOp op = new PromoteLiteMemberOp();
         op.setCallerUuid(getMember(hz2).getUuid());
 
-        InternalCompletableFuture<MembersView> future =
+        CompletableFuture<MembersView> future =
                 getOperationService(hz2).invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, op, getAddress(hz1));
         future.join();
     }
@@ -158,7 +158,7 @@ public class PromoteLiteMemberTest extends HazelcastTestSupport {
         PromoteLiteMemberOp op = new PromoteLiteMemberOp();
         op.setCallerUuid(UuidUtil.newUnsecureUuidString());
 
-        InternalCompletableFuture<MembersView> future =
+        CompletableFuture<MembersView> future =
                 getOperationService(hz2).invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, op, getAddress(hz1));
         exception.expect(IllegalStateException.class);
         future.join();

@@ -25,9 +25,10 @@ import com.hazelcast.cp.internal.HazelcastRaftTestSupport;
 import com.hazelcast.cp.internal.RaftInvocationManager;
 import com.hazelcast.cp.internal.RaftOp;
 import com.hazelcast.cp.internal.raft.QueryPolicy;
-import com.hazelcast.spi.InternalCompletableFuture;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -79,7 +80,7 @@ public abstract class AbstractAtomicRegisterSnapshotTest<T> extends HazelcastRaf
 
         // Read from local CP member, which should install snapshot after promotion.
         assertTrueEventually(() -> {
-            InternalCompletableFuture<Object> future = queryLocally(instance);
+            CompletableFuture<Object> future = queryLocally(instance);
             try {
                 T value = getValue(future);
                 assertEquals(initialValue, value);
@@ -90,17 +91,17 @@ public abstract class AbstractAtomicRegisterSnapshotTest<T> extends HazelcastRaf
         });
 
         assertTrueAllTheTime(() -> {
-            InternalCompletableFuture<Object> future = queryLocally(instance);
+            CompletableFuture<Object> future = queryLocally(instance);
             T value = getValue(future);
             assertEquals(initialValue, value);
         }, 5);
     }
 
-    protected T getValue(InternalCompletableFuture<Object> future) {
+    protected T getValue(CompletableFuture<Object> future) {
         return (T) future.join();
     }
 
-    private InternalCompletableFuture<Object> queryLocally(HazelcastInstance instance) {
+    private CompletableFuture<Object> queryLocally(HazelcastInstance instance) {
         RaftInvocationManager invocationManager = getRaftInvocationManager(instance);
         return invocationManager.queryLocally(getGroupId(), getQueryRaftOp(), QueryPolicy.ANY_LOCAL);
     }

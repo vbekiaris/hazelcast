@@ -19,7 +19,6 @@ package com.hazelcast.cp.internal.datastructures.atomicref.client;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPAtomicRefGetCodec;
 import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.atomicref.RaftAtomicRefService;
 import com.hazelcast.cp.internal.datastructures.atomicref.operation.GetOp;
@@ -29,6 +28,7 @@ import com.hazelcast.security.permission.ActionConstants;
 import com.hazelcast.security.permission.AtomicReferencePermission;
 
 import java.security.Permission;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
 
@@ -36,7 +36,7 @@ import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
  * Client message task for {@link GetOp}
  */
 public class GetMessageTask extends AbstractMessageTask<CPAtomicRefGetCodec.RequestParameters>
-        implements ExecutionCallback<Object> {
+        implements BiConsumer<Object, Throwable> {
 
     public GetMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -47,7 +47,7 @@ public class GetMessageTask extends AbstractMessageTask<CPAtomicRefGetCodec.Requ
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .query(parameters.groupId, new GetOp(parameters.name), LINEARIZABLE)
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -86,12 +86,11 @@ public class GetMessageTask extends AbstractMessageTask<CPAtomicRefGetCodec.Requ
     }
 
     @Override
-    public void onResponse(Object response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
+    public void accept(Object response, Throwable throwable) {
+        if (throwable == null) {
+            sendResponse(response);
+        } else {
+            handleProcessingFailure(throwable);
+        }
     }
 }

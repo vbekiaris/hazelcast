@@ -44,8 +44,8 @@ public class SetMessageTask extends AbstractMessageTask<CPAtomicRefSetCodec.Requ
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .invoke(parameters.groupId, new SetOp(parameters.name, parameters.newValue, parameters.returnOldValue))
-               .andThen(this);
+               .invoke(parameters.groupId, new SetOp(parameters.name, parameters.newValue, parameters.returnOldValue));
+        // todo fixme .andThen(this);
     }
 
     @Override

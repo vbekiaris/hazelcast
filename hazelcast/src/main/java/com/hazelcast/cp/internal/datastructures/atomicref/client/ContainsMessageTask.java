@@ -46,8 +46,9 @@ public class ContainsMessageTask extends AbstractMessageTask<CPAtomicRefContains
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Boolean>query(parameters.groupId, new ContainsOp(parameters.name, parameters.value), LINEARIZABLE)
-               .andThen(this);
+               .<Boolean>query(parameters.groupId, new ContainsOp(parameters.name, parameters.value), LINEARIZABLE);
+        // todo fixme
+              //  .andThen(this);
     }
 
     @Override

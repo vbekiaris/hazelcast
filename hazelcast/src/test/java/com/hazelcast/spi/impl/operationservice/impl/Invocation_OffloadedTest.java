@@ -19,7 +19,6 @@ package com.hazelcast.spi.impl.operationservice.impl;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.spi.CallStatus;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Offload;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.properties.GroupProperty;
@@ -33,6 +32,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -57,7 +58,7 @@ public class Invocation_OffloadedTest extends HazelcastTestSupport {
 
     @Test(expected = ExpectedRuntimeException.class)
     public void whenStartThrowsException_thenExceptionPropagated() {
-        InternalCompletableFuture f = localOperationService.invokeOnPartition(new OffloadingOperation(op -> new Offload(op) {
+        CompletableFuture f = localOperationService.invokeOnPartition(new OffloadingOperation(op -> new Offload(op) {
             @Override
             public void start() {
                 throw new ExpectedRuntimeException();
@@ -78,7 +79,7 @@ public class Invocation_OffloadedTest extends HazelcastTestSupport {
             }
         });
 
-        InternalCompletableFuture<String> f = localOperationService.invokeOnPartition(source);
+        CompletableFuture<String> f = localOperationService.invokeOnPartition(source);
 
         assertCompletesEventually(f);
         assertEquals(response, f.get());
@@ -90,7 +91,7 @@ public class Invocation_OffloadedTest extends HazelcastTestSupport {
     public void whenCompletesEventually() throws Exception {
         final String response = "someresponse";
 
-        InternalCompletableFuture<String> f = localOperationService.invokeOnPartition(new OffloadingOperation(op -> new Offload(op) {
+        CompletableFuture<String> f = localOperationService.invokeOnPartition(new OffloadingOperation(op -> new Offload(op) {
             @Override
             public void start() {
                 new Thread(() -> {
@@ -115,7 +116,7 @@ public class Invocation_OffloadedTest extends HazelcastTestSupport {
             }
         });
 
-        InternalCompletableFuture<String> f = localOperationService.invokeOnPartition(source);
+        CompletableFuture<String> f = localOperationService.invokeOnPartition(source);
 
         assertCompletesEventually(f);
         // make sure the source operation isn't registered anymore

@@ -24,6 +24,8 @@ import com.hazelcast.partition.strategy.StringPartitioningStrategy;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.version.Version;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Abstract DistributedObject implementation. Useful to provide basic functionality.
  *
@@ -69,7 +71,7 @@ public abstract class AbstractDistributedObject<S extends RemoteService> impleme
         return getNodeEngine().toData(object);
     }
 
-    protected final <E> InternalCompletableFuture<E> invokeOnPartition(Operation operation) {
+    protected final <E> CompletableFuture<E> invokeOnPartition(Operation operation) {
         return getNodeEngine().getOperationService().invokeOnPartition(operation);
     }
 

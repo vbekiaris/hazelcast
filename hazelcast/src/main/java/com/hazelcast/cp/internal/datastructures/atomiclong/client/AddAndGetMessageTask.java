@@ -53,9 +53,10 @@ public class AddAndGetMessageTask extends AbstractMessageTask<CPAtomicLongAddAnd
         CPGroupId groupId = parameters.groupId;
         long delta = parameters.delta;
         RaftOp op = new AddAndGetOp(parameters.name, delta);
-        ICompletableFuture<Long> future = (delta == 0)
-                ? invocationManager.query(groupId, op, LINEARIZABLE) : invocationManager.invoke(groupId, op);
-        future.andThen(this);
+        // todo fixme
+//        ICompletableFuture<Long> future = (delta == 0)
+//                ? invocationManager.query(groupId, op, LINEARIZABLE) : invocationManager.invoke(groupId, op);
+//        future.andThen(this);
     }
 
     @Override

@@ -47,7 +47,8 @@ public class TryLockMessageTask extends AbstractMessageTask<CPFencedLockTryLockC
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         RaftOp op = new TryLockOp(parameters.name, parameters.sessionId, parameters.threadId, parameters.invocationUid,
                 parameters.timeoutMs);
-        service.getInvocationManager().<Long>invoke(parameters.groupId, op).andThen(this);
+        service.getInvocationManager().<Long>invoke(parameters.groupId, op);
+        // todo fixme .andThen(this);
     }
 
     @Override

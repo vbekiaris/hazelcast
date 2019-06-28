@@ -21,13 +21,14 @@ import com.hazelcast.cp.internal.RaftOp;
 import com.hazelcast.cp.internal.datastructures.AbstractAtomicRegisterSnapshotTest;
 import com.hazelcast.cp.internal.datastructures.lock.operation.GetLockOwnershipStateOp;
 import com.hazelcast.cp.lock.FencedLock;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.test.HazelcastSerialClassRunner;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
 import org.junit.Before;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 @RunWith(HazelcastSerialClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
@@ -62,7 +63,7 @@ public class FencedLockSnapshotTest extends AbstractAtomicRegisterSnapshotTest<L
     }
 
     @Override
-    protected Long getValue(InternalCompletableFuture<Object> future) {
+    protected Long getValue(CompletableFuture<Object> future) {
         RaftLockOwnershipState state = (RaftLockOwnershipState) future.join();
         return state.getFence();
     }

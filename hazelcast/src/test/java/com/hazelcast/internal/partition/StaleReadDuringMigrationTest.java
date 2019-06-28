@@ -21,7 +21,6 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.internal.partition.impl.InternalPartitionImpl;
 import com.hazelcast.internal.partition.impl.InternalPartitionServiceImpl;
 import com.hazelcast.spi.ExceptionAction;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.ReadonlyOperation;
@@ -37,6 +36,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertTrue;
@@ -52,7 +52,7 @@ public class StaleReadDuringMigrationTest extends HazelcastTestSupport {
         final Config config = new Config();
         config.setProperty(GroupProperty.DISABLE_STALE_READ_ON_PARTITION_MIGRATION.getName(), "true");
 
-        final InternalCompletableFuture<Boolean> future = invokeOperation(config);
+        final CompletableFuture<Boolean> future = invokeOperation(config);
         try {
             future.get();
             fail();
@@ -64,12 +64,12 @@ public class StaleReadDuringMigrationTest extends HazelcastTestSupport {
     @Test
     public void testReadOperationSucceedsWhenStaleReadEnabledDuringMigration()
             throws ExecutionException, InterruptedException {
-        final InternalCompletableFuture<Boolean> future = invokeOperation(new Config());
+        final CompletableFuture<Boolean> future = invokeOperation(new Config());
 
         assertTrue(future.get());
     }
 
-    private InternalCompletableFuture<Boolean> invokeOperation(final Config config) {
+    private CompletableFuture<Boolean> invokeOperation(final Config config) {
         final TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(1);
         final HazelcastInstance instance = factory.newHazelcastInstance(config);
         warmUpPartitions(instance);

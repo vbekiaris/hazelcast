@@ -31,6 +31,7 @@ import com.hazelcast.internal.management.dto.WanReplicationConfigDTO;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.security.SecurityContext;
 import com.hazelcast.security.UsernamePasswordCredentials;
+import com.hazelcast.spi.impl.operationservice.impl.BiConsumerExecutionCallbackAdapter;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.spi.properties.HazelcastProperties;
 import com.hazelcast.util.JsonUtil;
@@ -39,11 +40,10 @@ import com.hazelcast.version.Version;
 import com.hazelcast.wan.AddWanConfigResult;
 import com.hazelcast.wan.WanReplicationService;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 
 import static com.hazelcast.cp.CPGroup.METADATA_CP_GROUP_NAME;
 import static com.hazelcast.util.ExceptionUtil.peel;
@@ -709,7 +709,8 @@ public class HttpPostCommandProcessor extends HttpCommandProcessor<HttpPostComma
 
         getCpSubsystem().getCPSessionManagementService()
                         .forceCloseSession(groupName, sessionId)
-                        .andThen(new ExecutionCallback<Boolean>() {
+                        .whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(
+                                new ExecutionCallback<Boolean>() {
                             @Override
                             public void onResponse(Boolean response) {
                                 if (response) {
@@ -726,7 +727,7 @@ public class HttpPostCommandProcessor extends HttpCommandProcessor<HttpPostComma
                                 command.send500();
                                 textCommandService.sendResponse(command);
                             }
-                        });
+                        }));
     }
 
     private void handleForceDestroyCPGroup(final HttpPostCommand command) {
@@ -741,7 +742,7 @@ public class HttpPostCommandProcessor extends HttpCommandProcessor<HttpPostComma
 
         getCpSubsystem().getCPSubsystemManagementService()
                         .forceDestroyCPGroup(groupName)
-                        .andThen(new ExecutionCallback<Void>() {
+                        .whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(new ExecutionCallback<Void>() {
                             @Override
                             public void onResponse(Void response) {
                                 command.send200();
@@ -759,14 +760,14 @@ public class HttpPostCommandProcessor extends HttpCommandProcessor<HttpPostComma
 
                                 textCommandService.sendResponse(command);
                             }
-                        });
+                        }));
     }
 
     private void handleResetAndInitCPSubsystem(final HttpPostCommand command) throws UnsupportedEncodingException {
         if (checkCredentials(command)) {
             getCpSubsystem().getCPSubsystemManagementService()
                             .restart()
-                            .andThen(new ExecutionCallback<Void>() {
+                            .whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(new ExecutionCallback<Void>() {
                                 @Override
                                 public void onResponse(Void response) {
                                     command.send200();
@@ -779,7 +780,7 @@ public class HttpPostCommandProcessor extends HttpCommandProcessor<HttpPostComma
                                     command.send500();
                                     textCommandService.sendResponse(command);
                                 }
-                            });
+                            }));
         } else {
             command.send403();
             textCommandService.sendResponse(command);

@@ -35,9 +35,7 @@ import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.spi.EventFilter;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
-import com.hazelcast.util.executor.CompletedFuture;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -45,12 +43,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.internal.nearcache.NearCache.CACHED_AS_NULL;
 import static com.hazelcast.internal.nearcache.NearCache.NOT_CACHED;
 import static com.hazelcast.internal.nearcache.NearCacheRecord.NOT_RESERVED;
-import static com.hazelcast.spi.ExecutionService.ASYNC_EXECUTOR;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.MapUtil.createHashMap;
 
@@ -124,33 +122,30 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    protected InternalCompletableFuture<Data> getAsyncInternal(Object key) {
+    protected CompletableFuture<Data> getAsyncInternal(Object key, boolean deserializeValue) {
         final Object ncKey = toNearCacheKeyWithStrategy(key);
         Object value = getCachedValue(ncKey, false);
         if (value != NOT_CACHED) {
             ExecutionService executionService = getNodeEngine().getExecutionService();
-            return new CompletedFuture<>(serializationService, value, executionService.getExecutor(ASYNC_EXECUTOR));
+            // todo fix me CompletedFuture implementation
+            throw new UnsupportedOperationException("FIX THIS"); // return new CompletedFuture(serializationService, value, executionService.getExecutor(ASYNC_EXECUTOR));
         }
 
         final Data keyData = toDataWithStrategy(key);
         final long reservationId = tryReserveForUpdate(ncKey, keyData);
-        InternalCompletableFuture<Data> future;
+        CompletableFuture<Data> future;
         try {
-            future = super.getAsyncInternal(keyData);
+            future = super.getAsyncInternal(keyData, false);
         } catch (Throwable t) {
             invalidateNearCache(ncKey);
             throw rethrow(t);
         }
 
         if (reservationId != NOT_RESERVED) {
-            future.andThen(new ExecutionCallback<Data>() {
-                @Override
-                public void onResponse(Data value) {
-                    nearCache.tryPublishReserved(ncKey, value, reservationId, false);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+            future.whenCompleteAsync((response, throwable) -> {
+                if (throwable == null) {
+                    nearCache.tryPublishReserved(ncKey, response, reservationId, false);
+                } else {
                     invalidateNearCache(ncKey);
                 }
             });
@@ -209,7 +204,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    protected InternalCompletableFuture<Data> putAsyncInternal(Object key, Data value, long ttl, TimeUnit ttlUnit,
+    protected CompletableFuture<V> putAsyncInternal(Object key, Data value, long ttl, TimeUnit ttlUnit,
                                                                long maxIdle, TimeUnit maxIdleUnit) {
         key = toNearCacheKeyWithStrategy(key);
         try {
@@ -220,7 +215,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    protected InternalCompletableFuture<Data> setAsyncInternal(Object key, Data value, long ttl, TimeUnit ttlUnit,
+    protected CompletableFuture<Void> setAsyncInternal(Object key, Data value, long ttl, TimeUnit ttlUnit,
                                                                long maxIdle, TimeUnit maxIdleUnit) {
         key = toNearCacheKeyWithStrategy(key);
         try {
@@ -364,7 +359,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    protected InternalCompletableFuture<Data> removeAsyncInternal(Object key) {
+    protected CompletableFuture<V> removeAsyncInternal(Object key) {
         key = toNearCacheKeyWithStrategy(key);
         try {
             return super.removeAsyncInternal(key);
@@ -536,7 +531,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    public InternalCompletableFuture<Object> executeOnKeyInternal(Object key, EntryProcessor entryProcessor,
+    public CompletableFuture<Object> executeOnKeyInternal(Object key, EntryProcessor entryProcessor,
                                                                   ExecutionCallback<Object> callback) {
         key = toNearCacheKeyWithStrategy(key);
         try {

@@ -22,7 +22,6 @@ import com.hazelcast.core.IExecutorService;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberSelector;
 import com.hazelcast.core.MultiExecutionCallback;
-import com.hazelcast.partition.PartitionAware;
 import com.hazelcast.executor.impl.operations.CallableTaskOperation;
 import com.hazelcast.executor.impl.operations.MemberCallableTaskOperation;
 import com.hazelcast.executor.impl.operations.ShutdownOperation;
@@ -31,10 +30,10 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.monitor.LocalExecutorStats;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.PartitionAware;
 import com.hazelcast.quorum.QuorumException;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
@@ -50,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -218,7 +218,7 @@ public class ExecutorServiceProxy
 
         Operation op = new CallableTaskOperation(name, uuid, callableData)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture future = invokeOnPartition(op);
+        CompletableFuture future = invokeOnPartition(op);
         boolean sync = checkSync();
         if (sync) {
             try {
@@ -228,7 +228,8 @@ public class ExecutorServiceProxy
             }
             return new CompletedFuture<T>(nodeEngine.getSerializationService(), result, getAsyncExecutor());
         }
-        return new CancellableDelegatingFuture<T>(future, result, nodeEngine, uuid, partitionId);
+        // todo revert below, null just to compile
+        return new CancellableDelegatingFuture<T>(null, result, nodeEngine, uuid, partitionId);
     }
 
     private void checkNotShutdown() {
@@ -254,7 +255,7 @@ public class ExecutorServiceProxy
         boolean sync = !preventSync && checkSync();
         Operation op = new CallableTaskOperation(name, uuid, taskData)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture future = invokeOnPartition(op);
+        CompletableFuture future = invokeOnPartition(op);
         if (sync) {
             Object response;
             try {
@@ -264,7 +265,8 @@ public class ExecutorServiceProxy
             }
             return new CompletedFuture<T>(nodeEngine.getSerializationService(), response, getAsyncExecutor());
         }
-        return new CancellableDelegatingFuture<T>(future, nodeEngine, uuid, partitionId);
+        // todo revert below
+        return new CancellableDelegatingFuture<T>(null, nodeEngine, uuid, partitionId);
     }
 
     /**
@@ -312,7 +314,7 @@ public class ExecutorServiceProxy
 
         boolean sync = checkSync();
         MemberCallableTaskOperation op = new MemberCallableTaskOperation(name, uuid, taskData);
-        InternalCompletableFuture future = nodeEngine.getOperationService()
+        CompletableFuture future = nodeEngine.getOperationService()
                 .invokeOnTarget(DistributedExecutorService.SERVICE_NAME, op, target);
         if (sync) {
             Object response;
@@ -323,7 +325,7 @@ public class ExecutorServiceProxy
             }
             return new CompletedFuture<T>(nodeEngine.getSerializationService(), response, getAsyncExecutor());
         }
-        return new CancellableDelegatingFuture<T>(future, nodeEngine, uuid, target);
+        throw new UnsupportedOperationException("todo fixme"); // return new CancellableDelegatingFuture<T>(future, nodeEngine, uuid, target);
     }
 
     @Override
@@ -574,7 +576,7 @@ public class ExecutorServiceProxy
         waitWithDeadline(calls, 3, TimeUnit.SECONDS, shutdownExceptionHandler);
     }
 
-    private InternalCompletableFuture submitShutdownOperation(OperationService operationService, Member member) {
+    private CompletableFuture submitShutdownOperation(OperationService operationService, Member member) {
         ShutdownOperation op = new ShutdownOperation(name);
         return operationService.invokeOnTarget(getServiceName(), op, member.getAddress());
     }

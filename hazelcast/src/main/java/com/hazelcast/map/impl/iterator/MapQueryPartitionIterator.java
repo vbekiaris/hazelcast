@@ -25,7 +25,6 @@ import com.hazelcast.map.impl.query.ResultSegment;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.projection.Projection;
 import com.hazelcast.query.Predicate;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.serialization.SerializationService;
 
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Iterator for iterating map entries in the {@code partitionId}. The values are not fetched one-by-one but rather in batches.
@@ -70,7 +70,7 @@ public class MapQueryPartitionIterator<K, V, R> extends AbstractMapQueryPartitio
     }
 
     private ResultSegment invoke(Operation operation) {
-        final InternalCompletableFuture<ResultSegment> future =
+        final CompletableFuture<ResultSegment> future =
                 mapProxy.getOperationService().invokeOnPartition(mapProxy.getServiceName(), operation, partitionId);
         return future.join();
     }

@@ -16,7 +16,6 @@
 
 package com.hazelcast.cp.internal.operation;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
 import com.hazelcast.cp.exception.NotLeaderException;
@@ -35,6 +34,7 @@ import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.Operation;
 
 import java.io.IOException;
+import java.util.function.BiConsumer;
 
 /**
  * The operation that passes a query to leader or a follower of a Raft group.
@@ -45,7 +45,8 @@ import java.io.IOException;
  * commits the query but fails before sending the response, therefore the query
  * operation is expected to have no side-effect.
  */
-public class RaftQueryOp extends Operation implements IndeterminateOperationStateAware, RaftSystemOperation, ExecutionCallback,
+public class RaftQueryOp extends Operation implements IndeterminateOperationStateAware, RaftSystemOperation,
+                                                      BiConsumer<Object, Throwable>,
                                                       IdentifiedDataSerializable {
 
     private CPGroupId groupId;
@@ -82,7 +83,9 @@ public class RaftQueryOp extends Operation implements IndeterminateOperationStat
             ((RaftNodeAware) op).setRaftNode(raftNode);
         }
 
-        raftNode.query(op, queryPolicy).andThen(this);
+        // todo CompletableFutures from raftNode are plain JDK ones, default executor if FJPool
+        //  also async or not?
+        raftNode.query(op, queryPolicy).whenComplete(this);
     }
 
     @Override
@@ -91,13 +94,12 @@ public class RaftQueryOp extends Operation implements IndeterminateOperationStat
     }
 
     @Override
-    public void onResponse(Object response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        sendResponse(t);
+    public void accept(Object o, Throwable throwable) {
+        if (throwable == null) {
+            sendResponse(o);
+        } else {
+            sendResponse(throwable);
+        }
     }
 
     @Override

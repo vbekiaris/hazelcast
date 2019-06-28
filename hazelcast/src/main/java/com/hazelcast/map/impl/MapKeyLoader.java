@@ -31,10 +31,9 @@ import com.hazelcast.map.impl.operation.TriggerLoadIfNeededOperation;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.AbstractCompletableFuture;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.partition.IPartition;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.spi.properties.GroupProperty;
@@ -49,11 +48,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.logging.Logger.getLogger;
 import static com.hazelcast.map.impl.MapKeyLoaderUtil.assignRole;
@@ -267,7 +268,7 @@ public class MapKeyLoader {
                 opService.<Boolean>invokeOnPartition(SERVICE_NAME, op, mapNamePartition)
                         // required since loading may be triggered after migration
                         // and in this case the callback is the only way to get to know if the key load finished or not.
-                        .andThen(loadingFinishedCallback());
+                        .whenCompleteAsync(loadingFinishedCallback());
             });
         }
         return keyLoadFinished;
@@ -278,18 +279,14 @@ public class MapKeyLoader {
      * Returns an execution callback to notify the record store for this map
      * key loader that the key loading has finished.
      */
-    private ExecutionCallback<Boolean> loadingFinishedCallback() {
-        return new ExecutionCallback<Boolean>() {
-            @Override
-            public void onResponse(Boolean loadingFinished) {
+    private BiConsumer<Boolean, Throwable> loadingFinishedCallback() {
+        return (loadingFinished, throwable) -> {
+            if (throwable == null) {
                 if (loadingFinished) {
                     updateLocalKeyLoadStatus(null);
                 }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                updateLocalKeyLoadStatus(t);
+            } else {
+                updateLocalKeyLoadStatus(throwable);
             }
         };
     }
@@ -477,7 +474,7 @@ public class MapKeyLoader {
 
             MapOperation op = operationProvider.createLoadAllOperation(mapName, keys, replaceExistingValues);
 
-            InternalCompletableFuture<Object> future = opService.invokeOnPartition(SERVICE_NAME, op, partitionId);
+            CompletableFuture<Object> future = opService.invokeOnPartition(SERVICE_NAME, op, partitionId);
             futures.add(future);
         }
         return futures;

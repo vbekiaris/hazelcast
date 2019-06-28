@@ -17,7 +17,6 @@
 package com.hazelcast.cp.internal.raft.impl;
 
 import com.hazelcast.core.Endpoint;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.internal.raft.MembershipChangeMode;
 import com.hazelcast.cp.internal.raft.QueryPolicy;
@@ -32,6 +31,7 @@ import com.hazelcast.cp.internal.raft.impl.dto.VoteRequest;
 import com.hazelcast.cp.internal.raft.impl.dto.VoteResponse;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code RaftNode} maintains the state of a member for a specific Raft group
@@ -157,7 +157,7 @@ public interface RaftNode {
      * @param operation operation to replicate
      * @return future to get notified about result of the replication
      */
-    ICompletableFuture replicate(Object operation);
+    CompletableFuture replicate(Object operation);
 
     /**
      * Replicates the membership change to the Raft group.
@@ -171,7 +171,7 @@ public interface RaftNode {
      * @param mode   type of membership change
      * @return future to get notified about result of the membership change
      */
-    ICompletableFuture replicateMembershipChange(Endpoint member, MembershipChangeMode mode);
+    CompletableFuture replicateMembershipChange(Endpoint member, MembershipChangeMode mode);
 
     /**
      * Replicates the membership change to the Raft group, if expected members
@@ -185,7 +185,7 @@ public interface RaftNode {
      * @param groupMembersCommitIndex expected members commit index
      * @return future to get notified about result of the membership change
      */
-    ICompletableFuture replicateMembershipChange(Endpoint member, MembershipChangeMode mode, long groupMembersCommitIndex);
+    CompletableFuture replicateMembershipChange(Endpoint member, MembershipChangeMode mode, long groupMembersCommitIndex);
 
     /**
      * Executes the given operation on Raft group depending
@@ -195,6 +195,6 @@ public interface RaftNode {
      * @param queryPolicy query policy to decide where to execute operation
      * @return future to get notified about result of the query
      */
-    ICompletableFuture query(Object operation, QueryPolicy queryPolicy);
+    CompletableFuture query(Object operation, QueryPolicy queryPolicy);
 
 }

@@ -44,8 +44,9 @@ public class TrySetCountMessageTask extends AbstractMessageTask<CPCountDownLatch
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-                .<Boolean>invoke(parameters.groupId, new TrySetCountOp(parameters.name, parameters.count))
-                .andThen(this);
+                .<Boolean>invoke(parameters.groupId, new TrySetCountOp(parameters.name, parameters.count));
+        // todo fixme
+//                .andThen(this);
     }
 
     @Override

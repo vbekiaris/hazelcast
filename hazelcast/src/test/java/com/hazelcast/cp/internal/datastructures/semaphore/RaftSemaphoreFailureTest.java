@@ -26,12 +26,12 @@ import com.hazelcast.cp.internal.RaftInvocationManager;
 import com.hazelcast.cp.internal.datastructures.exception.WaitKeyCancelledException;
 import com.hazelcast.cp.internal.datastructures.semaphore.operation.AcquirePermitsOp;
 import com.hazelcast.cp.internal.session.ProxySessionManagerService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.util.RandomPicker;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -119,7 +119,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -152,7 +152,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -183,7 +183,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -216,7 +216,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -247,7 +247,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -280,7 +280,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid2 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -310,7 +310,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid, 1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -345,7 +345,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -380,7 +380,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -412,7 +412,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
         UUID invUid1 = newUnsecureUUID();
         RaftInvocationManager invocationManager = getRaftInvocationManager(semaphoreInstance);
 
-        InternalCompletableFuture<Object> f1 = invocationManager
+        CompletableFuture<Object> f1 = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -436,7 +436,7 @@ public abstract class RaftSemaphoreFailureTest extends HazelcastRaftTestSupport 
             assertEquals(2, registry.getWaitTimeouts().size());
         });
 
-        InternalCompletableFuture<Object> f2 = invocationManager
+        CompletableFuture<Object> f2 = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, threadId, invUid1, 2, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {

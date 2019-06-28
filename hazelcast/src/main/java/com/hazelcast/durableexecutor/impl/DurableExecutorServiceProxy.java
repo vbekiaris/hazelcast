@@ -18,7 +18,6 @@ package com.hazelcast.durableexecutor.impl;
 
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.Member;
-import com.hazelcast.partition.PartitionAware;
 import com.hazelcast.durableexecutor.DurableExecutorService;
 import com.hazelcast.durableexecutor.DurableExecutorServiceFuture;
 import com.hazelcast.durableexecutor.impl.operations.DisposeResultOperation;
@@ -30,6 +29,7 @@ import com.hazelcast.executor.impl.RunnableAdapter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Bits;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.PartitionAware;
 import com.hazelcast.quorum.QuorumException;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.ExecutionService;
@@ -48,6 +48,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -109,7 +110,7 @@ public class DurableExecutorServiceProxy extends AbstractDistributedObject<Distr
         int partitionId = Bits.extractInt(uniqueId, false);
         int sequence = Bits.extractInt(uniqueId, true);
         Operation op = new DisposeResultOperation(name, sequence).setPartitionId(partitionId);
-        InternalCompletableFuture<?> future = invokeOnPartition(op);
+        CompletableFuture<?> future = invokeOnPartition(op);
         future.join();
     }
 
@@ -251,7 +252,7 @@ public class DurableExecutorServiceProxy extends AbstractDistributedObject<Distr
         Data taskData = serializationService.toData(task);
         TaskOperation operation = new TaskOperation(name, taskData);
         operation.setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
+        CompletableFuture<Integer> future = invokeOnPartition(operation);
         int sequence;
         try {
             sequence = future.get();
@@ -260,10 +261,11 @@ public class DurableExecutorServiceProxy extends AbstractDistributedObject<Distr
             return new DurableExecutorServiceDelegateFuture<T>(completedFuture, serializationService, null, -1);
         }
         Operation op = new RetrieveResultOperation(name, sequence).setPartitionId(partitionId);
-        InternalCompletableFuture<T> internalCompletableFuture = invokeOnPartition(op);
+        CompletableFuture<T> internalCompletableFuture = invokeOnPartition(op);
 
         long taskId = Bits.combineToLong(partitionId, sequence);
-        return new DurableExecutorServiceDelegateFuture<T>(internalCompletableFuture, serializationService, defaultValue, taskId);
+        // todo revert below -- just to compile for now
+        return new DurableExecutorServiceDelegateFuture<T>(null, serializationService, defaultValue, taskId);
     }
 
     private ExecutorService getAsyncExecutor() {

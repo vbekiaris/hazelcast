@@ -45,7 +45,8 @@ public class DrainPermitsMessageTask extends AbstractMessageTask<CPSemaphoreDrai
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         RaftOp op = new DrainPermitsOp(parameters.name, parameters.sessionId, parameters.threadId, parameters.invocationUid);
-        service.getInvocationManager().<Integer>invoke(parameters.groupId, op).andThen(this);
+        service.getInvocationManager().<Integer>invoke(parameters.groupId, op);
+        // todo fixme .andThen(this);
     }
 
     @Override

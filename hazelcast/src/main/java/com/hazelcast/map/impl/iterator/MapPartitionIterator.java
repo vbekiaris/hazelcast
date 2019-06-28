@@ -20,11 +20,11 @@ import com.hazelcast.core.IMap;
 import com.hazelcast.map.impl.operation.MapOperation;
 import com.hazelcast.map.impl.operation.MapOperationProvider;
 import com.hazelcast.map.impl.proxy.MapProxyImpl;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.serialization.SerializationService;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Iterator for iterating map entries in the {@code partitionId}. The values are not fetched one-by-one but rather in batches.
@@ -56,7 +56,7 @@ public class MapPartitionIterator<K, V> extends AbstractMapPartitionIterator<K, 
     }
 
     private <T extends AbstractCursor> T invoke(Operation operation) {
-        final InternalCompletableFuture<T> future =
+        final CompletableFuture<T> future =
                 mapProxy.getOperationService().invokeOnPartition(mapProxy.getServiceName(), operation, partitionId);
         return future.join();
     }

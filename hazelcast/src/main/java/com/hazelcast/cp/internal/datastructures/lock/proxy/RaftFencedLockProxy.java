@@ -28,10 +28,10 @@ import com.hazelcast.cp.internal.datastructures.lock.operation.UnlockOp;
 import com.hazelcast.cp.internal.datastructures.spi.operation.DestroyRaftObjectOp;
 import com.hazelcast.cp.internal.session.ProxySessionManagerService;
 import com.hazelcast.cp.lock.FencedLock;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Server-side proxy of Raft-based {@link FencedLock} API
@@ -47,27 +47,27 @@ public class RaftFencedLockProxy extends AbstractRaftFencedLockProxy {
     }
 
     @Override
-    protected final InternalCompletableFuture<Long> doLock(long sessionId, long threadId, UUID invocationUid) {
+    protected final CompletableFuture<Long> doLock(long sessionId, long threadId, UUID invocationUid) {
         return invoke(new LockOp(objectName, sessionId, threadId, invocationUid));
     }
 
     @Override
-    protected final InternalCompletableFuture<Long> doTryLock(long sessionId, long threadId, UUID invocationUid,
-                                                              long timeoutMillis) {
+    protected final CompletableFuture<Long> doTryLock(long sessionId, long threadId, UUID invocationUid,
+                                                      long timeoutMillis) {
         return invoke(new TryLockOp(objectName, sessionId, threadId, invocationUid, timeoutMillis));
     }
 
     @Override
-    protected final InternalCompletableFuture<Boolean> doUnlock(long sessionId, long threadId, UUID invocationUid) {
+    protected final CompletableFuture<Boolean> doUnlock(long sessionId, long threadId, UUID invocationUid) {
         return invoke(new UnlockOp(objectName, sessionId, threadId, invocationUid));
     }
 
     @Override
-    protected final InternalCompletableFuture<RaftLockOwnershipState> doGetLockOwnershipState() {
+    protected final CompletableFuture<RaftLockOwnershipState> doGetLockOwnershipState() {
         return invoke(new GetLockOwnershipStateOp(objectName));
     }
 
-    private <T> InternalCompletableFuture<T> invoke(RaftOp op) {
+    private <T> CompletableFuture<T> invoke(RaftOp op) {
         return invocationManager.invoke(groupId, op);
     }
 

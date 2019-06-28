@@ -42,8 +42,8 @@ public class GenerateThreadIdMessageTask extends AbstractMessageTask<CPSessionGe
     protected void processMessage() {
         RaftService raftService = nodeEngine.getService(RaftService.SERVICE_NAME);
         raftService.getInvocationManager()
-                   .<Long>invoke(parameters.groupId, new GenerateThreadIdOp())
-                   .andThen(this);
+                   .<Long>invoke(parameters.groupId, new GenerateThreadIdOp());
+        // todo fixme .andThen(this);
     }
 
     @Override

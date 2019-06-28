@@ -44,8 +44,9 @@ public class CountDownMessageTask extends AbstractMessageTask<CPCountDownLatchCo
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .invoke(parameters.groupId, new CountDownOp(parameters.name, parameters.invocationUid, parameters.expectedRound))
-               .andThen(this);
+               .invoke(parameters.groupId, new CountDownOp(parameters.name, parameters.invocationUid, parameters.expectedRound));
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

@@ -18,13 +18,13 @@ package com.hazelcast.cp.internal.raft.impl.state;
 
 import com.hazelcast.core.Endpoint;
 import com.hazelcast.cp.internal.util.Tuple2;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.util.Preconditions.checkTrue;
 
@@ -64,7 +64,7 @@ public class QueryState {
     /**
      * Queries waiting to be executed.
      */
-    private final List<Tuple2<Object, SimpleCompletableFuture>> operations = new ArrayList<>();
+    private final List<Tuple2<Object, CompletableFuture>> operations = new ArrayList<>();
 
     /**
      * The set of followers acknowledged the leader in the current heartbeat
@@ -77,7 +77,7 @@ public class QueryState {
      * of queries waiting to be executed. Also updates the minimum commit index
      * that is expected on the leader to execute the queries.
      */
-    public int addQuery(long commitIndex, Object operation, SimpleCompletableFuture resultFuture) {
+    public int addQuery(long commitIndex, Object operation, CompletableFuture resultFuture) {
         if (commitIndex < queryCommitIndex) {
             throw new IllegalArgumentException("Cannot execute query: " + operation + " at commit index because of the current "
                     + this);
@@ -161,7 +161,7 @@ public class QueryState {
     /**
      * Returns the queries waiting to be executed.
      */
-    public Collection<Tuple2<Object, SimpleCompletableFuture>> operations() {
+    public Collection<Tuple2<Object, CompletableFuture>> operations() {
         return operations;
     }
 

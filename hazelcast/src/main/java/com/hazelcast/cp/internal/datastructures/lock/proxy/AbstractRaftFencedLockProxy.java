@@ -26,13 +26,13 @@ import com.hazelcast.cp.internal.session.SessionExpiredException;
 import com.hazelcast.cp.lock.FencedLock;
 import com.hazelcast.cp.lock.exception.LockAcquireLimitReachedException;
 import com.hazelcast.cp.lock.exception.LockOwnershipLostException;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.util.Clock;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -62,14 +62,14 @@ public abstract class AbstractRaftFencedLockProxy extends SessionAwareProxy impl
         this.objectName = objectName;
     }
 
-    protected abstract InternalCompletableFuture<Long> doLock(long sessionId, long threadId, UUID invocationUid);
+    protected abstract CompletableFuture<Long> doLock(long sessionId, long threadId, UUID invocationUid);
 
-    protected abstract InternalCompletableFuture<Long> doTryLock(long sessionId, long threadId, UUID invocationUid,
-                                                                 long timeoutMillis);
+    protected abstract CompletableFuture<Long> doTryLock(long sessionId, long threadId, UUID invocationUid,
+                                                         long timeoutMillis);
 
-    protected abstract InternalCompletableFuture<Boolean> doUnlock(long sessionId, long threadId, UUID invocationUid);
+    protected abstract CompletableFuture<Boolean> doUnlock(long sessionId, long threadId, UUID invocationUid);
 
-    protected abstract InternalCompletableFuture<RaftLockOwnershipState> doGetLockOwnershipState();
+    protected abstract CompletableFuture<RaftLockOwnershipState> doGetLockOwnershipState();
 
     @Override
     public void lock() {

@@ -17,7 +17,6 @@
 package com.hazelcast.internal.adapter;
 
 import com.hazelcast.cache.ICache;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.monitor.LocalMapStats;
 import com.hazelcast.query.Predicate;
 
@@ -28,6 +27,7 @@ import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("checkstyle:methodcount")
@@ -50,7 +50,7 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<V> getAsync(K key) {
+    public CompletableFuture<V> getAsync(K key) {
         return cache.getAsync(key);
     }
 
@@ -60,18 +60,18 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(K key, V value) {
+    public CompletableFuture<Void> setAsync(K key, V value) {
         return cache.putAsync(key, value);
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
+    public CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
         throw new MethodNotAvailableException();
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public CompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         return cache.putAsync(key, value, expiryPolicy);
     }
 
@@ -81,18 +81,18 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(K key, V value) {
+    public CompletableFuture<V> putAsync(K key, V value) {
         return cache.getAndPutAsync(key, value);
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> putAsync(K key, V value, long time, TimeUnit unit) {
+    public CompletableFuture<V> putAsync(K key, V value, long time, TimeUnit unit) {
         throw new MethodNotAvailableException();
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public CompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         return cache.getAndPutAsync(key, value, expiryPolicy);
     }
 
@@ -108,7 +108,7 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<Boolean> putIfAbsentAsync(K key, V value) {
+    public CompletableFuture<Boolean> putIfAbsentAsync(K key, V value) {
         return cache.putIfAbsentAsync(key, value);
     }
 
@@ -139,7 +139,7 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<V> removeAsync(K key) {
+    public CompletableFuture<V> removeAsync(K key) {
         return cache.getAndRemoveAsync(key);
     }
 
@@ -149,7 +149,7 @@ public class ICacheDataStructureAdapter<K, V> implements DataStructureAdapter<K,
     }
 
     @Override
-    public ICompletableFuture<Boolean> deleteAsync(K key) {
+    public CompletableFuture<Boolean> deleteAsync(K key) {
         return cache.removeAsync(key);
     }
 

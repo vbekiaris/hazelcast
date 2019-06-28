@@ -17,9 +17,9 @@
 package com.hazelcast.cp.session;
 
 import com.hazelcast.config.cp.CPSubsystemConfig;
-import com.hazelcast.core.ICompletableFuture;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The public API for managing CP sessions. CP sessions are used for tracking
@@ -32,8 +32,9 @@ public interface CPSessionManagementService {
     /**
      * Returns a non-null collection of CP sessions that are currently active
      * in the given CP group.
+     * @return
      */
-    ICompletableFuture<Collection<CPSession>> getAllSessions(String groupName);
+    CompletableFuture<Collection<CPSession>> getAllSessions(String groupName);
 
     /**
      * If a Hazelcast instance that owns a CP session crashes, its CP session
@@ -42,7 +43,8 @@ public interface CPSessionManagementService {
      * If it is known for sure that the session owner is not partitioned and
      * definitely crashed, this method can be used for closing the session and
      * releasing its resources immediately.
+     * @return
      */
-    ICompletableFuture<Boolean> forceCloseSession(String groupName, long sessionId);
+    CompletableFuture<Boolean> forceCloseSession(String groupName, long sessionId);
 
 }

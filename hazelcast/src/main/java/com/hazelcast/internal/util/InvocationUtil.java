@@ -16,7 +16,6 @@
 
 package com.hazelcast.internal.util;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.core.Member;
@@ -35,6 +34,7 @@ import com.hazelcast.util.executor.CompletedFuture;
 import com.hazelcast.util.executor.ManagedExecutorService;
 
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -74,7 +74,7 @@ public final class InvocationUtil {
         // we are going to iterate over all members and invoke an operation on each of them
         InvokeOnMemberFunction invokeOnMemberFunction = new InvokeOnMemberFunction(operationSupplier, nodeEngine,
                 memberIterator);
-        Iterator<ICompletableFuture<Object>> invocationIterator = map(memberIterator, invokeOnMemberFunction);
+        Iterator<CompletableFuture<Object>> invocationIterator = map(memberIterator, invokeOnMemberFunction);
 
         ILogger logger = nodeEngine.getLogger(ChainingFuture.class);
         ExecutionService executionService = nodeEngine.getExecutionService();
@@ -83,7 +83,8 @@ public final class InvocationUtil {
         // ChainingFuture uses the iterator to start invocations
         // it invokes on another member only when the previous invocation is completed (so invocations are serial)
         // the future itself completes only when the last invocation completes (or if there is an error)
-        return new ChainingFuture<Object>(invocationIterator, executor, memberIterator, logger);
+        // todo fix me
+        throw new UnsupportedOperationException("FIX ME "); // return new ChainingFuture<Object>(invocationIterator, executor, memberIterator, logger);
     }
 
     /**
@@ -116,7 +117,7 @@ public final class InvocationUtil {
 
     // IFunction extends Serializable, but this function is only executed locally
     @SerializableByConvention
-    private static class InvokeOnMemberFunction implements IFunction<Member, ICompletableFuture<Object>> {
+    private static class InvokeOnMemberFunction implements IFunction<Member, CompletableFuture<Object>> {
         private static final long serialVersionUID = 2903680336421872278L;
 
         private final transient Supplier<? extends Operation> operationSupplier;
@@ -134,7 +135,7 @@ public final class InvocationUtil {
         }
 
         @Override
-        public ICompletableFuture<Object> apply(final Member member) {
+        public CompletableFuture<Object> apply(final Member member) {
             if (isRetry()) {
                 return invokeOnMemberWithDelay(member);
             }
@@ -150,14 +151,15 @@ public final class InvocationUtil {
             return true;
         }
 
-        private ICompletableFuture<Object> invokeOnMemberWithDelay(Member member) {
+        private CompletableFuture<Object> invokeOnMemberWithDelay(Member member) {
             SimpleCompletableFuture<Object> future = new SimpleCompletableFuture<Object>(nodeEngine);
             InvokeOnMemberTask task = new InvokeOnMemberTask(member, future);
             nodeEngine.getExecutionService().schedule(task, retryDelayMillis, TimeUnit.MILLISECONDS);
-            return future;
+            // todo fix me
+            throw new UnsupportedOperationException("not implemented yet"); // return future;
         }
 
-        private ICompletableFuture<Object> invokeOnMember(Member member) {
+        private CompletableFuture<Object> invokeOnMember(Member member) {
             Address address = member.getAddress();
             Operation operation = operationSupplier.get();
             String serviceName = operation.getServiceName();
@@ -175,14 +177,11 @@ public final class InvocationUtil {
 
             @Override
             public void run() {
-                invokeOnMember(member).andThen(new ExecutionCallback<Object>() {
-                    @Override
-                    public void onResponse(Object response) {
+                invokeOnMember(member).whenCompleteAsync((response, t) -> {
+                    // todo migrate future???
+                    if (t == null) {
                         future.setResult(response);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
+                    } else {
                         future.setResult(t);
                     }
                 });

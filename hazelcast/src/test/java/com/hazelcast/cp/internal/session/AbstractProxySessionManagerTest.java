@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -188,10 +189,9 @@ public abstract class AbstractProxySessionManagerTest extends HazelcastRaftTestS
 
     protected abstract AbstractProxySessionManager getSessionManager();
 
-    private SimpleCompletableFuture<Object> completedFuture() {
-        SimpleCompletableFuture<Object> future = new SimpleCompletableFuture<>(new CallerRunsExecutor(), null);
-        future.setResult(null);
-        return future;
+    private CompletableFuture<Object> completedFuture() {
+        // todo previously returned ICompletableFuture was using caller runs executor, is this required for these tests?
+        return CompletableFuture.completedFuture(null);
     }
 
     private SessionAccessor getSessionAccessor() {

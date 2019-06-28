@@ -46,8 +46,9 @@ public class AvailablePermitsMessageTask extends AbstractMessageTask<CPSemaphore
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Integer>query(parameters.groupId, new AvailablePermitsOp(parameters.name), LINEARIZABLE)
-               .andThen(this);
+               .<Integer>query(parameters.groupId, new AvailablePermitsOp(parameters.name), LINEARIZABLE);
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

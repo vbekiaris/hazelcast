@@ -17,7 +17,6 @@
 package com.hazelcast.cache;
 
 import com.hazelcast.cache.impl.event.CachePartitionLostListener;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.PrefixedDistributedObject;
 
 import javax.cache.Cache;
@@ -25,6 +24,7 @@ import javax.cache.expiry.ExpiryPolicy;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This {@link com.hazelcast.cache.ICache} interface is the {@link javax.cache.Cache} extension offered by
@@ -168,7 +168,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#get(K)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAsync(K key);
+    CompletableFuture<V> getAsync(K key);
 
     /**
      * Asynchronously gets an entry from cache using a custom {@link javax.cache.expiry.ExpiryPolicy}.
@@ -193,7 +193,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#get(K)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAsync(K key, ExpiryPolicy expiryPolicy);
+    CompletableFuture<V> getAsync(K key, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously associates the specified value with the specified key in the cache.
@@ -219,7 +219,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#put(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Void> putAsync(K key, V value);
+    CompletableFuture<Void> putAsync(K key, V value);
 
     /**
      * Asynchronously associates the specified value with the specified key in the cache using
@@ -248,7 +248,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#put(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Void> putAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<Void> putAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously associates the specified key with the given value if and only if there is not yet
@@ -283,7 +283,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#putIfAbsent(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> putIfAbsentAsync(K key, V value);
+    CompletableFuture<Boolean> putIfAbsentAsync(K key, V value);
 
     /**
      * Asynchronously associates the specified key with the given value if and only if there is not yet
@@ -322,7 +322,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#putIfAbsent(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> putIfAbsentAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<Boolean> putIfAbsentAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously associates the specified value with the specified key in this cache,
@@ -350,7 +350,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#getAndPut(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAndPutAsync(K key, V value);
+    CompletableFuture<V> getAndPutAsync(K key, V value);
 
     /**
      * Asynchronously associates the specified value with the specified key in this cache,
@@ -380,7 +380,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#getAndPut(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAndPutAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<V> getAndPutAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously removes the mapping for a key from this cache if it is present.
@@ -403,7 +403,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#remove(K)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> removeAsync(K key);
+    CompletableFuture<Boolean> removeAsync(K key);
 
     /**
      * Asynchronously removes the mapping for the given key if and only if the
@@ -439,7 +439,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#remove(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> removeAsync(K key, V oldValue);
+    CompletableFuture<Boolean> removeAsync(K key, V oldValue);
 
     /**
      * Asynchronously removes the entry for a key and returns the previously assigned value or null
@@ -463,7 +463,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#getAndRemove(K)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAndRemoveAsync(K key);
+    CompletableFuture<V> getAndRemoveAsync(K key);
 
     /**
      * Asynchronously replaces the assigned value of the given key by the specified value.
@@ -486,7 +486,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#replace(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> replaceAsync(K key, V value);
+    CompletableFuture<Boolean> replaceAsync(K key, V value);
 
     /**
      * Asynchronously replaces the assigned value of the given key by the specified value
@@ -512,7 +512,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#replace(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> replaceAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<Boolean> replaceAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously replaces the currently assigned value for the given key with the specified
@@ -554,7 +554,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#replace(K, V, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue);
+    CompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue);
 
     /**
      * Asynchronously replaces the currently assigned value for the given key with the specified
@@ -598,7 +598,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#replace(K, V, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy);
+    CompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy);
 
     /**
      * Asynchronously replaces the assigned value of the given key by the specified value and returns
@@ -622,7 +622,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#getAndReplace(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAndReplaceAsync(K key, V value);
+    CompletableFuture<V> getAndReplaceAsync(K key, V value);
 
     /**
      * Asynchronously replaces the assigned value of the given key by the specified value using a
@@ -648,7 +648,7 @@ public interface ICache<K, V>
      * @see javax.cache.Cache#getAndReplace(K, V)
      * @see com.hazelcast.core.ICompletableFuture
      */
-    ICompletableFuture<V> getAndReplaceAsync(K key, V value, ExpiryPolicy expiryPolicy);
+    CompletableFuture<V> getAndReplaceAsync(K key, V value, ExpiryPolicy expiryPolicy);
 
     /**
      * Retrieves the mapped value of the given key using a custom {@link javax.cache.expiry.ExpiryPolicy}.

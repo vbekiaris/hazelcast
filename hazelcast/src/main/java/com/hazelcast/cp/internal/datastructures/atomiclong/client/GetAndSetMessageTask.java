@@ -44,8 +44,8 @@ public class GetAndSetMessageTask extends AbstractMessageTask<CPAtomicLongGetAnd
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Long>invoke(parameters.groupId, new GetAndSetOp(parameters.name, parameters.newValue))
-               .andThen(this);
+               .<Long>invoke(parameters.groupId, new GetAndSetOp(parameters.name, parameters.newValue));
+        // todo fixme .andThen(this);
     }
 
     @Override

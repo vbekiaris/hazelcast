@@ -18,10 +18,10 @@ package com.hazelcast.ringbuffer;
 
 import com.hazelcast.core.BaseQueue;
 import com.hazelcast.core.DistributedObject;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A Ringbuffer is a data structure where the content is stored in a ring-like
@@ -218,7 +218,7 @@ public interface Ringbuffer<E> extends DistributedObject {
      * @return the sequenceId of the added item, or -1 if the add failed.
      * @throws NullPointerException if item or overflowPolicy is null.
      */
-    ICompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy);
+    CompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy);
 
     /**
      * Reads one item from the Ringbuffer.
@@ -310,7 +310,7 @@ public interface Ringbuffer<E> extends DistributedObject {
      *                                  batch is null or if overflowPolicy is null
      * @throws IllegalArgumentException if collection is empty
      */
-    ICompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy);
+    CompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy);
 
     /**
      * Reads a batch of items from the Ringbuffer. If the number of available
@@ -351,6 +351,6 @@ public interface Ringbuffer<E> extends DistributedObject {
      *                                  or if maxCount larger than the capacity of the ringbuffer
      *                                  or if maxCount larger than 1000 (to prevent overload)
      */
-    ICompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount,
-                                                       int maxCount, IFunction<E, Boolean> filter);
+    CompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount,
+                                                      int maxCount, IFunction<E, Boolean> filter);
 }

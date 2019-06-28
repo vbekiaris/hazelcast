@@ -45,8 +45,8 @@ public class AwaitMessageTask extends AbstractMessageTask<CPCountDownLatchAwaitC
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Boolean>invoke(parameters.groupId, new AwaitOp(parameters.name, parameters.invocationUid, parameters.timeoutMs))
-               .andThen(this);
+               .<Boolean>invoke(parameters.groupId, new AwaitOp(parameters.name, parameters.invocationUid, parameters.timeoutMs));
+        // todo fixme .andThen(this);
     }
 
     @Override

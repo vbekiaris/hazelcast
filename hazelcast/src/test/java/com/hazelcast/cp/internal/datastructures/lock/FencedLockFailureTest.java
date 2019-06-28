@@ -31,7 +31,6 @@ import com.hazelcast.cp.internal.datastructures.spi.blocking.operation.ExpireWai
 import com.hazelcast.cp.internal.session.AbstractProxySessionManager;
 import com.hazelcast.cp.internal.session.ProxySessionManagerService;
 import com.hazelcast.cp.internal.util.Tuple2;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
@@ -47,6 +46,7 @@ import org.junit.runner.RunWith;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import static com.hazelcast.cp.internal.datastructures.lock.FencedLockBasicTest.assertInvalidFence;
@@ -129,7 +129,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         UUID invUid1 = newUnsecureUUID();
         UUID invUid2 = newUnsecureUUID();
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -212,7 +212,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         UUID invUid1 = newUnsecureUUID();
         UUID invUid2 = newUnsecureUUID();
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid1, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -271,7 +271,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         RaftInvocationManager invocationManager = getRaftInvocationManager(lockInstance);
         UUID invUid = newUnsecureUUID();
 
-        InternalCompletableFuture<Object> f = invocationManager
+        CompletableFuture<Object> f = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -354,7 +354,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         RaftInvocationManager invocationManager = getRaftInvocationManager(lockInstance);
         UUID invUid = newUnsecureUUID();
 
-        InternalCompletableFuture<Long> f1 = invocationManager
+        CompletableFuture<Long> f1 = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid, MINUTES.toMillis(5)));
 
         assertTrueEventually(() -> {
@@ -370,7 +370,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
             assertTrue(lock.isLocked());
         });
 
-        InternalCompletableFuture<Long> f2 = invocationManager
+        CompletableFuture<Long> f2 = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid, MINUTES.toMillis(5)));
 
         long fence1 = f1.join();
@@ -532,7 +532,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         UUID invUid = newUnsecureUUID();
         Tuple2[] lockWaitTimeoutKeyRef = new Tuple2[1];
 
-        InternalCompletableFuture<Long> f1 = invocationManager
+        CompletableFuture<Long> f1 = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid, SECONDS.toMillis(300)));
 
         NodeEngineImpl nodeEngine = getNodeEngineImpl(lockInstance);
@@ -545,7 +545,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
             lockWaitTimeoutKeyRef[0] = waitTimeouts.keySet().iterator().next();
         });
 
-        InternalCompletableFuture<Long> f2 = invocationManager
+        CompletableFuture<Long> f2 = invocationManager
                 .invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid, SECONDS.toMillis(300)));
 
         assertTrueEventually(() -> {
@@ -553,7 +553,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
             RaftLockRegistry registry = service.getRegistryOrNull(groupId);
             boolean[] verified = new boolean[1];
             CountDownLatch latch = new CountDownLatch(1);
-            OperationServiceImpl operationService = (OperationServiceImpl) nodeEngine.getOperationService();
+            OperationServiceImpl operationService = nodeEngine.getOperationService();
             operationService.execute(new PartitionSpecificRunnable() {
                 @Override
                 public int getPartitionId() {

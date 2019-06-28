@@ -22,7 +22,6 @@ import com.hazelcast.cache.impl.HazelcastServerCachingProvider;
 import com.hazelcast.config.CacheConfig;
 import com.hazelcast.config.CacheConfiguration;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.query.TruePredicate;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
@@ -43,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -121,7 +121,7 @@ public class ICacheDataStructureAdapterTest extends HazelcastTestSupport {
     public void testSetAsync() throws Exception {
         cache.put(42, "oldValue");
 
-        ICompletableFuture<Void> future = adapter.setAsync(42, "newValue");
+        CompletableFuture<Void> future = adapter.setAsync(42, "newValue");
         Void oldValue = future.get();
 
         assertNull(oldValue);
@@ -160,7 +160,7 @@ public class ICacheDataStructureAdapterTest extends HazelcastTestSupport {
     public void testPutAsync() throws Exception {
         cache.put(42, "oldValue");
 
-        ICompletableFuture<String> future = adapter.putAsync(42, "newValue");
+        CompletableFuture<String> future = adapter.putAsync(42, "newValue");
         String oldValue = future.get();
 
         assertEquals("oldValue", oldValue);
@@ -177,7 +177,7 @@ public class ICacheDataStructureAdapterTest extends HazelcastTestSupport {
         cache.put(42, "oldValue");
 
         ExpiryPolicy expiryPolicy = new HazelcastExpiryPolicy(1000, 1, 1, TimeUnit.MILLISECONDS);
-        ICompletableFuture<String> future = adapter.putAsync(42, "newValue", expiryPolicy);
+        CompletableFuture<String> future = adapter.putAsync(42, "newValue", expiryPolicy);
         String oldValue = future.get();
         String newValue = cache.get(42);
 

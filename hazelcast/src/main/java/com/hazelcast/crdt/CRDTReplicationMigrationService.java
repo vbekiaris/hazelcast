@@ -21,7 +21,6 @@ import com.hazelcast.config.CRDTReplicationConfig;
 import com.hazelcast.core.Member;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.GracefulShutdownAwareService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.MemberAttributeServiceEvent;
 import com.hazelcast.spi.MembershipAwareService;
@@ -33,6 +32,7 @@ import com.hazelcast.spi.impl.operationservice.OperationService;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -171,7 +171,7 @@ public class CRDTReplicationMigrationService implements ManagedService, Membersh
             long start = System.nanoTime();
             try {
                 logger.fine("Replicating " + serviceName + " to " + target);
-                InternalCompletableFuture<Object> future =
+                CompletableFuture<Object> future =
                         operationService.createInvocationBuilder(null, operation, target.getAddress())
                                 .setTryCount(1)
                                 .invoke();

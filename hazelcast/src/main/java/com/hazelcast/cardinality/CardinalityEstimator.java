@@ -17,7 +17,8 @@
 package com.hazelcast.cardinality;
 
 import com.hazelcast.core.DistributedObject;
-import com.hazelcast.core.ICompletableFuture;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * CardinalityEstimator is a redundant and highly available distributed data-structure used
@@ -59,61 +60,49 @@ public interface CardinalityEstimator extends DistributedObject {
      * Objects are considered identical if they are serialized into the same binary blob.
      * In other words: It does <strong>not</strong> use Java equality.
      * <p>
-     * This method will dispatch a request and return immediately an {@link ICompletableFuture}.
+     * This method will dispatch a request and return immediately a {@link CompletableFuture}.
      * The operations result can be obtained in a blocking way, or a
      * callback can be provided for execution upon completion, as demonstrated in the following examples:
      * <pre>
-     *     ICompletableFuture&lt;Void&gt; future = estimator.addAsync();
+     *     CompletableFuture&lt;Void&gt; future = estimator.addAsync();
      *     // do something else, then read the result
      *     Boolean result = future.get(); // this method will block until the result is available
      * </pre>
      * <pre>
-     *     ICompletableFuture&lt;Void&gt; future = estimator.addAsync();
-     *     future.andThen(new ExecutionCallback&lt;Void&gt;() {
-     *          void onResponse(Void response) {
-     *              // do something
-     *          }
-     *
-     *          void onFailure(Throwable t) {
-     *              // handle failure
-     *          }
+     *     CompletableFuture&lt;Void&gt; future = estimator.addAsync();
+     *     future.thenRunAsync(() -> {
+     *       // do something in a Runnable
      *     });
      * </pre>
      *
      * @param obj object to add in the estimation set.
-     * @return an {@link ICompletableFuture} API consumers can use to track execution of this request.
+     * @return a {@link CompletableFuture} API consumers can use to track execution of this request.
      * @throws NullPointerException if obj is null
      * @since 3.8
      */
-    ICompletableFuture<Void> addAsync(Object obj);
+    CompletableFuture<Void> addAsync(Object obj);
 
     /**
      * Estimates the cardinality of the aggregation so far.
      * If it was previously estimated and never invalidated, then a cached version is used.
      * <p>
-     * This method will dispatch a request and return immediately an {@link ICompletableFuture}.
+     * This method will dispatch a request and return immediately an {@link CompletableFuture}.
      * The operations result can be obtained in a blocking way, or a
      * callback can be provided for execution upon completion, as demonstrated in the following examples:
      * <pre>
-     *     ICompletableFuture&lt;Long&gt; future = estimator.estimateAsync();
+     *     CompletableFuture&lt;Long&gt; future = estimator.estimateAsync();
      *     // do something else, then read the result
      *     Long result = future.get(); // this method will block until the result is available
      * </pre>
      * <pre>
-     *     ICompletableFuture&lt;Long&gt; future = estimator.estimateAsync();
-     *     future.andThen(new ExecutionCallback&lt;Long&gt;() {
-     *          void onResponse(Long response) {
-     *              // do something with the result
-     *          }
-     *
-     *          void onFailure(Throwable t) {
-     *              // handle failure
-     *          }
+     *     CompletableFuture&lt;Long&gt; future = estimator.estimateAsync();
+     *     future.thenAcceptAsync(value -> {
+     *          // consume the value
      *     });
      * </pre>
      *
-     * @return {@link ICompletableFuture} bearing the response, the estimate.
+     * @return {@link CompletableFuture} bearing the response, the estimate.
      * @since 3.8
      */
-    ICompletableFuture<Long> estimateAsync();
+    CompletableFuture<Long> estimateAsync();
 }

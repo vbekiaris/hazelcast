@@ -19,14 +19,12 @@ package com.hazelcast.spi.impl.operationservice.impl;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IQueue;
 import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.BackupAwareOperation;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
@@ -40,6 +38,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -118,12 +117,13 @@ public class OperationServiceImpl_timeoutTest extends HazelcastTestSupport {
         OperationService operationService = nodeEngine.getOperationService();
         int partitionId = (int) (Math.random() * nodeEngine.getPartitionService().getPartitionCount());
 
-        InternalCompletableFuture<Object> future = operationService
+        CompletableFuture<Object> future = operationService
                 .invokeOnPartition(null, new TimedOutBackupAwareOperation(), partitionId);
 
         final CountDownLatch latch = new CountDownLatch(1);
         if (async) {
-            future.andThen(new ExecutionCallback<Object>() {
+            future.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(
+                    new ExecutionCallback<Object>() {
                 @Override
                 public void onResponse(Object response) {
                 }
@@ -134,7 +134,7 @@ public class OperationServiceImpl_timeoutTest extends HazelcastTestSupport {
                         latch.countDown();
                     }
                 }
-            });
+            }));
         } else {
             try {
                 future.join();
@@ -197,7 +197,7 @@ public class OperationServiceImpl_timeoutTest extends HazelcastTestSupport {
         // invoke on the "local" member
         Address localAddress = getNode(hz1).getThisAddress();
         OperationService operationService = getNode(hz1).getNodeEngine().getOperationService();
-        ICompletableFuture<Boolean> future = operationService
+        CompletableFuture<Boolean> future = operationService
                 .invokeOnTarget(null, new SleepingOperation(callTimeoutMillis * 5), localAddress);
 
         // wait more than operation timeout

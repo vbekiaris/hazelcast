@@ -16,9 +16,11 @@
 
 package com.hazelcast.core;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A {@link IAtomicReference} that exposes its operations using a
- * {@link ICompletableFuture} so it can be used in the reactive programming
+ * {@link CompletableFuture} so it can be used in the reactive programming
  * model approach.
  * <p>
  * Instead of this interface, use the equivalent async methods in the public
@@ -40,21 +42,21 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @return true if successful; or false if the actual value
      * was not equal to the expected value.
      */
-    ICompletableFuture<Boolean> asyncCompareAndSet(E expect, E update);
+    CompletableFuture<Boolean> asyncCompareAndSet(E expect, E update);
 
     /**
      * Gets the current value.
      *
      * @return the current value
      */
-    ICompletableFuture<E> asyncGet();
+    CompletableFuture<E> asyncGet();
 
     /**
      * Atomically sets the given value.
      *
      * @param newValue the new value
      */
-    ICompletableFuture<Void> asyncSet(E newValue);
+    CompletableFuture<Void> asyncSet(E newValue);
 
     /**
      * Gets the value and sets the new value.
@@ -62,7 +64,7 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @param newValue the new value.
      * @return the old value.
      */
-    ICompletableFuture<E> asyncGetAndSet(E newValue);
+    CompletableFuture<E> asyncGetAndSet(E newValue);
 
     /**
      * Sets and gets the value.
@@ -71,19 +73,19 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @return the new value
      * @deprecated will be removed from Hazelcast 3.4 since it doesn't really serve a purpose.
      */
-    ICompletableFuture<E> asyncSetAndGet(E update);
+    CompletableFuture<E> asyncSetAndGet(E update);
 
     /**
      * Checks if the stored reference is null.
      *
      * @return true if null, false otherwise.
      */
-    ICompletableFuture<Boolean> asyncIsNull();
+    CompletableFuture<Boolean> asyncIsNull();
 
     /**
      * Clears the current stored reference.
      */
-    ICompletableFuture<Void> asyncClear();
+    CompletableFuture<Void> asyncClear();
 
     /**
      * Checks if the reference contains the value.
@@ -91,7 +93,7 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @param value the value to check (is allowed to be null).
      * @return true if the value is found, false otherwise.
      */
-    ICompletableFuture<Boolean> asyncContains(E value);
+    CompletableFuture<Boolean> asyncContains(E value);
 
     /**
      * Alters the currently stored reference by applying a function on it.
@@ -99,7 +101,7 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @param function the function
      * @throws IllegalArgumentException if function is null.
      */
-    ICompletableFuture<Void> asyncAlter(IFunction<E, E> function);
+    CompletableFuture<Void> asyncAlter(IFunction<E, E> function);
 
     /**
      * Alters the currently stored reference by applying a function on it and gets the result.
@@ -108,7 +110,7 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @return the new value.
      * @throws IllegalArgumentException if function is null.
      */
-    ICompletableFuture<E> asyncAlterAndGet(IFunction<E, E> function);
+    CompletableFuture<E> asyncAlterAndGet(IFunction<E, E> function);
 
     /**
      * Alters the currently stored reference by applying a function on it on and gets the old value.
@@ -117,7 +119,7 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @return the old value
      * @throws IllegalArgumentException if function is null.
      */
-    ICompletableFuture<E> asyncGetAndAlter(IFunction<E, E> function);
+    CompletableFuture<E> asyncGetAndAlter(IFunction<E, E> function);
 
     /**
      * Applies a function on the value, the actual stored value will not change.
@@ -126,5 +128,5 @@ public interface AsyncAtomicReference<E> extends IAtomicReference<E> {
      * @return the result of the function application
      * @throws IllegalArgumentException if function is null.
      */
-    <R> ICompletableFuture<R> asyncApply(IFunction<E, R> function);
+    <R> CompletableFuture<R> asyncApply(IFunction<E, R> function);
 }

@@ -48,8 +48,8 @@ public class AlterMessageTask extends AbstractMessageTask<CPAtomicLongAlterCodec
         AlterResultType resultType = AlterResultType.fromValue(parameters.returnValueType);
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Long>invoke(parameters.groupId, new AlterOp(parameters.name, function, resultType))
-               .andThen(this);
+               .<Long>invoke(parameters.groupId, new AlterOp(parameters.name, function, resultType));
+        // todo fixme .andThen(this);
     }
 
     @Override

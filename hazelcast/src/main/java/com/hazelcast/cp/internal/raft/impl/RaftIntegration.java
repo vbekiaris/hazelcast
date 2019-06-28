@@ -29,6 +29,7 @@ import com.hazelcast.cp.internal.raft.impl.log.SnapshotEntry;
 import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.logging.ILogger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -183,7 +184,7 @@ public interface RaftIntegration {
      * Creates a new instance of {@link SimpleCompletableFuture}.
      * @return a new future
      */
-    SimpleCompletableFuture newCompletableFuture();
+    CompletableFuture newCompletableFuture();
 
     /**
      * Returns the entry to be appended if the no-op entry append on leader

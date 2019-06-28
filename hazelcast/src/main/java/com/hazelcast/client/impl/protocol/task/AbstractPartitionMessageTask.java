@@ -17,22 +17,22 @@
 package com.hazelcast.client.impl.protocol.task;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.instance.Node;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationexecutor.impl.PartitionOperationThread;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 
 /**
  * AbstractPartitionMessageTask
  */
 public abstract class AbstractPartitionMessageTask<P>
         extends AbstractMessageTask<P>
-        implements ExecutionCallback, Executor {
+        implements BiConsumer<Object, Throwable>, Executor {
 
     protected AbstractPartitionMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -61,12 +61,12 @@ public abstract class AbstractPartitionMessageTask<P>
         beforeProcess();
         Operation op = prepareOperation();
         op.setCallerUuid(endpoint.getUuid());
-        ICompletableFuture f = nodeEngine.getOperationService()
-                .createInvocationBuilder(getServiceName(), op, getPartitionId())
-                .setResultDeserialized(false)
-                .invoke();
+        CompletableFuture f = nodeEngine.getOperationService()
+                                        .createInvocationBuilder(getServiceName(), op, getPartitionId())
+                                        .setResultDeserialized(false)
+                                        .invoke();
 
-        f.andThen(this, this);
+        f.whenCompleteAsync(this, this);
     }
 
     protected abstract Operation prepareOperation();
@@ -84,16 +84,13 @@ public abstract class AbstractPartitionMessageTask<P>
     }
 
     @Override
-    public void onResponse(Object response) {
+    public void accept(Object response, Throwable throwable) {
         beforeResponse();
-        sendResponse(response);
-        afterResponse();
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        beforeResponse();
-        handleProcessingFailure(t);
+        if (throwable == null) {
+            sendResponse(response);
+        } else {
+            handleProcessingFailure(throwable);
+        }
         afterResponse();
     }
 }

@@ -45,8 +45,8 @@ public class LockMessageTask extends AbstractMessageTask<CPFencedLockLockCodec.R
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .<Long>invoke(parameters.groupId, new LockOp(parameters.name, parameters.sessionId, parameters.threadId,
-                       parameters.invocationUid))
-               .andThen(this);
+                       parameters.invocationUid));
+        // todo fixme .andThen(this);
     }
 
     @Override

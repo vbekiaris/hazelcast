@@ -18,6 +18,7 @@ package com.hazelcast.cp.internal;
 
 import com.hazelcast.config.cp.CPSubsystemConfig;
 import com.hazelcast.config.cp.RaftAlgorithmConfig;
+import com.hazelcast.spi.impl.operationservice.impl.BiConsumerExecutionCallbackAdapter;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.Member;
@@ -29,7 +30,6 @@ import com.hazelcast.cp.exception.CPGroupDestroyedException;
 import com.hazelcast.cp.internal.datastructures.spi.RaftManagedService;
 import com.hazelcast.cp.internal.datastructures.spi.RaftRemoteService;
 import com.hazelcast.cp.internal.exception.CannotRemoveCPMemberException;
-import com.hazelcast.cp.internal.operation.RestartCPMemberOp;
 import com.hazelcast.cp.internal.raft.SnapshotAwareService;
 import com.hazelcast.cp.internal.raft.impl.RaftIntegration;
 import com.hazelcast.cp.internal.raft.impl.RaftNode;
@@ -58,7 +58,6 @@ import com.hazelcast.internal.cluster.ClusterService;
 import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.GracefulShutdownAwareService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.MemberAttributeServiceEvent;
 import com.hazelcast.spi.MembershipAwareService;
@@ -67,7 +66,6 @@ import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.PreJoinAwareService;
 import com.hazelcast.spi.impl.NodeEngineImpl;
-import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.spi.impl.servicemanager.ServiceInfo;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.ExceptionUtil;
@@ -79,11 +77,11 @@ import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hazelcast.cluster.memberselector.MemberSelectors.NON_LOCAL_MEMBER_SELECTOR;
 import static com.hazelcast.cp.CPGroup.DEFAULT_GROUP_NAME;
@@ -167,76 +165,76 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
         metadataGroupManager.restoreSnapshot(groupId, commitIndex, snapshot);
     }
 
-    public ICompletableFuture<Collection<CPGroupId>> getAllCPGroupIds() {
+    public CompletableFuture<Collection<CPGroupId>> getAllCPGroupIds() {
         return invocationManager.query(getMetadataGroupId(), new GetRaftGroupIdsOp(), LINEARIZABLE);
     }
 
     @Override
-    public ICompletableFuture<Collection<CPGroupId>> getCPGroupIds() {
+    public CompletableFuture<Collection<CPGroupId>> getCPGroupIds() {
         return invocationManager.query(getMetadataGroupId(), new GetActiveRaftGroupIdsOp(), LINEARIZABLE);
     }
 
-    public ICompletableFuture<CPGroup> getCPGroup(CPGroupId groupId) {
+    public CompletableFuture<CPGroup> getCPGroup(CPGroupId groupId) {
         return invocationManager.query(getMetadataGroupId(), new GetRaftGroupOp(groupId), LINEARIZABLE);
     }
 
     @Override
-    public ICompletableFuture<CPGroup> getCPGroup(String name) {
+    public CompletableFuture<CPGroup> getCPGroup(String name) {
         return invocationManager.query(getMetadataGroupId(), new GetActiveRaftGroupByNameOp(name), LINEARIZABLE);
     }
 
     @Override
-    public ICompletableFuture<Void> restart() {
+    public CompletableFuture<Void> restart() {
         checkState(config.getCPMemberCount() > 0, "CP subsystem is not enabled!");
 
         SimpleCompletableFuture<Void> future = newCompletableFuture();
         ClusterService clusterService = nodeEngine.getClusterService();
         Collection<Member> members = clusterService.getMembers(NON_LOCAL_MEMBER_SELECTOR);
+        // todo fixme
+        throw new UnsupportedOperationException("fix me");
+//        if (!clusterService.isMaster()) {
+//            return complete(future, new IllegalStateException("Only master can restart CP subsystem!"));
+//        }
 
-        if (!clusterService.isMaster()) {
-            return complete(future, new IllegalStateException("Only master can restart CP subsystem!"));
-        }
-
-        if (config.getCPMemberCount() > members.size() + 1) {
-            return complete(future, new IllegalStateException("Not enough cluster members to restart CP subsystem! "
-                    + "Required: " + config.getCPMemberCount() + ", available: " + (members.size() + 1)));
-        }
-
-        ExecutionCallback<Void> callback = new ExecutionCallback<Void>() {
-            final AtomicInteger latch = new AtomicInteger(members.size());
-            volatile Throwable failure;
-
-            @Override
-            public void onResponse(Void response) {
-                if (latch.decrementAndGet() == 0) {
-                    if (failure == null) {
-                        future.setResult(response);
-                    } else {
-                        complete(future, failure);
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                failure = t;
-                if (latch.decrementAndGet() == 0) {
-                    complete(future, t);
-                }
-            }
-        };
-
-        long seed = newSeed();
-        logger.warning("Restarting CP subsystem with groupId seed: " + seed);
-        restartLocal(seed);
-
-        OperationServiceImpl operationService = nodeEngine.getOperationService();
-        for (Member member : members) {
-            Operation op = new RestartCPMemberOp(seed);
-            operationService.<Void>invokeOnTarget(SERVICE_NAME, op, member.getAddress()).andThen(callback);
-        }
-
-        return future;
+//        if (config.getCPMemberCount() > members.size() + 1) {
+//            return complete(future, new IllegalStateException("Not enough cluster members to restart CP subsystem! "
+//                    + "Required: " + config.getCPMemberCount() + ", available: " + (members.size() + 1)));
+//        }
+//
+//        BiConsumer<Void, Throwable> callback = new BiConsumer<Void, Throwable>() {
+//            final AtomicInteger latch = new AtomicInteger(members.size());
+//            volatile Throwable failure;
+//
+//            @Override
+//            public void accept(Void response, Throwable throwable) {
+//                if (throwable == null) {
+//                    if (latch.decrementAndGet() == 0) {
+//                        if (failure == null) {
+//                            future.setResult(response);
+//                        } else {
+//                            complete(future, failure);
+//                        }
+//                    }
+//                } else {
+//                    failure = throwable;
+//                    if (latch.decrementAndGet() == 0) {
+//                        complete(future, throwable);
+//                    }
+//                }
+//            }
+//        };
+//
+//        long seed = newSeed();
+//        logger.warning("Restarting CP subsystem with groupId seed: " + seed);
+//        restartLocal(seed);
+//
+//        OperationServiceImpl operationService = nodeEngine.getOperationService();
+//        for (Member member : members) {
+//            Operation op = new RestartCPMemberOp(seed);
+//            operationService.<Void>invokeOnTarget(SERVICE_NAME, op, member.getAddress()).whenCompleteAsync(callback);
+//        }
+//
+//        return future;
     }
 
     private long newSeed() {
@@ -304,16 +302,12 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
         logger.info("Adding new CP member: " + member);
 
         invocationManager.invoke(getMetadataGroupId(), new AddCPMemberOp(member))
-                         .andThen(new ExecutionCallback<Object>() {
-                             @Override
-                             public void onResponse(Object response) {
+                         .whenCompleteAsync((response, throwable) -> {
+                             if (throwable == null) {
                                  metadataGroupManager.initPromotedCPMember(member);
                                  future.setResult(response);
-                             }
-
-                             @Override
-                             public void onFailure(Throwable t) {
-                                 complete(future, t);
+                             } else {
+                                 complete(future, throwable);
                              }
                          });
         return future;
@@ -329,7 +323,9 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
         ClusterService clusterService = nodeEngine.getClusterService();
         SimpleCompletableFuture<Void> future = newCompletableFuture();
 
-        ExecutionCallback<Void> removeMemberCallback = new ExecutionCallback<Void>() {
+        BiConsumerExecutionCallbackAdapter<Void> removeMemberCallback =
+                new BiConsumerExecutionCallbackAdapter<>(
+                new ExecutionCallback<Void>() {
             @Override
             public void onResponse(Void response) {
                 future.setResult(response);
@@ -343,51 +339,49 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
 
                 complete(future, t);
             }
-        };
+        });
 
         invocationManager.<Collection<CPMember>>invoke(getMetadataGroupId(), new GetActiveCPMembersOp())
-                .andThen(new ExecutionCallback<Collection<CPMember>>() {
-            @Override
-            public void onResponse(Collection<CPMember> cpMembers) {
-                CPMemberInfo cpMemberToRemove = null;
-                for (CPMember cpMember : cpMembers) {
-                    if (cpMember.getUuid().equals(cpMemberUuid)) {
-                        cpMemberToRemove = (CPMemberInfo) cpMember;
-                        break;
+                .whenCompleteAsync((cpMembers, throwable) -> {
+                    if (throwable == null) {
+                        CPMemberInfo cpMemberToRemove = null;
+                        for (CPMember cpMember : cpMembers) {
+                            if (cpMember.getUuid().equals(cpMemberUuid)) {
+                                cpMemberToRemove = (CPMemberInfo) cpMember;
+                                break;
+                            }
+                        }
+                        if (cpMemberToRemove == null) {
+                            complete(future, new IllegalArgumentException("No CPMember found with uuid: " + cpMemberUuid));
+                            return;
+                        } else {
+                            Member member = clusterService.getMember(cpMemberToRemove.getAddress());
+                            if (member != null) {
+                                logger.warning(
+                                        "Only unreachable/crashed CP members should be removed. " + member + " is alive but "
+                                                + cpMemberToRemove + " with the same address is being removed.");
+                            }
+                        }
+                        invokeTriggerRemoveMember(cpMemberToRemove).whenCompleteAsync(removeMemberCallback);
+                    } else {
+                        complete(future, throwable);
                     }
-                }
-                if (cpMemberToRemove == null) {
-                    complete(future, new IllegalArgumentException("No CPMember found with uuid: " + cpMemberUuid));
-                    return;
-                } else {
-                    Member member = clusterService.getMember(cpMemberToRemove.getAddress());
-                    if (member != null) {
-                        logger.warning("Only unreachable/crashed CP members should be removed. " + member + " is alive but "
-                                + cpMemberToRemove + " with the same address is being removed.");
-                    }
-                }
-                invokeTriggerRemoveMember(cpMemberToRemove).andThen(removeMemberCallback);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                complete(future, t);
-            }
-        });
+                });
 
         return future;
     }
 
     /**
      * this method is idempotent
+     * @return
      */
     @Override
-    public ICompletableFuture<Void> forceDestroyCPGroup(String groupName) {
+    public CompletableFuture<Void> forceDestroyCPGroup(String groupName) {
         return invocationManager.invoke(getMetadataGroupId(), new ForceDestroyRaftGroupOp(groupName));
     }
 
     @Override
-    public ICompletableFuture<Collection<CPMember>> getCPMembers() {
+    public CompletableFuture<Collection<CPMember>> getCPMembers() {
         return invocationManager.query(getMetadataGroupId(), new GetActiveCPMembersOp(), LINEARIZABLE);
     }
 
@@ -706,44 +700,42 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
         }
     }
 
-    public InternalCompletableFuture<RaftGroupId> createRaftGroupForProxyAsync(String name) {
+    public CompletableFuture<RaftGroupId> createRaftGroupForProxyAsync(String name) {
         String groupName = getGroupNameForProxy(name);
-        SimpleCompletableFuture<RaftGroupId> future = newCompletableFuture();
+        // todo fix me this is a plain JDK ComplFuture
+        CompletableFuture<RaftGroupId> future = new CompletableFuture<>();
 
-        InternalCompletableFuture<CPGroupInfo> groupIdFuture = getGroupInfoForProxy(groupName);
-        groupIdFuture.andThen(new ExecutionCallback<CPGroupInfo>() {
-            @Override
-            public void onResponse(CPGroupInfo response) {
-                if (response != null) {
-                    future.setResult(response.id());
-                } else {
-                    invocationManager.createRaftGroup(groupName).andThen(new ExecutionCallback<RaftGroupId>() {
-                        @Override
-                        public void onResponse(RaftGroupId response) {
-                            future.setResult(response);
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t) {
-                            complete(future, t);
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                complete(future, t);
-            }
-        });
+        // todo fixme
+//        CompletableFuture<CPGroupInfo> groupIdFuture = getGroupInfoForProxy(groupName);
+//        groupIdFuture.whenCompleteAsync((response, throwable) -> {
+//            if (throwable == null) {
+//                if (response != null) {
+//                    future.complete(response.id());
+//                } else {
+//                    invocationManager.createRaftGroup(groupName).andThen(new ExecutionCallback<RaftGroupId>() {
+//                        @Override
+//                        public void onResponse(RaftGroupId response) {
+//                            future.setResult(response);
+//                        }
+//
+//                        @Override
+//                        public void onFailure(Throwable t) {
+//                            complete(future, t);
+//                        }
+//                    });
+//                }
+//            } else {
+//                future.completeExceptionally(throwable);
+//            }
+//        });
         return future;
     }
 
-    private InternalCompletableFuture<CPGroupInfo> getGroupInfoForProxy(String groupName) {
+    private CompletableFuture<CPGroupInfo> getGroupInfoForProxy(String groupName) {
         return invocationManager.query(getMetadataGroupId(), new GetActiveRaftGroupByNameOp(groupName), LINEARIZABLE);
     }
 
-    private ICompletableFuture<Void> invokeTriggerRemoveMember(CPMemberInfo member) {
+    private CompletableFuture<Void> invokeTriggerRemoveMember(CPMemberInfo member) {
         return invocationManager.invoke(getMetadataGroupId(), new RemoveCPMemberOp(member));
     }
 
@@ -883,10 +875,9 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
         @SuppressWarnings("unchecked")
         private void queryInitialMembersFromMetadataRaftGroup() {
             RaftOp op = new GetRaftGroupOp(groupId);
-            ICompletableFuture<CPGroupInfo> f = invocationManager.query(getMetadataGroupId(), op, LEADER_LOCAL);
-            f.andThen(new ExecutionCallback<CPGroupInfo>() {
-                @Override
-                public void onResponse(CPGroupInfo group) {
+            CompletableFuture<CPGroupInfo> f = invocationManager.query(getMetadataGroupId(), op, LEADER_LOCAL);
+            f.whenCompleteAsync((group, throwable) -> {
+                if (throwable == null) {
                     if (group != null) {
                         if (group.memberImpls().contains(getLocalCPMember())) {
                             createRaftNode(groupId, (Collection) group.initialMembers());
@@ -897,17 +888,14 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
                     } else if (logger.isFineEnabled()) {
                         logger.fine("Cannot get initial members of " + groupId + " from the METADATA CP group");
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    if (t instanceof CPGroupDestroyedException) {
-                        CPGroupId destroyedGroupId = ((CPGroupDestroyedException) t).getGroupId();
+                } else {
+                    if (throwable instanceof CPGroupDestroyedException) {
+                        CPGroupId destroyedGroupId = ((CPGroupDestroyedException) throwable).getGroupId();
                         destroyedGroupIds.add(destroyedGroupId);
                     }
 
                     if (logger.isFineEnabled()) {
-                        logger.fine("Cannot get initial members of " + groupId + " from the METADATA CP group", t);
+                        logger.fine("Cannot get initial members of " + groupId + " from the METADATA CP group", throwable);
                     }
                 }
             });
@@ -920,17 +908,13 @@ public class RaftService implements ManagedService, SnapshotAwareService<Metadat
             }
 
             RaftOp op = new GetInitialRaftGroupMembersIfCurrentGroupMemberOp(localMember);
-            ICompletableFuture<Collection<CPMemberInfo>> f = invocationManager.query(groupId, op, LEADER_LOCAL);
-            f.andThen(new ExecutionCallback<Collection<CPMemberInfo>>() {
-                @Override
-                public void onResponse(Collection<CPMemberInfo> initialMembers) {
+            CompletableFuture<Collection<CPMemberInfo>> f = invocationManager.query(groupId, op, LEADER_LOCAL);
+            f.whenCompleteAsync((initialMembers, throwable) -> {
+                if (throwable == null) {
                     createRaftNode(groupId, initialMembers);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+                } else {
                     if (logger.isFineEnabled()) {
-                        logger.fine("Cannot get initial members of " + groupId + " from the CP group itself", t);
+                        logger.fine("Cannot get initial members of " + groupId + " from the CP group itself", throwable);
                     }
                 }
             });

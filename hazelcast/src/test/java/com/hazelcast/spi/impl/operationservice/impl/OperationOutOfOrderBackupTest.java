@@ -25,7 +25,6 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.BackupAwareOperation;
 import com.hazelcast.spi.BackupOperation;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.NodeEngineImpl;
@@ -42,6 +41,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -126,8 +126,8 @@ public class OperationOutOfOrderBackupTest extends HazelcastTestSupport {
     }
 
     private void setValue(NodeEngine nodeEngine, int partitionId, int value) {
-        InternalCompletableFuture<Object> future = nodeEngine.getOperationService()
-                .invokeOnPartition(new SampleBackupAwareOperation(value).setPartitionId(partitionId));
+        CompletableFuture<Object> future = nodeEngine.getOperationService()
+                                     .invokeOnPartition(new SampleBackupAwareOperation(value).setPartitionId(partitionId));
         future.join();
     }
 

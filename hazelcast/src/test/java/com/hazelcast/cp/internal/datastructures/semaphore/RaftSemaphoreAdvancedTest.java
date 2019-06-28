@@ -41,7 +41,6 @@ import com.hazelcast.cp.internal.session.AbstractProxySessionManager;
 import com.hazelcast.cp.internal.session.ProxySessionManagerService;
 import com.hazelcast.cp.internal.session.RaftSessionService;
 import com.hazelcast.cp.internal.util.Tuple2;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
@@ -58,6 +57,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -446,7 +446,7 @@ public class RaftSemaphoreAdvancedTest extends HazelcastRaftTestSupport {
         UUID invUid = newUnsecureUUID();
         Tuple2[] acquireWaitTimeoutKeyRef = new Tuple2[1];
 
-        InternalCompletableFuture<Boolean> f1 = invocationManager
+        CompletableFuture<Boolean> f1 = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, getThreadId(), invUid, 1, SECONDS.toMillis(300)));
 
         assertTrueEventually(() -> {
@@ -456,7 +456,7 @@ public class RaftSemaphoreAdvancedTest extends HazelcastRaftTestSupport {
             acquireWaitTimeoutKeyRef[0] = waitTimeouts.keySet().iterator().next();
         });
 
-        InternalCompletableFuture<Boolean> f2 = invocationManager
+        CompletableFuture<Boolean> f2 = invocationManager
                 .invoke(groupId, new AcquirePermitsOp(objectName, sessionId, getThreadId(), invUid, 1, SECONDS.toMillis(300)));
 
         assertTrueEventually(() -> {

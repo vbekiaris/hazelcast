@@ -33,11 +33,10 @@ import com.hazelcast.map.impl.recordstore.RecordStore;
 import com.hazelcast.query.Predicates;
 import com.hazelcast.query.impl.Indexes;
 import com.hazelcast.spi.CoreService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.PostJoinAwareService;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.properties.GroupProperty;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -51,6 +50,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.io.Serializable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -191,7 +191,7 @@ public class MapIndexLifecycleTest extends HazelcastTestSupport {
         Query query = Query.of().mapName(mapName).iterationType(IterationType.KEY).predicate(Predicates.equal(attribute, value))
                            .build();
         Operation queryOperation = getMapOperationProvider(instance, mapName).createQueryPartitionOperation(query);
-        InternalCompletableFuture<QueryResult> future = operationService
+        CompletableFuture<QueryResult> future = operationService
                 .invokeOnPartition(MapService.SERVICE_NAME, queryOperation, partitionId);
         return future.join().size();
     }

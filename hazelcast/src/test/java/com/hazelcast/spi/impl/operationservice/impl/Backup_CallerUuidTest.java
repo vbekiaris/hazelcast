@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -57,7 +58,7 @@ public class Backup_CallerUuidTest extends HazelcastTestSupport {
 
     @Test
     public void test() {
-        InternalCompletableFuture f = getOperationService(hz).invokeOnPartition(new DummyUpdateOperation()
+        CompletableFuture f = getOperationService(hz).invokeOnPartition(new DummyUpdateOperation()
                 .setPartitionId(getPartitionId(hz)));
         assertCompletesEventually(f);
 

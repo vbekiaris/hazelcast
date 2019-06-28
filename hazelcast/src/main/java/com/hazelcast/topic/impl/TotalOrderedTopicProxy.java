@@ -16,7 +16,6 @@
 
 package com.hazelcast.topic.impl;
 
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 
@@ -39,7 +38,6 @@ public class TotalOrderedTopicProxy<E> extends TopicProxy<E> {
     public void publish(E message) {
         Operation operation = new PublishOperation(getName(), toData(message))
                 .setPartitionId(partitionId);
-        InternalCompletableFuture f = invokeOnPartition(operation);
-        f.join();
+        invokeOnPartition(operation).join();
     }
 }

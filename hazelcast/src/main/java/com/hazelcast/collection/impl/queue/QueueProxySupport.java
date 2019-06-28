@@ -38,15 +38,15 @@ import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.InitializingObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.SerializableList;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.util.ExceptionUtil;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.hazelcast.util.Preconditions.checkNotNull;
@@ -180,7 +180,7 @@ abstract class QueueProxySupport extends AbstractDistributedObject<QueueService>
         }
     }
 
-    private InternalCompletableFuture invoke(Operation operation) {
+    private CompletableFuture invoke(Operation operation) {
         final NodeEngine nodeEngine = getNodeEngine();
         OperationService operationService = nodeEngine.getOperationService();
         return operationService.invokeOnPartition(QueueService.SERVICE_NAME, operation, getPartitionId());

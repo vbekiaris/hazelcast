@@ -20,16 +20,18 @@ import com.hazelcast.config.QuorumConfig;
 import com.hazelcast.config.cp.CPSubsystemConfig;
 import com.hazelcast.cp.CPSubsystem;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * IAtomicReference is a redundant and highly available distributed alternative
  * to the {@link java.util.concurrent.atomic.AtomicReference}.
  * <p>
  * Asynchronous variants have been introduced in version 3.7.
- * Async methods immediately return an {@link ICompletableFuture} from which
+ * Async methods immediately return an {@link CompletableFuture} from which
  * the operation's result can be obtained either in a blocking manner or by
  * registering a callback to be executed upon completion. For example:
  * <pre><code>
- * ICompletableFuture<E> future = atomicRef.getAsync();
+ * CompletableFuture<E> future = atomicRef.getAsync();
  * future.andThen(new ExecutionCallback<E>() {
  *     void onResponse(Long response) {
  *         // do something with the result
@@ -187,21 +189,21 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @return {@code true} if successful; or {@code false} if the actual value
      * was not equal to the expected value
      */
-    ICompletableFuture<Boolean> compareAndSetAsync(E expect, E update);
+    CompletableFuture<Boolean> compareAndSetAsync(E expect, E update);
 
     /**
      * Gets the current value.
      *
      * @return the current value
      */
-    ICompletableFuture<E> getAsync();
+    CompletableFuture<E> getAsync();
 
     /**
      * Atomically sets the given value.
      *
      * @param newValue the new value
      */
-    ICompletableFuture<Void> setAsync(E newValue);
+    CompletableFuture<Void> setAsync(E newValue);
 
     /**
      * Gets the value and sets the new value.
@@ -209,19 +211,19 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @param newValue the new value
      * @return the old value
      */
-    ICompletableFuture<E> getAndSetAsync(E newValue);
+    CompletableFuture<E> getAndSetAsync(E newValue);
 
     /**
      * Checks if the stored reference is {@code null}.
      *
      * @return {@code true} if {@code null}, {@code false} otherwise
      */
-    ICompletableFuture<Boolean> isNullAsync();
+    CompletableFuture<Boolean> isNullAsync();
 
     /**
      * Clears the current stored reference.
      */
-    ICompletableFuture<Void> clearAsync();
+    CompletableFuture<Void> clearAsync();
 
     /**
      * Checks if the reference contains the value.
@@ -229,7 +231,7 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @param expected the value to check (is allowed to be null)
      * @return {@code true} if the value is found, {@code false} otherwise
      */
-    ICompletableFuture<Boolean> containsAsync(E expected);
+    CompletableFuture<Boolean> containsAsync(E expected);
 
     /**
      * Alters the currently stored reference by applying a function on it.
@@ -237,7 +239,7 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @param function the function
      * @throws IllegalArgumentException if function is {@code null}
      */
-    ICompletableFuture<Void> alterAsync(IFunction<E, E> function);
+    CompletableFuture<Void> alterAsync(IFunction<E, E> function);
 
     /**
      * Alters the currently stored reference by applying a function on it and
@@ -247,7 +249,7 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @return the new value
      * @throws IllegalArgumentException if function is {@code null}
      */
-    ICompletableFuture<E> alterAndGetAsync(IFunction<E, E> function);
+    CompletableFuture<E> alterAndGetAsync(IFunction<E, E> function);
 
     /**
      * Alters the currently stored reference by applying a function on it on
@@ -257,7 +259,7 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @return the old value
      * @throws IllegalArgumentException if function is {@code null}
      */
-    ICompletableFuture<E> getAndAlterAsync(IFunction<E, E> function);
+    CompletableFuture<E> getAndAlterAsync(IFunction<E, E> function);
 
     /**
      * Applies a function on the value, the actual stored value will not
@@ -267,5 +269,5 @@ public interface IAtomicReference<E> extends DistributedObject {
      * @return the result of the function application
      * @throws IllegalArgumentException if function is {@code null}
      */
-    <R> ICompletableFuture<R> applyAsync(IFunction<E, R> function);
+    <R> CompletableFuture<R> applyAsync(IFunction<E, R> function);
 }

@@ -30,9 +30,10 @@ import com.hazelcast.concurrent.atomicreference.operations.SetOperation;
 import com.hazelcast.core.AsyncAtomicReference;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.spi.AbstractDistributedObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
+
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.util.Preconditions.isNotNull;
 
@@ -54,7 +55,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Void> alterAsync(IFunction<E, E> function) {
+    public CompletableFuture<Void> alterAsync(IFunction<E, E> function) {
         isNotNull(function, "function");
 
         Operation operation = new AlterOperation(name, toData(function))
@@ -63,7 +64,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Void> asyncAlter(IFunction<E, E> function) {
+    public CompletableFuture<Void> asyncAlter(IFunction<E, E> function) {
         return alterAsync(function);
     }
 
@@ -73,7 +74,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> alterAndGetAsync(IFunction<E, E> function) {
+    public CompletableFuture<E> alterAndGetAsync(IFunction<E, E> function) {
         isNotNull(function, "function");
 
         Operation operation = new AlterAndGetOperation(name, toData(function))
@@ -82,7 +83,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> asyncAlterAndGet(IFunction<E, E> function) {
+    public CompletableFuture<E> asyncAlterAndGet(IFunction<E, E> function) {
         return alterAndGetAsync(function);
     }
 
@@ -92,7 +93,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> getAndAlterAsync(IFunction<E, E> function) {
+    public CompletableFuture<E> getAndAlterAsync(IFunction<E, E> function) {
         isNotNull(function, "function");
 
         Operation operation = new GetAndAlterOperation(name, toData(function))
@@ -101,7 +102,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> asyncGetAndAlter(IFunction<E, E> function) {
+    public CompletableFuture<E> asyncGetAndAlter(IFunction<E, E> function) {
         return getAndAlterAsync(function);
     }
 
@@ -111,7 +112,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public <R> InternalCompletableFuture<R> applyAsync(IFunction<E, R> function) {
+    public <R> CompletableFuture<R> applyAsync(IFunction<E, R> function) {
         isNotNull(function, "function");
 
         Operation operation = new ApplyOperation(name, toData(function))
@@ -120,7 +121,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public <R> InternalCompletableFuture<R> asyncApply(IFunction<E, R> function) {
+    public <R> CompletableFuture<R> asyncApply(IFunction<E, R> function) {
         return applyAsync(function);
     }
 
@@ -130,12 +131,12 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Void> clearAsync() {
+    public CompletableFuture<Void> clearAsync() {
         return setAsync(null);
     }
 
     @Override
-    public InternalCompletableFuture<Void> asyncClear() {
+    public CompletableFuture<Void> asyncClear() {
         return clearAsync();
     }
 
@@ -145,14 +146,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> compareAndSetAsync(E expect, E update) {
+    public CompletableFuture<Boolean> compareAndSetAsync(E expect, E update) {
         Operation operation = new CompareAndSetOperation(name, toData(expect), toData(update))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> asyncCompareAndSet(E expect, E update) {
+    public CompletableFuture<Boolean> asyncCompareAndSet(E expect, E update) {
         return compareAndSetAsync(expect, update);
     }
 
@@ -162,14 +163,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> getAsync() {
+    public CompletableFuture<E> getAsync() {
         Operation operation = new GetOperation(name)
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<E> asyncGet() {
+    public CompletableFuture<E> asyncGet() {
         return getAsync();
     }
 
@@ -179,14 +180,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> containsAsync(E expected) {
+    public CompletableFuture<Boolean> containsAsync(E expected) {
         Operation operation = new ContainsOperation(name, toData(expected))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> asyncContains(E value) {
+    public CompletableFuture<Boolean> asyncContains(E value) {
         return containsAsync(value);
     }
 
@@ -196,14 +197,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Void> setAsync(E newValue) {
+    public CompletableFuture<Void> setAsync(E newValue) {
         Operation operation = new SetOperation(name, toData(newValue))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<Void> asyncSet(E newValue) {
+    public CompletableFuture<Void> asyncSet(E newValue) {
         Operation operation = new SetOperation(name, toData(newValue))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
@@ -215,14 +216,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> getAndSetAsync(E newValue) {
+    public CompletableFuture<E> getAndSetAsync(E newValue) {
         Operation operation = new GetAndSetOperation(name, toData(newValue))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<E> asyncGetAndSet(E newValue) {
+    public CompletableFuture<E> asyncGetAndSet(E newValue) {
         return getAndSetAsync(newValue);
     }
 
@@ -232,7 +233,7 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<E> asyncSetAndGet(E update) {
+    public CompletableFuture<E> asyncSetAndGet(E update) {
         Operation operation = new SetAndGetOperation(name, toData(update))
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
@@ -244,14 +245,14 @@ public class AtomicReferenceProxy<E> extends AbstractDistributedObject<AtomicRef
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> isNullAsync() {
+    public CompletableFuture<Boolean> isNullAsync() {
         Operation operation = new IsNullOperation(name)
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> asyncIsNull() {
+    public CompletableFuture<Boolean> asyncIsNull() {
         return isNullAsync();
     }
 

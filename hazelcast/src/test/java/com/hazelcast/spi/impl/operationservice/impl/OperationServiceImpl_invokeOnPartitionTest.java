@@ -17,7 +17,6 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.test.ExceptionThrowingCallable;
 import com.hazelcast.test.ExpectedRuntimeException;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -28,6 +27,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -55,7 +56,7 @@ public class OperationServiceImpl_invokeOnPartitionTest extends HazelcastTestSup
         String expected = "foobar";
         DummyOperation operation = new DummyOperation(expected);
 
-        InternalCompletableFuture<String> invocation = operationService.invokeOnPartition(
+        CompletableFuture<String> invocation = operationService.invokeOnPartition(
                 null, operation, getPartitionId(local));
         assertEquals(expected, invocation.join());
     }
@@ -65,7 +66,7 @@ public class OperationServiceImpl_invokeOnPartitionTest extends HazelcastTestSup
         String expected = "foobar";
         DummyOperation operation = new DummyOperation(expected);
 
-        InternalCompletableFuture<String> invocation = operationService.invokeOnPartition(
+        CompletableFuture<String> invocation = operationService.invokeOnPartition(
                 null, operation, getPartitionId(remote));
         assertEquals(expected, invocation.join());
     }
@@ -73,7 +74,7 @@ public class OperationServiceImpl_invokeOnPartitionTest extends HazelcastTestSup
     @Test
     public void whenExceptionThrownInOperationRun() {
         DummyOperation operation = new DummyOperation(new ExceptionThrowingCallable());
-        InternalCompletableFuture<String> invocation = operationService.invokeOnPartition(
+        CompletableFuture<String> invocation = operationService.invokeOnPartition(
                 null, operation, getPartitionId(remote));
 
         try {

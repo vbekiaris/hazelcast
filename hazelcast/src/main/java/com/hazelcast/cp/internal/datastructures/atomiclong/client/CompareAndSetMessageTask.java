@@ -44,8 +44,9 @@ public class CompareAndSetMessageTask extends AbstractMessageTask<CPAtomicLongCo
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Boolean>invoke(parameters.groupId, new CompareAndSetOp(parameters.name, parameters.expected, parameters.updated))
-               .andThen(this);
+               .<Boolean>invoke(parameters.groupId, new CompareAndSetOp(parameters.name, parameters.expected, parameters.updated));
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

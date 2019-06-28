@@ -16,8 +16,6 @@
 
 package com.hazelcast.cp.internal.operation;
 
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
 import com.hazelcast.cp.exception.NotLeaderException;
@@ -32,6 +30,8 @@ import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.Operation;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 /**
  * The base class that replicates the given {@link RaftOp}
@@ -41,7 +41,7 @@ import java.io.IOException;
  * so it is not handled via the Raft layer.
  */
 public abstract class RaftReplicateOp extends Operation implements IdentifiedDataSerializable, RaftSystemOperation,
-                                                                   ExecutionCallback {
+                                                                   BiConsumer<Object, Throwable> {
 
     private CPGroupId groupId;
 
@@ -69,19 +69,19 @@ public abstract class RaftReplicateOp extends Operation implements IdentifiedDat
             return;
         }
 
-        replicate(raftNode).andThen(this);
+        // todo async or not, executor?
+        replicate(raftNode).whenCompleteAsync(this);
     }
 
-    protected abstract ICompletableFuture replicate(RaftNode raftNode);
+    protected abstract CompletableFuture replicate(RaftNode raftNode);
 
     @Override
-    public void onResponse(Object response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        sendResponse(t);
+    public void accept(Object o, Throwable throwable) {
+        if (throwable == null) {
+            sendResponse(o);
+        } else {
+            sendResponse(throwable);
+        }
     }
 
     @Override

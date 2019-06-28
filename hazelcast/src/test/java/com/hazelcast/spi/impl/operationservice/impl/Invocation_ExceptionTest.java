@@ -17,7 +17,6 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.test.ExpectedRuntimeException;
@@ -30,6 +29,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
@@ -48,7 +49,7 @@ public class Invocation_ExceptionTest extends HazelcastTestSupport {
     public void whenOperationReturnsNoResponse() {
         HazelcastInstance local = createHazelcastInstance();
         OperationService operationService = getOperationService(local);
-        InternalCompletableFuture f = operationService.invokeOnPartition(null, new OperationsReturnsNoResponse(), 0);
+        CompletableFuture f = operationService.invokeOnPartition(null, new OperationsReturnsNoResponse(), 0);
         assertCompletesEventually(f);
 
         expected.expect(ExpectedRuntimeException.class);

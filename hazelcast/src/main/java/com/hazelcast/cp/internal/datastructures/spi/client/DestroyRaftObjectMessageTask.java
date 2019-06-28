@@ -42,8 +42,9 @@ public class DestroyRaftObjectMessageTask extends AbstractMessageTask<CPGroupDes
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .invoke(parameters.groupId, new DestroyRaftObjectOp(parameters.serviceName, parameters.objectName))
-               .andThen(this);
+               .invoke(parameters.groupId, new DestroyRaftObjectOp(parameters.serviceName, parameters.objectName));
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

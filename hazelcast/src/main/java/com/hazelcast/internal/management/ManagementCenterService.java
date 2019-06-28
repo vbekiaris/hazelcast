@@ -57,7 +57,6 @@ import com.hazelcast.map.impl.MapService;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.IOUtil;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.util.Clock;
@@ -77,6 +76,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -248,18 +248,18 @@ public class ManagementCenterService {
         }
     }
 
-    public InternalCompletableFuture<Object> callOnAddress(Address address, Operation operation) {
+    public CompletableFuture<Object> callOnAddress(Address address, Operation operation) {
         // TODO: why are we always executing on the MapService?
         OperationService operationService = instance.node.nodeEngine.getOperationService();
         return operationService.invokeOnTarget(MapService.SERVICE_NAME, operation, address);
     }
 
-    public InternalCompletableFuture<Object> callOnThis(Operation operation) {
+    public CompletableFuture<Object> callOnThis(Operation operation) {
         return callOnAddress(instance.node.getThisAddress(), operation);
     }
 
     public JsonObject syncCallOnThis(Operation operation) {
-        InternalCompletableFuture<Object> future = callOnThis(operation);
+        CompletableFuture<Object> future = callOnThis(operation);
         JsonObject result = new JsonObject();
         Object operationResult;
         try {
@@ -280,7 +280,7 @@ public class ManagementCenterService {
         return result;
     }
 
-    public InternalCompletableFuture<Object> callOnMember(Member member, Operation operation) {
+    public CompletableFuture<Object> callOnMember(Member member, Operation operation) {
         return callOnAddress(member.getAddress(), operation);
     }
 

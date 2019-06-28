@@ -22,7 +22,6 @@ import com.hazelcast.core.IMap;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.proxy.MapProxyImpl;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationFactory;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
@@ -37,6 +36,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -70,7 +70,7 @@ public class ContainsValueOperationTest extends HazelcastTestSupport {
         assertTrue((Boolean) future.get());
     }
 
-    private InternalCompletableFuture<Object> executeOperation(Map map, String key, int value) {
+    private CompletableFuture<Object> executeOperation(Map map, String key, int value) {
         int partitionId = getNode(member1).getPartitionService().getPartitionId(key);
         MapProxyImpl mapProxy = (MapProxyImpl) map;
         MapServiceContext mapServiceContext = ((MapService) mapProxy.getService()).getMapServiceContext();

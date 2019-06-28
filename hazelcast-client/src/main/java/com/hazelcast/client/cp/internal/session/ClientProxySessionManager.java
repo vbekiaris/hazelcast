@@ -35,6 +35,7 @@ import com.hazelcast.logging.ILogger;
 
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -91,14 +92,14 @@ public class ClientProxySessionManager extends AbstractProxySessionManager {
     }
 
     @Override
-    protected ICompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId) {
+    protected CompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId) {
         ClientMessage request = CPSessionHeartbeatSessionCodec.encodeRequest(groupId, sessionId);
         ClientInvocationFuture future = new ClientInvocation(client, request, "sessionManager").invoke();
         return new ClientDelegatingFuture<>(future, client.getSerializationService(), HEARTBEAT_RESPONSE_DECODER);
     }
 
     @Override
-    protected ICompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId) {
+    protected CompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId) {
         ClientMessage request = CPSessionCloseSessionCodec.encodeRequest(groupId, sessionId);
         ClientInvocationFuture future = new ClientInvocation(client, request, "sessionManager").invoke();
         return new ClientDelegatingFuture<>(future, client.getSerializationService(), CLOSE_SESSION_RESPONSE_DECODER);

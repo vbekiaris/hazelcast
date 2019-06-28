@@ -357,8 +357,8 @@ public abstract class AbstractMergeRunnable<K, V, Store, MergingItem extends Mer
         @Override
         public void accept(Integer partitionId, Operation operation) {
             try {
-                operationService.invokeOnPartition(serviceName, operation, partitionId)
-                        .andThen(mergeCallback);
+                operationService.invokeOnPartition(serviceName, operation, partitionId);
+                       // todo fixme; .andThen(mergeCallback);
             } catch (Throwable t) {
                 throw rethrow(t);
             }

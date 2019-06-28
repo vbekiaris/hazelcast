@@ -19,9 +19,7 @@ package com.hazelcast.client.impl.protocol.task.map;
 import com.hazelcast.client.impl.operations.OperationFactoryWrapper;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.MapRemoveAllCodec;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.partition.PartitioningStrategy;
 import com.hazelcast.instance.Node;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapService;
@@ -29,6 +27,7 @@ import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.operation.MapOperationProvider;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.partition.PartitioningStrategy;
 import com.hazelcast.query.PartitionPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.security.permission.ActionConstants;
@@ -41,6 +40,7 @@ import com.hazelcast.spi.impl.operationservice.impl.operations.PartitionAwareOpe
 import java.security.Permission;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.map.impl.EntryRemovingProcessor.ENTRY_REMOVING_PROCESSOR;
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
@@ -99,16 +99,12 @@ public class MapRemoveAllMessageTask extends AbstractMapAllPartitionsMessageTask
 
             final int thisPartitionId = partitionId;
             operation.setCallerUuid(endpoint.getUuid());
-            ICompletableFuture<Object> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
-            future.andThen(new ExecutionCallback<Object>() {
-                @Override
-                public void onResponse(Object response) {
+            CompletableFuture<Object> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
+            future.whenCompleteAsync((response, throwable) -> {
+                if (throwable == null) {
                     MapRemoveAllMessageTask.this.onResponse(Collections.singletonMap(thisPartitionId, response));
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    MapRemoveAllMessageTask.this.onFailure(t);
+                } else {
+                    MapRemoveAllMessageTask.this.onFailure(throwable);
                 }
             });
         } else {

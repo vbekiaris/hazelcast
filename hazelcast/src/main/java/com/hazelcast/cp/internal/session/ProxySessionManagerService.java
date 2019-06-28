@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -72,7 +73,7 @@ public class ProxySessionManagerService extends AbstractProxySessionManager impl
         String instanceName = nodeEngine.getConfig().getInstanceName();
         long creationTime = System.currentTimeMillis();
         RaftOp op = new CreateSessionOp(nodeEngine.getThisAddress(), instanceName, SERVER, creationTime);
-        ICompletableFuture<SessionResponse> future = getInvocationManager().invoke(groupId, op);
+        CompletableFuture<SessionResponse> future = getInvocationManager().invoke(groupId, op);
         try {
             return future.get();
         } catch (Exception e) {
@@ -81,12 +82,12 @@ public class ProxySessionManagerService extends AbstractProxySessionManager impl
     }
 
     @Override
-    protected ICompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId) {
+    protected CompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId) {
         return getInvocationManager().invoke(groupId, new HeartbeatSessionOp(sessionId));
     }
 
     @Override
-    protected ICompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId) {
+    protected CompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId) {
         return getInvocationManager().invoke(groupId, new CloseSessionOp(sessionId));
     }
 
@@ -99,16 +100,16 @@ public class ProxySessionManagerService extends AbstractProxySessionManager impl
     public boolean onShutdown(long timeout, TimeUnit unit) {
         ILogger logger = nodeEngine.getLogger(getClass());
 
-        Map<RaftGroupId, ICompletableFuture<Object>> futures = shutdown();
+        Map<RaftGroupId, CompletableFuture<Object>> futures = shutdown();
         long remainingTimeNanos = unit.toNanos(timeout);
         boolean successful = true;
 
         while (remainingTimeNanos > 0 && futures.size() > 0) {
-            Iterator<Entry<RaftGroupId, ICompletableFuture<Object>>> it = futures.entrySet().iterator();
+            Iterator<Entry<RaftGroupId, CompletableFuture<Object>>> it = futures.entrySet().iterator();
             while (it.hasNext()) {
-                Entry<RaftGroupId, ICompletableFuture<Object>> entry = it.next();
+                Entry<RaftGroupId, CompletableFuture<Object>> entry = it.next();
                 RaftGroupId groupId = entry.getKey();
-                ICompletableFuture<Object> f = entry.getValue();
+                CompletableFuture<Object> f = entry.getValue();
                 if (f.isDone()) {
                     it.remove();
                     try {

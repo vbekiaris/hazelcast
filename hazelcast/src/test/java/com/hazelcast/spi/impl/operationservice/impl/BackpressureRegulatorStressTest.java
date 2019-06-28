@@ -23,7 +23,6 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.BackupAwareOperation;
 import com.hazelcast.spi.BackupOperation;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastSerialClassRunner;
@@ -37,6 +36,7 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -250,8 +250,9 @@ public class BackpressureRegulatorStressTest extends HazelcastTestSupport {
         private void asyncInvoke(DummyOperation operation) {
             final long expectedResult = operation.result;
 
-            InternalCompletableFuture f = localOperationService.invokeOnPartition(null, operation, partitionId);
-            f.andThen(new ExecutionCallback() {
+            CompletableFuture f = localOperationService.invokeOnPartition(null, operation, partitionId);
+            f.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter(
+                    new ExecutionCallback() {
                 @Override
                 public void onResponse(Object response) {
                     completedCall.incrementAndGet();
@@ -268,13 +269,13 @@ public class BackpressureRegulatorStressTest extends HazelcastTestSupport {
                     failedOperationCount.incrementAndGet();
                     t.printStackTrace();
                 }
-            });
+            }));
         }
 
         private void syncInvoke(DummyOperation operation) {
             final Long expectedResult = operation.result;
 
-            InternalCompletableFuture f = localOperationService.invokeOnPartition(null, operation, partitionId);
+            CompletableFuture f = localOperationService.invokeOnPartition(null, operation, partitionId);
             completedCall.incrementAndGet();
 
             try {

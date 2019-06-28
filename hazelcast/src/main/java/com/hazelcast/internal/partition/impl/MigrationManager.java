@@ -17,11 +17,9 @@
 package com.hazelcast.internal.partition.impl;
 
 import com.hazelcast.cluster.ClusterState;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberLeftException;
-import com.hazelcast.partition.MigrationEvent;
 import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.instance.Node;
 import com.hazelcast.internal.cluster.impl.ClusterServiceImpl;
@@ -45,12 +43,12 @@ import com.hazelcast.internal.partition.operation.PublishCompletedMigrationsOper
 import com.hazelcast.internal.partition.operation.ShutdownResponseOperation;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
+import com.hazelcast.partition.MigrationEvent;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.spi.partition.IPartitionLostEvent;
 import com.hazelcast.spi.partition.MigrationEndpoint;
@@ -72,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -634,12 +633,11 @@ public class MigrationManager {
                 continue;
             }
             Operation operation = new PublishCompletedMigrationsOperation(migrations);
-            InternalCompletableFuture<Boolean> f
+            CompletableFuture<Boolean> f
                     = operationService.invokeOnTarget(SERVICE_NAME, operation, member.getAddress());
 
-            f.andThen(new ExecutionCallback<Boolean>() {
-                @Override
-                public void onResponse(Boolean response) {
+            f.whenCompleteAsync((response, throwable) -> {
+                if (throwable == null) {
                     if (!Boolean.TRUE.equals(response)) {
                         logger.fine(member + " rejected completed migrations with response " + response);
                         partitionService.sendPartitionRuntimeState(member.getAddress());
@@ -650,11 +648,8 @@ public class MigrationManager {
                         logger.fine("Evicting " + migrations.size() + " completed migrations.");
                         evictCompletedMigrations(migrations);
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    logger.fine("Failure while publishing completed migrations to " + member, t);
+                } else {
+                    logger.fine("Failure while publishing completed migrations to " + member, throwable);
                     partitionService.sendPartitionRuntimeState(member.getAddress());
                 }
             });

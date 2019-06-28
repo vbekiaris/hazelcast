@@ -45,7 +45,8 @@ public class CompareAndSetMessageTask extends AbstractMessageTask<CPAtomicRefCom
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         RaftOp op = new CompareAndSetOp(parameters.name, parameters.oldValue, parameters.newValue);
-        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op).andThen(this);
+        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op);
+        // todo fixme .andThen(this);
     }
 
     @Override

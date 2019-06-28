@@ -29,6 +29,7 @@ import com.hazelcast.spi.ObjectNamespace;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class EventJournalMapDataStructureAdapter<K, V>
@@ -92,13 +93,13 @@ public class EventJournalMapDataStructureAdapter<K, V>
 
     @Override
     @SuppressWarnings("unchecked")
-    public ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
+    public CompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
         return ((EventJournalReader<?>) map).subscribeToEventJournal(partitionId);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    public <T> CompletableFuture<ReadResultSet<T>> readFromEventJournal(
             long startSequence, int minSize, int maxSize, int partitionId,
             java.util.function.Predicate<? super EventJournalMapEvent<K, V>> predicate,
             java.util.function.Function<? super EventJournalMapEvent<K, V>, ? extends T> projection) {

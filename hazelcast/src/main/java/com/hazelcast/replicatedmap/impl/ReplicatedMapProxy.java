@@ -39,11 +39,10 @@ import com.hazelcast.replicatedmap.impl.record.ReplicatedRecordStore;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.EventFilter;
 import com.hazelcast.spi.InitializingObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.eventservice.impl.TrueEventFilter;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.serialization.SerializationService;
 import com.hazelcast.util.IterationType;
 
@@ -54,6 +53,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -241,7 +241,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         Data dataValue = nodeEngine.toData(value);
         int partitionId = nodeEngine.getPartitionService().getPartitionId(dataKey);
         PutOperation putOperation = new PutOperation(getName(), dataKey, dataValue);
-        InternalCompletableFuture<Object> future = getOperationService()
+        CompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), putOperation, partitionId);
         VersionResponsePair result = (VersionResponsePair) future.join();
         return nodeEngine.toObject(result.getResponse());
@@ -260,7 +260,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         Data dataValue = nodeEngine.toData(value);
         int partitionId = partitionService.getPartitionId(dataKey);
         PutOperation putOperation = new PutOperation(getName(), dataKey, dataValue, ttlMillis);
-        InternalCompletableFuture<Object> future = getOperationService()
+        CompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), putOperation, partitionId);
         VersionResponsePair result = (VersionResponsePair) future.join();
         return nodeEngine.toObject(result.getResponse());
@@ -272,7 +272,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         Data dataKey = nodeEngine.toData(key);
         int partitionId = partitionService.getPartitionId(key);
         RemoveOperation removeOperation = new RemoveOperation(getName(), dataKey);
-        InternalCompletableFuture<Object> future = getOperationService()
+        CompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), removeOperation, partitionId);
         VersionResponsePair result = (VersionResponsePair) future.join();
         return nodeEngine.toObject(result.getResponse());

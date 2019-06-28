@@ -52,6 +52,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.hazelcast.instance.TestUtil.terminateInstance;
@@ -440,7 +441,7 @@ public class BasicClusterStateTest extends HazelcastTestSupport {
         int partitionId = getPartitionId(hz2);
         changeClusterStateEventually(hz1, ClusterState.PASSIVE);
 
-        InternalCompletableFuture future = getOperationService(hz1).invokeOnPartition(null,
+        CompletableFuture future = getOperationService(hz1).invokeOnPartition(null,
                 new PrimaryAllowedDuringPassiveStateOperation(), partitionId);
         future.join();
 

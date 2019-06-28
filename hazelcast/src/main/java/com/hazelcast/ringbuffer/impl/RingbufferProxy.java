@@ -17,7 +17,6 @@
 package com.hazelcast.ringbuffer.impl;
 
 import com.hazelcast.config.RingbufferConfig;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.quorum.QuorumType;
@@ -30,12 +29,12 @@ import com.hazelcast.ringbuffer.impl.operations.GenericOperation;
 import com.hazelcast.ringbuffer.impl.operations.ReadManyOperation;
 import com.hazelcast.ringbuffer.impl.operations.ReadOneOperation;
 import com.hazelcast.spi.AbstractDistributedObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.ringbuffer.OverflowPolicy.OVERWRITE;
 import static com.hazelcast.ringbuffer.impl.RingbufferService.SERVICE_NAME;
@@ -98,7 +97,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
     public long size() {
         Operation op = new GenericOperation(name, OPERATION_SIZE)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Long> f = invokeOnPartition(op);
+        CompletableFuture<Long> f = invokeOnPartition(op);
         return f.join();
     }
 
@@ -106,7 +105,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
     public long tailSequence() {
         Operation op = new GenericOperation(name, OPERATION_TAIL)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Long> f = invokeOnPartition(op);
+        CompletableFuture<Long> f = invokeOnPartition(op);
         return f.join();
     }
 
@@ -114,7 +113,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
     public long headSequence() {
         Operation op = new GenericOperation(name, OPERATION_HEAD)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Long> f = invokeOnPartition(op);
+        CompletableFuture<Long> f = invokeOnPartition(op);
         return f.join();
     }
 
@@ -129,7 +128,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
 
         Operation op = new GenericOperation(name, OPERATION_REMAINING_CAPACITY)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Long> f = invokeOnPartition(op);
+        CompletableFuture<Long> f = invokeOnPartition(op);
         return f.join();
     }
 
@@ -139,12 +138,12 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
 
         Operation op = new AddOperation(name, toData(item), OVERWRITE)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Long> f = invokeOnPartition(op);
+        CompletableFuture<Long> f = invokeOnPartition(op);
         return f.join();
     }
 
     @Override
-    public ICompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy) {
+    public CompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy) {
         checkNotNull(item, "item can't be null");
         checkNotNull(overflowPolicy, "overflowPolicy can't be null");
 
@@ -159,7 +158,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
 
         Operation op = new ReadOneOperation(name, sequence)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<E> f = invokeOnPartition(op);
+        CompletableFuture<E> f = invokeOnPartition(op);
         try {
             return f.get();
         } catch (Throwable t) {
@@ -168,7 +167,7 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
     }
 
     @Override
-    public ICompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy) {
+    public CompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy) {
         checkNotNull(collection, "collection can't be null");
         checkNotNull(overflowPolicy, "overflowPolicy can't be null");
         checkFalse(collection.isEmpty(), "collection can't be empty");
@@ -194,8 +193,8 @@ public class RingbufferProxy<E> extends AbstractDistributedObject<RingbufferServ
     }
 
     @Override
-    public ICompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount, int maxCount,
-                                                              IFunction<E, Boolean> filter) {
+    public CompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount, int maxCount,
+                                                             IFunction<E, Boolean> filter) {
         checkSequence(startSequence);
         checkNotNegative(minCount, "minCount can't be smaller than 0");
         checkTrue(maxCount >= minCount, "maxCount should be equal or larger than minCount");

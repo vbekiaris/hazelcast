@@ -16,7 +16,6 @@
 
 package com.hazelcast.cp.internal.operation;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.internal.CPMemberInfo;
 import com.hazelcast.cp.internal.IndeterminateOperationStateAware;
@@ -28,6 +27,7 @@ import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Replicates a membership change operation to a Raft group.
@@ -53,7 +53,7 @@ public class ChangeRaftGroupMembershipOp extends RaftReplicateOp implements Inde
     }
 
     @Override
-    protected ICompletableFuture replicate(RaftNode raftNode) {
+    protected CompletableFuture replicate(RaftNode raftNode) {
         if (membersCommitIndex == NAN_MEMBERS_COMMIT_INDEX) {
             return raftNode.replicateMembershipChange(member, membershipChangeMode);
         } else {

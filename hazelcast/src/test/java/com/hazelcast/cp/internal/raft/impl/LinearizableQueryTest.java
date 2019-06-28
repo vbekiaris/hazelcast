@@ -18,7 +18,6 @@ package com.hazelcast.cp.internal.raft.impl;
 
 import com.hazelcast.config.cp.RaftAlgorithmConfig;
 import com.hazelcast.core.Endpoint;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.exception.CannotReplicateException;
 import com.hazelcast.cp.exception.NotLeaderException;
 import com.hazelcast.cp.internal.raft.impl.dataservice.ApplyRaftRunnable;
@@ -34,6 +33,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
 import static com.hazelcast.cp.internal.raft.impl.RaftUtil.getCommitIndex;
@@ -102,8 +103,8 @@ public class LinearizableQueryTest extends HazelcastTestSupport {
         group.dropMessagesToMember(leader.getLocalMember(), followers[1].getLocalMember(), AppendRequest.class);
         group.dropMessagesToMember(leader.getLocalMember(), followers[2].getLocalMember(), AppendRequest.class);
 
-        ICompletableFuture replicateFuture = leader.replicate(new ApplyRaftRunnable("value2"));
-        ICompletableFuture queryFuture = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture replicateFuture = leader.replicate(new ApplyRaftRunnable("value2"));
+        CompletableFuture queryFuture = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
 
         group.resetAllRulesFrom(leader.getLocalMember());
 
@@ -124,8 +125,8 @@ public class LinearizableQueryTest extends HazelcastTestSupport {
         group.dropMessagesToMember(leader.getLocalMember(), followers[1].getLocalMember(), AppendRequest.class);
         group.dropMessagesToMember(leader.getLocalMember(), followers[2].getLocalMember(), AppendRequest.class);
 
-        ICompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
-        ICompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
 
         group.resetAllRulesFrom(leader.getLocalMember());
 
@@ -145,9 +146,9 @@ public class LinearizableQueryTest extends HazelcastTestSupport {
         group.dropMessagesToMember(leader.getLocalMember(), followers[1].getLocalMember(), AppendRequest.class);
         group.dropMessagesToMember(leader.getLocalMember(), followers[2].getLocalMember(), AppendRequest.class);
 
-        ICompletableFuture replicateFuture = leader.replicate(new ApplyRaftRunnable("value2"));
-        ICompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
-        ICompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture replicateFuture = leader.replicate(new ApplyRaftRunnable("value2"));
+        CompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
 
         group.resetAllRulesFrom(leader.getLocalMember());
 
@@ -183,8 +184,8 @@ public class LinearizableQueryTest extends HazelcastTestSupport {
         group.dropMessagesToMember(leader.getLocalMember(), followers[1].getLocalMember(), AppendRequest.class);
         group.dropMessagesToMember(leader.getLocalMember(), followers[2].getLocalMember(), AppendRequest.class);
 
-        ICompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
-        ICompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture1 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture2 = leader.query(new QueryRaftRunnable(), LINEARIZABLE);
 
         try {
             queryFuture2.get();
@@ -218,7 +219,7 @@ public class LinearizableQueryTest extends HazelcastTestSupport {
         RaftNodeImpl newLeader = group.getNode(getLeaderMember(group.getNode(split[0])));
         newLeader.replicate(new ApplyRaftRunnable("value1")).get();
 
-        ICompletableFuture queryFuture = oldLeader.query(new QueryRaftRunnable(), LINEARIZABLE);
+        CompletableFuture queryFuture = oldLeader.query(new QueryRaftRunnable(), LINEARIZABLE);
 
         group.merge();
         group.waitUntilLeaderElected();

@@ -22,8 +22,8 @@ import com.hazelcast.config.RingbufferStoreConfig;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.partition.Partition;
 import com.hazelcast.core.RingbufferStore;
+import com.hazelcast.partition.Partition;
 import com.hazelcast.ringbuffer.OverflowPolicy;
 import com.hazelcast.ringbuffer.Ringbuffer;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -37,6 +37,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -120,9 +121,9 @@ public class RingbufferStoreFailureConsistencyTest extends HazelcastTestSupport 
         long seqTwo = seqInit;
         doThrow(new IllegalStateException("Expected test exception")).when(store).store(seqInit + 2, TWO);
 
-        ICompletableFuture<Long> seqOneFuture = ringbufferPrimary.addAsync(ONE, OverflowPolicy.OVERWRITE);
-        ICompletableFuture<Long> seqTwoFuture = ringbufferPrimary.addAsync(TWO, OverflowPolicy.OVERWRITE);
-        ICompletableFuture<Long> seqThreeFuture = ringbufferPrimary.addAsync(THREE, OverflowPolicy.OVERWRITE);
+        CompletableFuture<Long> seqOneFuture = ringbufferPrimary.addAsync(ONE, OverflowPolicy.OVERWRITE);
+        CompletableFuture<Long> seqTwoFuture = ringbufferPrimary.addAsync(TWO, OverflowPolicy.OVERWRITE);
+        CompletableFuture<Long> seqThreeFuture = ringbufferPrimary.addAsync(THREE, OverflowPolicy.OVERWRITE);
 
         long seqOne = seqOneFuture.get();
         try {
@@ -144,7 +145,7 @@ public class RingbufferStoreFailureConsistencyTest extends HazelcastTestSupport 
         doThrow(new IllegalStateException("Expected test exception")).when(store).storeAll(eq(seqFirstItem),
                 (String[]) any(Object[].class));
 
-        ICompletableFuture<Long> result = ringbufferPrimary.addAllAsync(newArrayList(ONE, TWO, THREE), OverflowPolicy.FAIL);
+        CompletableFuture<Long> result = ringbufferPrimary.addAllAsync(newArrayList(ONE, TWO, THREE), OverflowPolicy.FAIL);
         try {
             result.get();
         } catch (ExecutionException expected) {

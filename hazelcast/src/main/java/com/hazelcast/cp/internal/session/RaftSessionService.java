@@ -18,7 +18,6 @@ package com.hazelcast.cp.internal.session;
 
 import com.hazelcast.config.cp.CPSubsystemConfig;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroup;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.internal.RaftNodeLifecycleAwareService;
@@ -35,13 +34,13 @@ import com.hazelcast.cp.internal.util.Tuple2;
 import com.hazelcast.cp.session.CPSession;
 import com.hazelcast.cp.session.CPSession.CPSessionOwnerType;
 import com.hazelcast.cp.session.CPSessionManagementService;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.ManagedService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.operationservice.impl.BiConsumerExecutionCallbackAdapter;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.executor.ManagedExecutorService;
@@ -56,11 +55,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.cp.CPGroup.METADATA_CP_GROUP_NAME;
+import static com.hazelcast.cp.internal.RaftInvocationManager.newCompletableFuture;
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
 import static com.hazelcast.spi.ExecutionService.SYSTEM_EXECUTOR;
 import static com.hazelcast.util.Preconditions.checkTrue;
@@ -160,76 +162,70 @@ public class RaftSessionService implements ManagedService, SnapshotAwareService<
     }
 
     @Override
-    public ICompletableFuture<Collection<CPSession>> getAllSessions(String groupName) {
+    public CompletableFuture<Collection<CPSession>> getAllSessions(String groupName) {
         checkTrue(!METADATA_CP_GROUP_NAME.equals(groupName), "Cannot query CP sessions on the METADATA CP group!");
         ManagedExecutorService executor = nodeEngine.getExecutionService().getExecutor(SYSTEM_EXECUTOR);
-        SimpleCompletableFuture<Collection<CPSession>> future = new SimpleCompletableFuture<>(executor, logger);
-        ExecutionCallback<Collection<CPSession>> callback = new ExecutionCallback<Collection<CPSession>>() {
-            @Override
-            public void onResponse(Collection<CPSession> sessions) {
-                future.setResult(sessions);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                future.setResult(new ExecutionException(t));
+        CompletableFuture<Collection<CPSession>> future = new CompletableFuture<>();
+        BiConsumer<Collection<CPSession>, Throwable> callback = (sessions, throwable) -> {
+            if (throwable == null) {
+                future.complete(sessions);
+            } else {
+                future.completeExceptionally(throwable);
             }
         };
 
-        raftService.getCPGroup(groupName).andThen(new ExecutionCallback<CPGroup>() {
+        raftService.getCPGroup(groupName).whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(
+                new ExecutionCallback<CPGroup>() {
             @Override
             public void onResponse(CPGroup group) {
                 if (group != null) {
                     raftService.getInvocationManager()
                             .<Collection<CPSession>>query(group.id(), new GetSessionsOp(), LINEARIZABLE)
-                            .andThen(callback);
+                            .whenCompleteAsync(callback);
                 } else {
-                    future.setResult(new ExecutionException(new IllegalArgumentException()));
+                    future.completeExceptionally(new IllegalArgumentException());
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                future.setResult(new ExecutionException(t));
+                future.completeExceptionally(new ExecutionException(t));
             }
-        });
+        }));
 
         return future;
     }
 
     @Override
-    public ICompletableFuture<Boolean> forceCloseSession(String groupName, final long sessionId) {
+    public CompletableFuture<Boolean> forceCloseSession(String groupName, final long sessionId) {
         ManagedExecutorService executor = nodeEngine.getExecutionService().getExecutor(SYSTEM_EXECUTOR);
-        SimpleCompletableFuture<Boolean> future = new SimpleCompletableFuture<>(executor, logger);
-        ExecutionCallback<Boolean> callback = new ExecutionCallback<Boolean>() {
-            @Override
-            public void onResponse(Boolean response) {
-                future.setResult(response);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                future.setResult(new ExecutionException(t));
+        CompletableFuture<Boolean> future = newCompletableFuture(executor, logger);
+        BiConsumer<Boolean, Throwable> callback = (response, throwable) -> {
+            if (throwable == null) {
+                future.complete(response);
+            } else {
+                future.completeExceptionally(throwable);
             }
         };
 
-        raftService.getCPGroup(groupName).andThen(new ExecutionCallback<CPGroup>() {
+        raftService.getCPGroup(groupName).whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(
+                new ExecutionCallback<CPGroup>() {
             @Override
             public void onResponse(CPGroup group) {
                 if (group != null) {
                     raftService.getInvocationManager()
                             .<Boolean>invoke(group.id(), new CloseSessionOp(sessionId))
-                            .andThen(callback);
+                            .whenCompleteAsync(callback);
                 } else {
-                    future.setResult(false);
+                    future.complete(false);
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                future.setResult(new ExecutionException(t));
+                future.completeExceptionally(t);
             }
-        });
+        }));
 
         return future;
     }
@@ -438,7 +434,7 @@ public class RaftSessionService implements ManagedService, SnapshotAwareService<
                 if (raftNode != null) {
                     Collection<Tuple2<Long, Long>> sessions = entry.getValue();
                     try {
-                        ICompletableFuture f = raftNode.replicate(new ExpireSessionsOp(sessions));
+                        CompletableFuture f = raftNode.replicate(new ExpireSessionsOp(sessions));
                         f.get();
                     } catch (Exception e) {
                         if (logger.isFineEnabled()) {
@@ -460,7 +456,7 @@ public class RaftSessionService implements ManagedService, SnapshotAwareService<
                 if (raftNode != null) {
                     Collection<Long> sessions = entry.getValue();
                     try {
-                        ICompletableFuture f = raftNode.replicate(new CloseInactiveSessionsOp(sessions));
+                        CompletableFuture f = raftNode.replicate(new CloseInactiveSessionsOp(sessions));
                         f.get();
                     } catch (Exception e) {
                         if (logger.isFineEnabled()) {

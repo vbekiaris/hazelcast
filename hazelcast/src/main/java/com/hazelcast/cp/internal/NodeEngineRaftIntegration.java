@@ -55,6 +55,7 @@ import com.hazelcast.spi.properties.HazelcastProperty;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -118,9 +119,12 @@ final class NodeEngineRaftIntegration implements RaftIntegration {
     }
 
     @Override
-    public SimpleCompletableFuture newCompletableFuture() {
+    public CompletableFuture newCompletableFuture() {
         Executor executor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
-        return new SimpleCompletableFuture(executor, nodeEngine.getLogger(getClass()));
+        CompletableFuture future = new CompletableFuture();
+
+        // todo use default HZ async executor
+        return future;
     }
 
     @Override

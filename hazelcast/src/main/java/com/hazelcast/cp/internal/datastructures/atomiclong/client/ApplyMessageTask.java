@@ -48,8 +48,9 @@ public class ApplyMessageTask extends AbstractMessageTask<CPAtomicLongApplyCodec
         IFunction<Long, Object> function = serializationService.toObject(parameters.function);
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .query(parameters.groupId, new ApplyOp<>(parameters.name, function), LINEARIZABLE)
-               .andThen(this);
+               .query(parameters.groupId, new ApplyOp<>(parameters.name, function), LINEARIZABLE);
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

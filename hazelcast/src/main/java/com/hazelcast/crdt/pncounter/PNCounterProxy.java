@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static com.hazelcast.crdt.pncounter.PNCounterService.SERVICE_NAME;
@@ -191,7 +192,7 @@ public class PNCounterProxy extends AbstractDistributedObject<PNCounterService> 
             if (operationTryCount > 0) {
                 builder.setTryCount(operationTryCount);
             }
-            final InternalCompletableFuture<CRDTTimestampedLong> future = builder.invoke();
+            final CompletableFuture<CRDTTimestampedLong> future = builder.invoke();
             final CRDTTimestampedLong result = future.join();
             updateObservedReplicaTimestamps(result.getVectorClock());
             return result.getValue();

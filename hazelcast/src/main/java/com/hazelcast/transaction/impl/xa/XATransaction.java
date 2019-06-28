@@ -18,7 +18,6 @@ package com.hazelcast.transaction.impl.xa;
 
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.partition.IPartitionService;
@@ -37,6 +36,7 @@ import com.hazelcast.util.UuidUtil;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -149,7 +149,7 @@ public final class XATransaction implements Transaction {
         OperationService operationService = nodeEngine.getOperationService();
         IPartitionService partitionService = nodeEngine.getPartitionService();
         int partitionId = partitionService.getPartitionId(xid);
-        InternalCompletableFuture<Object> future = operationService.invokeOnPartition(SERVICE_NAME, operation, partitionId);
+        CompletableFuture<Object> future = operationService.invokeOnPartition(SERVICE_NAME, operation, partitionId);
         future.get();
     }
 

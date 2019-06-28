@@ -20,7 +20,6 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.internal.partition.operation.FetchPartitionStateOperation;
 import com.hazelcast.internal.partition.operation.MigrationOperation;
 import com.hazelcast.internal.partition.operation.MigrationRequestOperation;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.ServiceNamespace;
@@ -35,6 +34,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -125,7 +125,7 @@ public class MasterSplitTest extends HazelcastTestSupport {
 
         warmUpPartitions(member1, member2, member3);
 
-        InternalCompletableFuture<Object> future = getOperationServiceImpl(member2)
+        CompletableFuture<Object> future = getOperationServiceImpl(member2)
                 .createInvocationBuilder(SERVICE_NAME, new FetchPartitionStateOperation(), getAddress(member3))
                 .setTryCount(Integer.MAX_VALUE).setCallTimeout(Long.MAX_VALUE).invoke();
 

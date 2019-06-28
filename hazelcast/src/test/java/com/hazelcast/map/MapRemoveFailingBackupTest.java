@@ -25,7 +25,6 @@ import com.hazelcast.map.impl.proxy.MapProxyImpl;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
@@ -42,6 +41,8 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
 import static org.junit.Assert.assertNull;
@@ -78,8 +79,8 @@ public class MapRemoveFailingBackupTest extends HazelcastTestSupport {
                 int partitionId = nodeEngine.getPartitionService().getPartitionId(key);
                 operation.setThreadId(ThreadUtil.getThreadId());
                 OperationService operationService = nodeEngine.getOperationService();
-                InternalCompletableFuture<Data> f = operationService.createInvocationBuilder(SERVICE_NAME, operation, partitionId)
-                        .setResultDeserialized(false).invoke();
+                CompletableFuture<Data> f = operationService.createInvocationBuilder(SERVICE_NAME, operation, partitionId)
+                                                            .setResultDeserialized(false).invoke();
                 Data result = f.get();
                 return nodeEngine.toObject(result);
             }

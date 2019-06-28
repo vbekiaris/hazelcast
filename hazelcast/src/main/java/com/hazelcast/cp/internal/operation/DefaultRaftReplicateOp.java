@@ -16,7 +16,6 @@
 
 package com.hazelcast.cp.internal.operation;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.internal.CallerAware;
 import com.hazelcast.cp.internal.IndeterminateOperationStateAware;
@@ -28,6 +27,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The operation used by {@link RaftInvocationManager} to replicate a given
@@ -48,7 +48,7 @@ public class DefaultRaftReplicateOp extends RaftReplicateOp implements Indetermi
     }
 
     @Override
-    protected ICompletableFuture replicate(RaftNode raftNode) {
+    protected CompletableFuture replicate(RaftNode raftNode) {
         if (op instanceof CallerAware) {
             ((CallerAware) op).setCaller(getCallerAddress(), getCallId());
         }

@@ -23,13 +23,13 @@ import com.hazelcast.flakeidgen.FlakeIdGenerator;
 import com.hazelcast.internal.util.ThreadLocalRandomProvider;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.AbstractDistributedObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.Clock;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -146,8 +146,8 @@ public class FlakeIdGeneratorProxy
         while (true) {
             NewIdBatchOperation op = new NewIdBatchOperation(name, batchSize);
             Member target = getRandomMember();
-            InternalCompletableFuture<Long> future = getNodeEngine().getOperationService()
-                                                                    .invokeOnTarget(getServiceName(), op, target.getAddress());
+            CompletableFuture<Long> future = getNodeEngine().getOperationService()
+                                                            .invokeOnTarget(getServiceName(), op, target.getAddress());
             try {
                 long base = future.join();
                 return new IdBatchAndWaitTime(new IdBatch(base, INCREMENT, batchSize), 0);

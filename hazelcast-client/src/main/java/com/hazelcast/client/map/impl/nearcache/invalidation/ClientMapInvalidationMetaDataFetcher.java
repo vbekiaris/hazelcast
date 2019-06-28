@@ -29,6 +29,7 @@ import com.hazelcast.spi.InternalCompletableFuture;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.client.impl.protocol.codec.MapFetchNearCacheInvalidationMetadataCodec.decodeResponse;
 import static com.hazelcast.client.impl.protocol.codec.MapFetchNearCacheInvalidationMetadataCodec.encodeRequest;
@@ -55,7 +56,7 @@ public class ClientMapInvalidationMetaDataFetcher extends InvalidationMetaDataFe
     }
 
     @Override
-    protected InternalCompletableFuture fetchMetadataOf(Address address, List<String> names) {
+    protected CompletableFuture fetchMetadataOf(Address address, List<String> names) {
         ClientMessage message = encodeRequest(names, address);
         ClientInvocation invocation = new ClientInvocation(clientImpl, message, null, address);
         return invocation.invoke();

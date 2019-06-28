@@ -25,10 +25,10 @@ import com.hazelcast.concurrent.semaphore.operations.ReduceOperation;
 import com.hazelcast.concurrent.semaphore.operations.ReleaseOperation;
 import com.hazelcast.core.ISemaphore;
 import com.hazelcast.spi.AbstractDistributedObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -58,7 +58,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new InitOperation(name, permits)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Boolean> future = invokeOnPartition(operation);
+        CompletableFuture<Boolean> future = invokeOnPartition(operation);
         return future.join();
     }
 
@@ -74,7 +74,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         try {
             Operation operation = new AcquireOperation(name, permits, -1)
                     .setPartitionId(partitionId);
-            InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+            CompletableFuture<Object> future = invokeOnPartition(operation);
             future.get();
         } catch (Throwable t) {
             throw rethrowAllowInterrupted(t);
@@ -85,7 +85,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
     public int availablePermits() {
         Operation operation = new AvailableOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
+        CompletableFuture<Integer> future = invokeOnPartition(operation);
         return future.join();
     }
 
@@ -93,7 +93,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
     public int drainPermits() {
         Operation operation = new DrainOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
+        CompletableFuture<Integer> future = invokeOnPartition(operation);
         return future.join();
     }
 
@@ -103,7 +103,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new ReduceOperation(name, reduction)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+        CompletableFuture<Object> future = invokeOnPartition(operation);
         future.join();
     }
 
@@ -113,7 +113,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new IncreaseOperation(name, increase)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+        CompletableFuture<Object> future = invokeOnPartition(operation);
         future.join();
     }
 
@@ -128,7 +128,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new ReleaseOperation(name, permits)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture future = invokeOnPartition(operation);
+        CompletableFuture future = invokeOnPartition(operation);
         future.join();
     }
 

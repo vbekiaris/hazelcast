@@ -27,9 +27,9 @@ import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.AbstractDistributedObject;
 import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.impl.SerializableList;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.transaction.HazelcastXAResource;
 import com.hazelcast.transaction.TransactionContext;
@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -188,7 +189,7 @@ public final class XAResourceImpl extends AbstractDistributedObject<XAService> i
         Data xidData = nodeEngine.toData(serializableXID);
         int partitionId = partitionService.getPartitionId(xidData);
         FinalizeRemoteTransactionOperation operation = new FinalizeRemoteTransactionOperation(xidData, isCommit);
-        InternalCompletableFuture<Integer> future = operationService.invokeOnPartition(SERVICE_NAME, operation, partitionId);
+        CompletableFuture<Integer> future = operationService.invokeOnPartition(SERVICE_NAME, operation, partitionId);
         Integer errorCode;
         try {
             errorCode = future.get();
@@ -247,7 +248,7 @@ public final class XAResourceImpl extends AbstractDistributedObject<XAService> i
             }
             CollectRemoteTransactionsOperation op = new CollectRemoteTransactionsOperation();
             Address address = member.getAddress();
-            InternalCompletableFuture<SerializableList> future = operationService.invokeOnTarget(SERVICE_NAME, op, address);
+            CompletableFuture<SerializableList> future = operationService.invokeOnTarget(SERVICE_NAME, op, address);
             futureList.add(future);
         }
         Set<SerializableXID> xids = new HashSet<SerializableXID>(xaService.getPreparedXids());

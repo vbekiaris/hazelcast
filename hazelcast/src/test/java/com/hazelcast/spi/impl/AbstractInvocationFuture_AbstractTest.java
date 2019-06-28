@@ -22,11 +22,14 @@ import com.hazelcast.test.HazelcastTestSupport;
 import org.junit.Before;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import static com.hazelcast.util.ExceptionUtil.rethrowIfError;
 
 public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTestSupport {
 
@@ -83,6 +86,23 @@ public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTes
                     throw (Error) cause;
                 } else {
                     throw new ExecutionException(cause);
+                }
+            }
+        }
+
+        @Override
+        protected Object resolveAndThrowWithJoinConvention(Object state) {
+            Object value = resolve(state);
+
+            if (!(value instanceof ExceptionalResult)) {
+                return value;
+            } else {
+                Throwable cause = ((ExceptionalResult) value).cause;
+                rethrowIfError(cause);
+                if (cause instanceof CompletionException) {
+                    throw (CompletionException) cause;
+                } else {
+                    throw new CompletionException(cause);
                 }
             }
         }

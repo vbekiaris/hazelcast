@@ -47,8 +47,9 @@ public class GetLockOwnershipStateMessageTask extends AbstractMessageTask<CPFenc
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<RaftLockOwnershipState>query(parameters.groupId, new GetLockOwnershipStateOp(parameters.name), LINEARIZABLE)
-               .andThen(this);
+               .<RaftLockOwnershipState>query(parameters.groupId, new GetLockOwnershipStateOp(parameters.name), LINEARIZABLE);
+        // todo fixme
+              // .andThen(this);
     }
 
     @Override

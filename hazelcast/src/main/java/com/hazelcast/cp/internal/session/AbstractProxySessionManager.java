@@ -16,8 +16,6 @@
 
 package com.hazelcast.cp.internal.session;
 
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
 import com.hazelcast.cp.internal.RaftGroupId;
 import com.hazelcast.cp.internal.util.Tuple2;
@@ -28,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
@@ -70,13 +69,15 @@ public abstract class AbstractProxySessionManager {
 
     /**
      * Commits a heartbeat for the session on the Raft group
+     * @return
      */
-    protected abstract ICompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId);
+    protected abstract CompletableFuture<Object> heartbeat(RaftGroupId groupId, long sessionId);
 
     /**
      * Closes the given session on the Raft group
+     * @return
      */
-    protected abstract ICompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId);
+    protected abstract CompletableFuture<Object> closeSession(RaftGroupId groupId, Long sessionId);
 
     /**
      * Schedules the given task for repeating execution
@@ -171,14 +172,14 @@ public abstract class AbstractProxySessionManager {
     /**
      * Invokes a shutdown call on server to close all existing sessions.
      */
-    public Map<RaftGroupId, ICompletableFuture<Object>> shutdown() {
+    public Map<RaftGroupId, CompletableFuture<Object>> shutdown() {
         lock.writeLock().lock();
         try {
-            Map<RaftGroupId, ICompletableFuture<Object>> futures = new HashMap<>();
+            Map<RaftGroupId, CompletableFuture<Object>> futures = new HashMap<>();
             for (Entry<RaftGroupId, SessionState> e : sessions.entrySet()) {
                 RaftGroupId groupId = e.getKey();
                 long sessionId = e.getValue().id;
-                ICompletableFuture<Object> f = closeSession(groupId, sessionId);
+                CompletableFuture<Object> f = closeSession(groupId, sessionId);
                 futures.put(groupId, f);
             }
             sessions.clear();
@@ -301,11 +302,11 @@ public abstract class AbstractProxySessionManager {
 
     private class HeartbeatTask implements Runnable {
         // HeartbeatTask executions will not overlap.
-        private final Collection<ICompletableFuture<Object>> prevHeartbeats = new ArrayList<>();
+        private final Collection<CompletableFuture<Object>> prevHeartbeats = new ArrayList<>();
 
         @Override
         public void run() {
-            for (ICompletableFuture<Object> future : prevHeartbeats) {
+            for (CompletableFuture<Object> future : prevHeartbeats) {
                 future.cancel(true);
             }
             prevHeartbeats.clear();
@@ -314,15 +315,10 @@ public abstract class AbstractProxySessionManager {
                 RaftGroupId groupId = entry.getKey();
                 SessionState session = entry.getValue();
                 if (session.isInUse()) {
-                    ICompletableFuture<Object> f = heartbeat(groupId, session.id);
-                    f.andThen(new ExecutionCallback<Object>() {
-                        @Override
-                        public void onResponse(Object response) {
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t) {
-                            Throwable cause = peel(t);
+                    CompletableFuture<Object> f = heartbeat(groupId, session.id);
+                    f.whenCompleteAsync((response, throwable) -> {
+                        if (throwable != null) {
+                            Throwable cause = peel(throwable);
                             if (cause instanceof SessionExpiredException || cause instanceof CPGroupDestroyedException) {
                                 invalidateSession(groupId, session.id);
                             }

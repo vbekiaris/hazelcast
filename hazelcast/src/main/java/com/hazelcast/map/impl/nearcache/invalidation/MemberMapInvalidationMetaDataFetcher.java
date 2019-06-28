@@ -23,12 +23,12 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.operation.MapGetInvalidationMetaDataOperation;
 import com.hazelcast.map.impl.operation.MapGetInvalidationMetaDataOperation.MetaDataResponse;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
@@ -55,14 +55,14 @@ public class MemberMapInvalidationMetaDataFetcher extends InvalidationMetaDataFe
     }
 
     @Override
-    protected InternalCompletableFuture fetchMetadataOf(Address address, List<String> names) {
+    protected CompletableFuture fetchMetadataOf(Address address, List<String> names) {
         Operation operation = new MapGetInvalidationMetaDataOperation(names);
         return operationService.invokeOnTarget(SERVICE_NAME, operation, address);
     }
 
     @Override
     protected void extractMemberMetadata(Member member,
-                                         InternalCompletableFuture future,
+                                         CompletableFuture future,
                                          MetadataHolder metadataHolder) throws Exception {
 
         MetaDataResponse response = (MetaDataResponse) future.get(ASYNC_RESULT_WAIT_TIMEOUT_MINUTES, MINUTES);

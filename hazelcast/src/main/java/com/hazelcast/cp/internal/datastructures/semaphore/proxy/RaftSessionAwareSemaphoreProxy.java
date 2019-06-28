@@ -32,11 +32,11 @@ import com.hazelcast.cp.internal.datastructures.spi.operation.DestroyRaftObjectO
 import com.hazelcast.cp.internal.session.ProxySessionManagerService;
 import com.hazelcast.cp.internal.session.SessionAwareProxy;
 import com.hazelcast.cp.internal.session.SessionExpiredException;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.Clock;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
@@ -127,7 +127,7 @@ public class RaftSessionAwareSemaphoreProxy extends SessionAwareProxy implements
             long sessionId = acquireSession(permits);
             RaftOp op = new AcquirePermitsOp(objectName, sessionId, threadId, invocationUid, permits, timeoutMs);
             try {
-                InternalCompletableFuture<Boolean> f = invocationManager.invoke(groupId, op);
+                CompletableFuture<Boolean> f = invocationManager.invoke(groupId, op);
                 boolean acquired = f.join();
                 if (!acquired) {
                     releaseSession(sessionId, permits);
@@ -182,7 +182,7 @@ public class RaftSessionAwareSemaphoreProxy extends SessionAwareProxy implements
             long sessionId = acquireSession(DRAIN_SESSION_ACQ_COUNT);
             RaftOp op = new DrainPermitsOp(objectName, sessionId, threadId, invocationUid);
             try {
-                InternalCompletableFuture<Integer> future = invocationManager.invoke(groupId, op);
+                CompletableFuture<Integer> future = invocationManager.invoke(groupId, op);
                 int count = future.join();
                 releaseSession(sessionId, DRAIN_SESSION_ACQ_COUNT - count);
                 return count;

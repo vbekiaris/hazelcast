@@ -30,7 +30,6 @@ import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.proxy.MapProxyImpl;
 import com.hazelcast.map.impl.recordstore.RecordStore;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.spi.properties.GroupProperty;
@@ -42,6 +41,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static com.hazelcast.config.EvictionPolicy.NONE;
@@ -118,7 +118,7 @@ public class DynamicMapConfigTest extends HazelcastTestSupport {
     private Object executeOperation(HazelcastInstance node, Operation op) throws InterruptedException, ExecutionException {
         OperationServiceImpl operationService = getOperationService(node);
         Address address = getAddress(node);
-        InternalCompletableFuture future = operationService.invokeOnTarget(MapService.SERVICE_NAME, op, address);
+        CompletableFuture future = operationService.invokeOnTarget(MapService.SERVICE_NAME, op, address);
         return future.get();
     }
 }

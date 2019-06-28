@@ -26,6 +26,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
@@ -58,7 +60,7 @@ public class InvocationBuilderTest extends HazelcastTestSupport {
         }
 
         @Override
-        public <E> InternalCompletableFuture<E> invoke() {
+        public <E> CompletableFuture<E> invoke() {
             return null;
         }
     }

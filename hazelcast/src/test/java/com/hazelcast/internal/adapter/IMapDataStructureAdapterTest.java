@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -126,7 +127,7 @@ public class IMapDataStructureAdapterTest extends HazelcastTestSupport {
     public void testSetAsync() throws Exception {
         map.put(42, "oldValue");
 
-        ICompletableFuture<Void> future = adapter.setAsync(42, "newValue");
+        CompletableFuture<Void> future = adapter.setAsync(42, "newValue");
         Void oldValue = future.get();
 
         assertNull(oldValue);
@@ -165,7 +166,7 @@ public class IMapDataStructureAdapterTest extends HazelcastTestSupport {
     public void testPutAsync() throws Exception {
         map.put(42, "oldValue");
 
-        ICompletableFuture<String> future = adapter.putAsync(42, "newValue");
+        CompletableFuture<String> future = adapter.putAsync(42, "newValue");
         String oldValue = future.get();
 
         assertEquals("oldValue", oldValue);
@@ -176,7 +177,7 @@ public class IMapDataStructureAdapterTest extends HazelcastTestSupport {
     public void testPutAsyncWithTtl() throws Exception {
         map.put(42, "oldValue");
 
-        ICompletableFuture<String> future = adapter.putAsync(42, "newValue", 1000, TimeUnit.MILLISECONDS);
+        CompletableFuture<String> future = adapter.putAsync(42, "newValue", 1000, TimeUnit.MILLISECONDS);
         String oldValue = future.get();
         String newValue = map.get(42);
 

@@ -32,7 +32,6 @@ import com.hazelcast.client.spi.ClientProxy;
 import com.hazelcast.client.spi.impl.ClientInvocation;
 import com.hazelcast.client.spi.impl.ClientInvocationFuture;
 import com.hazelcast.client.util.ClientDelegatingFuture;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.partition.strategy.StringPartitioningStrategy;
@@ -44,6 +43,7 @@ import com.hazelcast.ringbuffer.impl.client.PortableReadResultSet;
 import com.hazelcast.util.executor.CompletedFuture;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -161,7 +161,7 @@ public class ClientRingbufferProxy<E> extends ClientProxy implements Ringbuffer<
     }
 
     @Override
-    public ICompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy) {
+    public CompletableFuture<Long> addAsync(E item, OverflowPolicy overflowPolicy) {
         checkNotNull(item, "item can't be null");
         checkNotNull(overflowPolicy, "overflowPolicy can't be null");
 
@@ -187,7 +187,7 @@ public class ClientRingbufferProxy<E> extends ClientProxy implements Ringbuffer<
     }
 
     @Override
-    public ICompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy) {
+    public CompletableFuture<Long> addAllAsync(Collection<? extends E> collection, OverflowPolicy overflowPolicy) {
         checkNotNull(collection, "collection can't be null");
         checkNotNull(overflowPolicy, "overflowPolicy can't be null");
         checkFalse(collection.isEmpty(), "collection can't be empty");
@@ -205,8 +205,8 @@ public class ClientRingbufferProxy<E> extends ClientProxy implements Ringbuffer<
     }
 
     @Override
-    public ICompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount,
-                                                              int maxCount, IFunction<E, Boolean> filter) {
+    public CompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount,
+                                                             int maxCount, IFunction<E, Boolean> filter) {
         checkSequence(startSequence);
         checkNotNegative(minCount, "minCount can't be smaller than 0");
         checkTrue(maxCount >= minCount, "maxCount should be equal or larger than minCount");

@@ -29,7 +29,6 @@ import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.EventFilter;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationFactory;
@@ -46,6 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -166,7 +166,7 @@ abstract class AbstractInternalCacheProxy<K, V>
         return getService().createCacheStatIfAbsent(cacheConfig.getNameWithPrefix());
     }
 
-    <T> InternalCompletableFuture<T> invoke(Operation op, int partitionId, boolean completionOperation) {
+    <T> CompletableFuture<T> invoke(Operation op, int partitionId, boolean completionOperation) {
         Integer completionId = null;
         if (completionOperation) {
             completionId = registerCompletionLatch(1);
@@ -175,8 +175,8 @@ abstract class AbstractInternalCacheProxy<K, V>
             }
         }
         try {
-            InternalCompletableFuture<T> future = getNodeEngine().getOperationService()
-                    .invokeOnPartition(getServiceName(), op, partitionId);
+            CompletableFuture<T> future = getNodeEngine().getOperationService()
+                                                         .invokeOnPartition(getServiceName(), op, partitionId);
             if (completionOperation) {
                 waitCompletionLatch(completionId);
             }
@@ -193,12 +193,12 @@ abstract class AbstractInternalCacheProxy<K, V>
         }
     }
 
-    <T> InternalCompletableFuture<T> invoke(Operation op, Data keyData, boolean completionOperation) {
+    <T> CompletableFuture<T> invoke(Operation op, Data keyData, boolean completionOperation) {
         int partitionId = getPartitionId(keyData);
         return invoke(op, partitionId, completionOperation);
     }
 
-    <T> InternalCompletableFuture<T> removeAsyncInternal(K key, V oldValue, boolean hasOldValue,
+    <T> CompletableFuture<T> removeAsyncInternal(K key, V oldValue, boolean hasOldValue,
                                                          boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         if (hasOldValue) {
@@ -219,7 +219,7 @@ abstract class AbstractInternalCacheProxy<K, V>
         return invoke(operation, keyData, withCompletionEvent);
     }
 
-    <T> InternalCompletableFuture<T> replaceAsyncInternal(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy,
+    <T> CompletableFuture<T> replaceAsyncInternal(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy,
                                                           boolean hasOldValue, boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         if (hasOldValue) {
@@ -242,7 +242,7 @@ abstract class AbstractInternalCacheProxy<K, V>
         return invoke(operation, keyData, withCompletionEvent);
     }
 
-    <T> InternalCompletableFuture<T> putAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
+    <T> CompletableFuture<T> putAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
                                                       boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         validateNotNull(key, value);
@@ -253,7 +253,7 @@ abstract class AbstractInternalCacheProxy<K, V>
         return invoke(op, keyData, withCompletionEvent);
     }
 
-    InternalCompletableFuture<Boolean> putIfAbsentAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
+    CompletableFuture<Boolean> putIfAbsentAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
                                                                 boolean withCompletionEvent) {
         ensureOpen();
         validateNotNull(key, value);

@@ -16,9 +16,7 @@
 
 package com.hazelcast.topic.impl.reliable;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.OperationTimeoutException;
@@ -30,9 +28,10 @@ import com.hazelcast.spi.exception.DistributedObjectDestroyedException;
 import com.hazelcast.spi.serialization.SerializationService;
 import com.hazelcast.topic.ReliableMessageListener;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
-
+import java.util.function.BiConsumer;
 
 /**
  * An {@link com.hazelcast.core.ExecutionCallback} that will try to read an
@@ -42,7 +41,7 @@ import java.util.concurrent.Executor;
  * <p/>
  * The runner keeps track of the sequence.
  */
-public abstract class MessageRunner<E> implements ExecutionCallback<ReadResultSet<ReliableTopicMessage>> {
+public abstract class MessageRunner<E> implements BiConsumer<ReadResultSet<ReliableTopicMessage>, Throwable> {
 
     protected final Ringbuffer<ReliableTopicMessage> ringbuffer;
     protected final ILogger logger;
@@ -88,13 +87,20 @@ public abstract class MessageRunner<E> implements ExecutionCallback<ReadResultSe
             return;
         }
 
-        ICompletableFuture<ReadResultSet<ReliableTopicMessage>> f =
+        CompletableFuture<ReadResultSet<ReliableTopicMessage>> f =
                 ringbuffer.readManyAsync(sequence, 1, batchSze, null);
-        f.andThen(this, executor);
+        f.whenCompleteAsync(this, executor);
     }
 
-    // This method is called from the provided executor.
     @Override
+    public void accept(ReadResultSet<ReliableTopicMessage> reliableTopicMessages, Throwable throwable) {
+        if (throwable == null) {
+            onResponse(reliableTopicMessages);
+        } else {
+            onFailure(throwable);
+        }
+    }
+
     public void onResponse(ReadResultSet<ReliableTopicMessage> result) {
         // we process all messages in batch. So we don't release the thread and reschedule ourselves;
         // but we'll process whatever was received in 1 go.
@@ -141,8 +147,6 @@ public abstract class MessageRunner<E> implements ExecutionCallback<ReadResultSe
 
     protected abstract Member getMember(ReliableTopicMessage m);
 
-    // This method is called from the provided executor.
-    @Override
     public void onFailure(Throwable t) {
         if (cancelled) {
             return;

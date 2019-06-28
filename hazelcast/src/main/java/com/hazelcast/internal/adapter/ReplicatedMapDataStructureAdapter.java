@@ -16,7 +16,6 @@
 
 package com.hazelcast.internal.adapter;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.ReplicatedMap;
 import com.hazelcast.monitor.LocalMapStats;
 import com.hazelcast.query.Predicate;
@@ -28,6 +27,7 @@ import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.util.MapUtil.createHashMap;
@@ -53,7 +53,7 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> getAsync(K key) {
+    public CompletableFuture<V> getAsync(K key) {
         throw new MethodNotAvailableException();
     }
 
@@ -65,19 +65,19 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Void> setAsync(K key, V value) {
+    public CompletableFuture<Void> setAsync(K key, V value) {
         throw new MethodNotAvailableException();
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
+    public CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
         throw new MethodNotAvailableException();
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public CompletableFuture<Void> setAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         throw new MethodNotAvailableException();
     }
 
@@ -88,19 +88,19 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> putAsync(K key, V value) {
+    public CompletableFuture<V> putAsync(K key, V value) {
         throw new MethodNotAvailableException();
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit) {
+    public CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit) {
         throw new MethodNotAvailableException();
     }
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public CompletableFuture<V> putAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         throw new MethodNotAvailableException();
     }
 
@@ -118,7 +118,7 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Boolean> putIfAbsentAsync(K key, V value) {
+    public CompletableFuture<Boolean> putIfAbsentAsync(K key, V value) {
         throw new MethodNotAvailableException();
     }
 
@@ -152,7 +152,7 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<V> removeAsync(K key) {
+    public CompletableFuture<V> removeAsync(K key) {
         throw new MethodNotAvailableException();
     }
 
@@ -164,7 +164,7 @@ public class ReplicatedMapDataStructureAdapter<K, V> implements DataStructureAda
 
     @Override
     @MethodNotAvailable
-    public ICompletableFuture<Boolean> deleteAsync(K key) {
+    public CompletableFuture<Boolean> deleteAsync(K key) {
         throw new MethodNotAvailableException();
     }
 

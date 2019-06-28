@@ -26,10 +26,10 @@ import com.hazelcast.cp.internal.raft.impl.state.LeaderState;
 import com.hazelcast.cp.internal.raft.impl.state.QueryState;
 import com.hazelcast.cp.internal.raft.impl.state.RaftState;
 import com.hazelcast.cp.internal.util.Tuple2;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.cp.internal.raft.impl.RaftRole.LEADER;
 import static java.util.Arrays.sort;
@@ -191,14 +191,14 @@ public class AppendSuccessResponseHandlerTask extends AbstractResponseHandlerTas
             return;
         }
 
-        Collection<Tuple2<Object, SimpleCompletableFuture>> operations = queryState.operations();
+        Collection<Tuple2<Object, CompletableFuture>> operations = queryState.operations();
 
         if (logger.isFineEnabled()) {
             logger.fine("Running " + operations.size() + " queries at commit index: " + commitIndex
                     + ", query round: " + queryState.queryRound());
         }
 
-        for (Tuple2<Object, SimpleCompletableFuture> t : operations) {
+        for (Tuple2<Object, CompletableFuture> t : operations) {
             raftNode.runQuery(t.element1, t.element2);
         }
 

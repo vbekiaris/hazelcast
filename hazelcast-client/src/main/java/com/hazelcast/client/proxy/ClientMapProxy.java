@@ -164,6 +164,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -338,7 +339,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> getAsync(K key) {
+    public CompletableFuture<V> getAsync(K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
 
         return new ClientDelegatingFuture<V>(getAsyncInternal(key),
@@ -362,12 +363,12 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(K key, V value) {
+    public CompletableFuture<V> putAsync(K key, V value) {
         return putAsyncInternal(DEFAULT_TTL, MILLISECONDS, null, null, key, value);
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit) {
+    public CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
 
@@ -375,7 +376,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit) {
+    public CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
 
@@ -404,12 +405,12 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(K key, V value) {
+    public CompletableFuture<Void> setAsync(K key, V value) {
         return setAsync(key, value, -1, MILLISECONDS);
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
+    public CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
 
@@ -417,7 +418,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit) {
+    public CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
 
@@ -446,7 +447,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> removeAsync(K key) {
+    public CompletableFuture<V> removeAsync(K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         return removeAsyncInternal(key);
     }
@@ -1405,7 +1406,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture submitToKey(K key, EntryProcessor entryProcessor) {
+    public CompletableFuture submitToKey(K key, EntryProcessor entryProcessor) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         return submitToKeyInternal(key, entryProcessor);
     }

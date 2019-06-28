@@ -44,8 +44,9 @@ public class InitSemaphoreMessageTask extends AbstractMessageTask<CPSemaphoreIni
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Boolean>invoke(parameters.groupId, new InitSemaphoreOp(parameters.name, parameters.permits))
-               .andThen(this);
+               .<Boolean>invoke(parameters.groupId, new InitSemaphoreOp(parameters.name, parameters.permits));
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

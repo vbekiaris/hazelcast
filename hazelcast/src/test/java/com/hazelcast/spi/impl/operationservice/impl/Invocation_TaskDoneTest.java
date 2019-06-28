@@ -17,7 +17,6 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -29,6 +28,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.assertFalse;
@@ -68,10 +68,10 @@ public class Invocation_TaskDoneTest extends HazelcastTestSupport {
         // Given
         final LatchAwaitOperation latchAwaitOp = new LatchAwaitOperation();
         final DoneCallback cb = new DoneCallback();
-        final ICompletableFuture<Object> fut =
+        final CompletableFuture<Object> fut =
                 operationService.createInvocationBuilder("mockService", latchAwaitOp, 0).setDoneCallback(cb).invoke();
         final FailedLatchExecutionCallback canceledCallback = new FailedLatchExecutionCallback();
-        fut.andThen(canceledCallback);
+        fut.whenCompleteAsync(new BiConsumerExecutionCallbackAdapter<>(canceledCallback));
 
         // When
         fut.cancel(true);

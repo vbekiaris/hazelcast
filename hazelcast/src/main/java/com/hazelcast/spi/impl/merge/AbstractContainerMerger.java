@@ -17,7 +17,6 @@
 package com.hazelcast.spi.impl.merge;
 
 import com.hazelcast.config.MergePolicyConfig;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
@@ -28,6 +27,7 @@ import com.hazelcast.spi.merge.SplitBrainMergePolicyProvider;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 
@@ -46,16 +46,15 @@ public abstract class AbstractContainerMerger<C, V, T extends MergingValue<V>> i
     protected final AbstractContainerCollector<C> collector;
 
     private final Semaphore semaphore = new Semaphore(0);
-    private final ExecutionCallback<Object> mergeCallback = new ExecutionCallback<Object>() {
+    private final BiConsumer<Object, Throwable> mergeCallback = new BiConsumer<Object, Throwable>() {
         @Override
-        public void onResponse(Object response) {
-            semaphore.release(1);
-        }
-
-        @Override
-        public void onFailure(Throwable t) {
-            logger.warning("Error while running " + getLabel() + " merge operation: " + t.getMessage());
-            semaphore.release(1);
+        public void accept(Object o, Throwable t) {
+            if (t == null) {
+                semaphore.release(1);
+            } else {
+                logger.warning("Error while running " + getLabel() + " merge operation: " + t.getMessage());
+                semaphore.release(1);
+            }
         }
     };
 
@@ -129,7 +128,7 @@ public abstract class AbstractContainerMerger<C, V, T extends MergingValue<V>> i
             operationCount++;
             operationService
                     .invokeOnPartition(serviceName, operation, partitionId)
-                    .andThen(mergeCallback);
+                    .whenCompleteAsync(mergeCallback);
         } catch (Throwable t) {
             throw rethrow(t);
         }

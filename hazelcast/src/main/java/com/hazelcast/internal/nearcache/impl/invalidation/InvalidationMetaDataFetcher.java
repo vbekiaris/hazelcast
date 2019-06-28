@@ -19,7 +19,6 @@ package com.hazelcast.internal.nearcache.impl.invalidation;
 import com.hazelcast.core.Member;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.hazelcast.util.MapUtil.createHashMap;
@@ -51,10 +51,10 @@ public abstract class InvalidationMetaDataFetcher {
     public final void init(RepairingHandler handler) throws Exception {
         MetadataHolder resultHolder = new MetadataHolder();
         List<String> dataStructureNames = Collections.singletonList(handler.getName());
-        Map<Member, InternalCompletableFuture> futureByMember = fetchMembersMetadataFor(dataStructureNames);
-        for (Map.Entry<Member, InternalCompletableFuture> entry : futureByMember.entrySet()) {
+        Map<Member, CompletableFuture> futureByMember = fetchMembersMetadataFor(dataStructureNames);
+        for (Map.Entry<Member, CompletableFuture> entry : futureByMember.entrySet()) {
             Member member = entry.getKey();
-            InternalCompletableFuture future = entry.getValue();
+            CompletableFuture future = entry.getValue();
 
             extractMemberMetadata(member, future, resultHolder);
 
@@ -69,10 +69,10 @@ public abstract class InvalidationMetaDataFetcher {
         }
 
         List<String> dataStructureNames = getDataStructureNames(handlers);
-        Map<Member, InternalCompletableFuture> futureByMember = fetchMembersMetadataFor(dataStructureNames);
-        for (Map.Entry<Member, InternalCompletableFuture> entry : futureByMember.entrySet()) {
+        Map<Member, CompletableFuture> futureByMember = fetchMembersMetadataFor(dataStructureNames);
+        for (Map.Entry<Member, CompletableFuture> entry : futureByMember.entrySet()) {
             Member member = entry.getKey();
-            InternalCompletableFuture future = entry.getValue();
+            CompletableFuture future = entry.getValue();
             processMemberMetadata(member, future, handlers);
         }
     }
@@ -80,18 +80,18 @@ public abstract class InvalidationMetaDataFetcher {
     protected abstract Collection<Member> getDataMembers();
 
     protected abstract void extractMemberMetadata(Member member,
-                                                  InternalCompletableFuture future,
+                                                  CompletableFuture future,
                                                   MetadataHolder metadataHolder) throws Exception;
 
-    protected abstract InternalCompletableFuture fetchMetadataOf(Address address, List<String> names);
+    protected abstract CompletableFuture fetchMetadataOf(Address address, List<String> names);
 
-    private Map<Member, InternalCompletableFuture> fetchMembersMetadataFor(List<String> names) {
+    private Map<Member, CompletableFuture> fetchMembersMetadataFor(List<String> names) {
         Collection<Member> members = getDataMembers();
         if (members.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<Member, InternalCompletableFuture> futureByMember = createHashMap(members.size());
+        Map<Member, CompletableFuture> futureByMember = createHashMap(members.size());
         for (Member member : members) {
             Address address = member.getAddress();
             try {
@@ -104,7 +104,7 @@ public abstract class InvalidationMetaDataFetcher {
         return futureByMember;
     }
 
-    private void processMemberMetadata(Member member, InternalCompletableFuture future,
+    private void processMemberMetadata(Member member, CompletableFuture future,
                                        ConcurrentMap<String, RepairingHandler> handlers) {
 
         MetadataHolder resultHolder = new MetadataHolder();

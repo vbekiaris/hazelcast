@@ -41,8 +41,9 @@ public class HeartbeatSessionMessageTask extends AbstractMessageTask<CPSessionHe
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .invoke(parameters.groupId, new HeartbeatSessionOp(parameters.sessionId))
-               .andThen(this);
+               .invoke(parameters.groupId, new HeartbeatSessionOp(parameters.sessionId));
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

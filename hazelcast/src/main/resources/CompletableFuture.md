@@ -92,3 +92,12 @@ This will make the codebase harder to read. Additionally, most of the huge `Comp
 
 
 
+### TODOs dump
+
+ * [ ] migrate tests using `andThen(...)` to use `whenComplete` / `handle` as appropriate
+ * [ ] doc: document executor selection & exception handling specifics for Hazelcast-returned CompletableFutures
+ * [ ] consider discrepancy of default async executor choice (HZ `CompletableFuture` from `OperationService` uses HZ async thread pool, further down the chain we switch to JDK `CompletableFuture` which uses FJCP)
+ * [ ] Every Raft related `CompletableFuture` usage has to checked for choice of async or not async chaining, executor choice
+ * [x] separate cleanup: remove AsyncAtomicLong/Reference
+ 
+ 

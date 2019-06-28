@@ -29,7 +29,6 @@ import com.hazelcast.mapreduce.impl.task.JobSupervisor;
 import com.hazelcast.mapreduce.impl.task.JobTaskConfiguration;
 import com.hazelcast.mapreduce.impl.task.MemberAssigningJobProcessInformationImpl;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
@@ -41,6 +40,7 @@ import com.hazelcast.util.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
@@ -166,7 +166,7 @@ public final class MapReduceUtil {
                                                NodeEngine nodeEngine) {
         final OperationService operationService = nodeEngine.getOperationService();
 
-        final List<InternalCompletableFuture<V>> futures = new ArrayList<InternalCompletableFuture<V>>();
+        final List<CompletableFuture<V>> futures = new ArrayList<>();
         final List<V> results = new ArrayList<V>();
 
         final List<Exception> exceptions = new ArrayList<Exception>(members.size());
@@ -188,7 +188,7 @@ public final class MapReduceUtil {
                     InvocationBuilder ib = operationService.createInvocationBuilder(SERVICE_NAME,
                                                                                     operation,
                                                                                     member.getAddress());
-                    final InternalCompletableFuture<V> future = ib.invoke();
+                    final CompletableFuture<V> future = ib.invoke();
                     futures.add(future);
                 }
             } catch (Exception e) {
@@ -196,8 +196,8 @@ public final class MapReduceUtil {
             }
         }
 
-
-        for (InternalCompletableFuture<V> future : futures) {
+        // todo update to java8
+        for (CompletableFuture<V> future : futures) {
             try {
                 V response = future.join();
                 if (response != null) {

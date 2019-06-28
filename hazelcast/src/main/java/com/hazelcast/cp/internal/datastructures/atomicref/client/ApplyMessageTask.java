@@ -54,9 +54,10 @@ public class ApplyMessageTask extends AbstractMessageTask<CPAtomicRefApplyCodec.
         RaftInvocationManager invocationManager = service.getInvocationManager();
         CPGroupId groupId = parameters.groupId;
         RaftOp op = new ApplyOp(parameters.name, parameters.function, returnValueType, parameters.alter);
-        ICompletableFuture<Object> future = parameters.alter
-                ? invocationManager.invoke(groupId, op) : invocationManager.query(groupId, op, LINEARIZABLE);
-        future.andThen(this);
+        // todo fixme;
+//        ICompletableFuture<Object> future = parameters.alter
+//                ? invocationManager.invoke(groupId, op) : invocationManager.query(groupId, op, LINEARIZABLE);
+//        future.andThen(this);
     }
 
     @Override

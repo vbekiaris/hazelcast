@@ -22,11 +22,11 @@ import com.hazelcast.concurrent.lock.operations.IsLockedOperation;
 import com.hazelcast.concurrent.lock.operations.LockOperation;
 import com.hazelcast.concurrent.lock.operations.UnlockOperation;
 import com.hazelcast.nio.serialization.Data;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.ObjectNamespace;
 import com.hazelcast.spi.Operation;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.concurrent.lock.LockServiceImpl.SERVICE_NAME;
@@ -46,30 +46,30 @@ public final class LockProxySupport {
 
     public boolean isLocked(NodeEngine nodeEngine, Data key) {
         IsLockedOperation operation = new IsLockedOperation(namespace, key);
-        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         return f.join();
     }
 
-    private InternalCompletableFuture invoke(NodeEngine nodeEngine, Operation operation, Data key) {
+    private CompletableFuture invoke(NodeEngine nodeEngine, Operation operation, Data key) {
         int partitionId = nodeEngine.getPartitionService().getPartitionId(key);
         return nodeEngine.getOperationService().invokeOnPartition(SERVICE_NAME, operation, partitionId);
     }
 
     public boolean isLockedByCurrentThread(NodeEngine nodeEngine, Data key) {
         IsLockedOperation operation = new IsLockedOperation(namespace, key, getThreadId());
-        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         return f.join();
     }
 
     public int getLockCount(NodeEngine nodeEngine, Data key) {
         Operation operation = new GetLockCountOperation(namespace, key);
-        InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         return f.join().intValue();
     }
 
     public long getRemainingLeaseTime(NodeEngine nodeEngine, Data key) {
         Operation operation = new GetRemainingLeaseTimeOperation(namespace, key);
-        InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         return f.join().longValue();
     }
 
@@ -81,7 +81,7 @@ public final class LockProxySupport {
         leaseTime = getLeaseTime(leaseTime);
 
         LockOperation operation = new LockOperation(namespace, key, getThreadId(), leaseTime, -1);
-        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         if (!f.join()) {
             throw new IllegalStateException();
         }
@@ -95,7 +95,7 @@ public final class LockProxySupport {
         leaseTime = getLeaseTime(leaseTime);
 
         LockOperation operation = new LockOperation(namespace, key, getThreadId(), leaseTime, -1);
-        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         try {
             f.get();
         } catch (Throwable t) {
@@ -132,7 +132,7 @@ public final class LockProxySupport {
         long timeoutInMillis = getTimeInMillis(timeout, timeunit);
         long leaseTimeInMillis = getTimeInMillis(leaseTime, leaseTimeunit);
         LockOperation operation = new LockOperation(namespace, key, getThreadId(), leaseTimeInMillis, timeoutInMillis);
-        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
 
         try {
             return f.get();
@@ -147,13 +147,13 @@ public final class LockProxySupport {
 
     public void unlock(NodeEngine nodeEngine, Data key) {
         UnlockOperation operation = new UnlockOperation(namespace, key, getThreadId());
-        InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         f.join();
     }
 
     public void forceUnlock(NodeEngine nodeEngine, Data key) {
         UnlockOperation operation = new UnlockOperation(namespace, key, -1, true);
-        InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
+        CompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         f.join();
     }
 

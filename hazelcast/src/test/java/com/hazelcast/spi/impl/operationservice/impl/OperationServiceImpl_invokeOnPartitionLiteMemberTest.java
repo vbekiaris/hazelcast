@@ -37,6 +37,7 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
@@ -68,7 +69,7 @@ public class OperationServiceImpl_invokeOnPartitionLiteMemberTest
         final HazelcastInstance instance = factory.newHazelcastInstance(liteMemberConfig);
 
         final OperationServiceImpl operationService = getOperationService(instance);
-        final InternalCompletableFuture<Object> future = operationService.invokeOnPartition(null, operation, 0);
+        final CompletableFuture<Object> future = operationService.invokeOnPartition(null, operation, 0);
 
         try {
             future.get();
@@ -86,7 +87,7 @@ public class OperationServiceImpl_invokeOnPartitionLiteMemberTest
         factory.newHazelcastInstance();
 
         final OperationServiceImpl operationService = getOperationService(lite);
-        final InternalCompletableFuture<Object> future = operationService.invokeOnPartition(null, operation, 0);
+        final CompletableFuture<Object> future = operationService.invokeOnPartition(null, operation, 0);
 
         assertEquals("foobar", future.get());
     }

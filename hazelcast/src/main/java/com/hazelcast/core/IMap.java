@@ -35,6 +35,7 @@ import com.hazelcast.spi.properties.GroupProperty;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -609,7 +610,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @throws NullPointerException if the specified key is null
      * @see ICompletableFuture
      */
-    ICompletableFuture<V> getAsync(K key);
+    CompletableFuture<V> getAsync(K key);
 
     /**
      * Asynchronously puts the given key and value.
@@ -681,7 +682,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @see ICompletableFuture
      * @see #setAsync(Object, Object)
      */
-    ICompletableFuture<V> putAsync(K key, V value);
+    CompletableFuture<V> putAsync(K key, V value);
 
     /**
      * Asynchronously puts the given key and value into this map with a given TTL (time to live) value.
@@ -764,7 +765,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @see ICompletableFuture
      * @see #setAsync(Object, Object, long, TimeUnit)
      */
-    ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit);
+    CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit);
 
     /**
      * Asynchronously puts the given key and value into this map with a given TTL (time to live) value and max idle time value.
@@ -855,7 +856,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @see ICompletableFuture
      * @see #setAsync(Object, Object, long, TimeUnit)
      */
-    ICompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit);
+    CompletableFuture<V> putAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit);
 
     /**
      * Asynchronously puts the given key and value.
@@ -921,7 +922,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @throws NullPointerException if the specified key or value is null
      * @see ICompletableFuture
      */
-    ICompletableFuture<Void> setAsync(K key, V value);
+    CompletableFuture<Void> setAsync(K key, V value);
 
     /**
      * Asynchronously puts an entry into this map with a given TTL (time to live) value,
@@ -995,7 +996,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @throws NullPointerException if the specified key, value, ttlUnit
      * @see ICompletableFuture
      */
-    ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit);
+    CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit);
 
     /**
      * Asynchronously puts an entry into this map with a given TTL (time to live) value and max idle time value.
@@ -1077,7 +1078,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @throws NullPointerException if the specified key, value, ttlUnit or maxIdleUnit are null
      * @see ICompletableFuture
      */
-    ICompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit);
+    CompletableFuture<Void> setAsync(K key, V value, long ttl, TimeUnit ttlUnit, long maxIdle, TimeUnit maxIdleUnit);
 
     /**
      * Asynchronously removes the given key, returning an {@link ICompletableFuture} on which
@@ -1109,7 +1110,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @throws NullPointerException if the specified key is null
      * @see ICompletableFuture
      */
-    ICompletableFuture<V> removeAsync(K key);
+    CompletableFuture<V> removeAsync(K key);
 
     /**
      * Tries to remove the entry with the given key from this map
@@ -2773,7 +2774,7 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      * @see ReadOnly
      * @see ICompletableFuture
      */
-    ICompletableFuture submitToKey(K key, EntryProcessor entryProcessor);
+    CompletableFuture submitToKey(K key, EntryProcessor entryProcessor);
 
     /**
      * Applies the user defined {@link EntryProcessor} to the all entries in the map.

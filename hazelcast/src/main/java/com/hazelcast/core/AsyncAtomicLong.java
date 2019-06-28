@@ -16,9 +16,11 @@
 
 package com.hazelcast.core;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * This interface is an {@link IAtomicLong} interface that exposes its operations using an
- * {@link ICompletableFuture} interface so it can be used in the reactive programming model
+ * {@link CompletableFuture} interface so it can be used in the reactive programming model
  * approach.
  *
  * @since 3.2
@@ -32,7 +34,7 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @param delta the value to add
      * @return the updated value
      */
-    ICompletableFuture<Long> asyncAddAndGet(long delta);
+    CompletableFuture<Long> asyncAddAndGet(long delta);
 
     /**
      * Atomically sets the value to the given updated value
@@ -43,21 +45,21 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @return true if successful; or false if the actual value
      *         was not equal to the expected value.
      */
-    ICompletableFuture<Boolean> asyncCompareAndSet(long expect, long update);
+    CompletableFuture<Boolean> asyncCompareAndSet(long expect, long update);
 
     /**
      * Atomically decrements the current value by one.
      *
      * @return the updated value
      */
-    ICompletableFuture<Long> asyncDecrementAndGet();
+    CompletableFuture<Long> asyncDecrementAndGet();
 
     /**
      * Gets the current value.
      *
      * @return the current value
      */
-    ICompletableFuture<Long> asyncGet();
+    CompletableFuture<Long> asyncGet();
 
     /**
      * Atomically adds the given value to the current value.
@@ -65,7 +67,7 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @param delta the value to add
      * @return the old value before the add
      */
-    ICompletableFuture<Long> asyncGetAndAdd(long delta);
+    CompletableFuture<Long> asyncGetAndAdd(long delta);
 
     /**
      * Atomically sets the given value and returns the old value.
@@ -73,28 +75,28 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @param newValue the new value
      * @return the old value
      */
-    ICompletableFuture<Long> asyncGetAndSet(long newValue);
+    CompletableFuture<Long> asyncGetAndSet(long newValue);
 
     /**
      * Atomically increments the current value by one.
      *
      * @return the updated value
      */
-    ICompletableFuture<Long> asyncIncrementAndGet();
+    CompletableFuture<Long> asyncIncrementAndGet();
 
     /**
      * Atomically increments the current value by one.
      *
      * @return the old value
      */
-    ICompletableFuture<Long> asyncGetAndIncrement();
+    CompletableFuture<Long> asyncGetAndIncrement();
 
     /**
      * Atomically sets the given value.
      *
      * @param newValue the new value
      */
-    ICompletableFuture<Void> asyncSet(long newValue);
+    CompletableFuture<Void> asyncSet(long newValue);
 
     /**
      * Alters the currently stored value by applying a function on it.
@@ -103,7 +105,7 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @throws IllegalArgumentException if function is null.
      * @since 3.2
      */
-    ICompletableFuture<Void> asyncAlter(IFunction<Long, Long> function);
+    CompletableFuture<Void> asyncAlter(IFunction<Long, Long> function);
 
     /**
      * Alters the currently stored value by applying a function on it and gets the result.
@@ -113,7 +115,7 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @throws IllegalArgumentException if function is null.
      * @since 3.2
      */
-    ICompletableFuture<Long> asyncAlterAndGet(IFunction<Long, Long> function);
+    CompletableFuture<Long> asyncAlterAndGet(IFunction<Long, Long> function);
 
     /**
      * Alters the currently stored value by applying a function on it on and gets the old value.
@@ -123,7 +125,7 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @throws IllegalArgumentException if function is null.
      * @since 3.2
      */
-    ICompletableFuture<Long> asyncGetAndAlter(IFunction<Long, Long> function);
+    CompletableFuture<Long> asyncGetAndAlter(IFunction<Long, Long> function);
 
     /**
      * Applies a function on the value, the actual stored value will not change.
@@ -133,5 +135,5 @@ public interface AsyncAtomicLong extends IAtomicLong {
      * @throws IllegalArgumentException if function is null.
      * @since 3.2
      */
-    <R> ICompletableFuture<R> asyncApply(IFunction<Long, R> function);
+    <R> CompletableFuture<R> asyncApply(IFunction<Long, R> function);
 }

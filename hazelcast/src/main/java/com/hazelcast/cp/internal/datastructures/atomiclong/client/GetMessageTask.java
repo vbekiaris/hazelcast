@@ -46,8 +46,9 @@ public class GetMessageTask extends AbstractMessageTask<CPAtomicLongGetCodec.Req
     protected void processMessage() {
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
-               .<Long>query(parameters.groupId, new GetAndAddOp(parameters.name, 0), LINEARIZABLE)
-               .andThen(this);
+               .<Long>query(parameters.groupId, new GetAndAddOp(parameters.name, 0), LINEARIZABLE);
+        // todo fixme
+              //  .andThen(this);
     }
 
     @Override

@@ -23,10 +23,10 @@ import com.hazelcast.concurrent.countdownlatch.operations.SetCountOperation;
 import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.AbstractDistributedObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -70,7 +70,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
     public void countDown() {
         Operation op = new CountDownOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture f = invokeOnPartition(op);
+        CompletableFuture f = invokeOnPartition(op);
         f.join();
     }
 
@@ -78,7 +78,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
     public int getCount() {
         Operation op = new GetCountOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> f = invokeOnPartition(op);
+        CompletableFuture<Integer> f = invokeOnPartition(op);
         return f.join();
     }
 
@@ -88,7 +88,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
 
         Operation op = new SetCountOperation(name, count)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Boolean> f = invokeOnPartition(op);
+        CompletableFuture<Boolean> f = invokeOnPartition(op);
         return f.join();
     }
 

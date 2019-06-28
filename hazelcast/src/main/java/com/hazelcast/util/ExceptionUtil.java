@@ -152,7 +152,7 @@ public final class ExceptionUtil {
         }
     }
 
-    private static void rethrowIfError(final Throwable t) {
+    public static void rethrowIfError(final Throwable t) {
         if (t instanceof Error) {
             if (t instanceof OutOfMemoryError) {
                 OutOfMemoryErrorDispatcher.onOutOfMemory((OutOfMemoryError) t);

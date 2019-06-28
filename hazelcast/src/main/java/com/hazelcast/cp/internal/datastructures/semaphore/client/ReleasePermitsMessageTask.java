@@ -47,8 +47,9 @@ public class ReleasePermitsMessageTask extends AbstractMessageTask<CPSemaphoreRe
         RaftOp op = new ReleasePermitsOp(parameters.name, parameters.sessionId, parameters.threadId, parameters.invocationUid,
                 parameters.permits);
         service.getInvocationManager()
-               .<Boolean>invoke(parameters.groupId, op)
-               .andThen(this);
+               .<Boolean>invoke(parameters.groupId, op);
+        // todo fixme
+//               .andThen(this);
     }
 
     @Override

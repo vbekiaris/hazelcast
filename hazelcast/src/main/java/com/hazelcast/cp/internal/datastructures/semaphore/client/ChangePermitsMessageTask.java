@@ -48,7 +48,8 @@ public class ChangePermitsMessageTask extends AbstractMessageTask<CPSemaphoreCha
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         RaftOp op = new ChangePermitsOp(parameters.name, parameters.sessionId, parameters.threadId, parameters.invocationUid,
                 parameters.permits);
-        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op).andThen(this);
+        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op);
+        // todo fixme .andThen(this);
     }
 
     @Override

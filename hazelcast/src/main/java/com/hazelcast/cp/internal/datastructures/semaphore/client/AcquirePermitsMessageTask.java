@@ -47,7 +47,8 @@ public class AcquirePermitsMessageTask extends AbstractMessageTask<CPSemaphoreAc
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         RaftOp op = new AcquirePermitsOp(parameters.name, parameters.sessionId, parameters.threadId, parameters.invocationUid,
                 parameters.permits, parameters.timeoutMs);
-        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op).andThen(this);
+        service.getInvocationManager().<Boolean>invoke(parameters.groupId, op);
+        // todo fixme .andThen(this);
     }
 
     @Override

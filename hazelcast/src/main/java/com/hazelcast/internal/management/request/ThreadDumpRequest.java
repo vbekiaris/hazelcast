@@ -16,12 +16,12 @@
 
 package com.hazelcast.internal.management.request;
 
+import com.hazelcast.internal.json.JsonObject;
 import com.hazelcast.internal.management.ManagementCenterService;
 import com.hazelcast.internal.management.operation.ThreadDumpOperation;
-import com.hazelcast.internal.json.JsonObject;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.util.ExceptionUtil;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static com.hazelcast.util.JsonUtil.getBoolean;
@@ -48,7 +48,7 @@ public class ThreadDumpRequest implements ConsoleRequest {
     @Override
     public void writeResponse(ManagementCenterService mcs, JsonObject root) {
         final JsonObject result = new JsonObject();
-        InternalCompletableFuture<Object> future = mcs.callOnThis(new ThreadDumpOperation(dumpDeadlocks));
+        CompletableFuture<Object> future = mcs.callOnThis(new ThreadDumpOperation(dumpDeadlocks));
         try {
             String threadDump = (String) future.get();
             if (threadDump != null) {

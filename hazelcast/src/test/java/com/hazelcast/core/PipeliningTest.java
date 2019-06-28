@@ -29,6 +29,7 @@ import org.junit.runner.RunWith;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.LockSupport;
 
 import static org.junit.Assert.assertEquals;
@@ -60,12 +61,12 @@ public class PipeliningTest extends HazelcastTestSupport {
     @Test
     public void testInterrupt() throws Exception {
         final Pipelining<String> pipelining = new Pipelining<String>(1);
-        pipelining.add(mock(ICompletableFuture.class));
+        pipelining.add(mock(CompletableFuture.class));
 
         TestThread t = new TestThread() {
             @Override
             public void doRun() throws Throwable {
-                pipelining.add(mock(ICompletableFuture.class));
+                pipelining.add(mock(CompletableFuture.class));
             }
         };
         t.start();
@@ -76,12 +77,12 @@ public class PipeliningTest extends HazelcastTestSupport {
     @Test
     public void testSpuriousWakeup() throws Exception {
         final Pipelining<String> pipelining = new Pipelining<String>(1);
-        pipelining.add(mock(ICompletableFuture.class));
+        pipelining.add(mock(CompletableFuture.class));
 
         TestThread t = new TestThread() {
             @Override
             public void doRun() throws Throwable {
-                pipelining.add(mock(ICompletableFuture.class));
+                pipelining.add(mock(CompletableFuture.class));
             }
         };
         t.start();

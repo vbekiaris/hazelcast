@@ -28,11 +28,10 @@ import com.hazelcast.collection.impl.txnqueue.operations.TxnReservePollOperation
 import com.hazelcast.config.QueueConfig;
 import com.hazelcast.core.TransactionalQueue;
 import com.hazelcast.nio.serialization.Data;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.TransactionalDistributedObject;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.transaction.TransactionException;
 import com.hazelcast.transaction.TransactionNotActiveException;
 import com.hazelcast.transaction.impl.Transaction;
@@ -41,6 +40,7 @@ import com.hazelcast.util.ExceptionUtil;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /**
@@ -195,7 +195,7 @@ public abstract class TransactionalQueueProxySupport<E>
         }
     }
 
-    private <T> InternalCompletableFuture<T> invoke(Operation operation) {
+    private <T> CompletableFuture<T> invoke(Operation operation) {
         OperationService operationService = getNodeEngine().getOperationService();
         return operationService.invokeOnPartition(QueueService.SERVICE_NAME, operation, partitionId);
     }

@@ -35,6 +35,8 @@ import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.serialization.SerializationService;
 
+import java.util.concurrent.CompletableFuture;
+
 import static com.hazelcast.cp.internal.datastructures.atomicref.operation.ApplyOp.ReturnValueType.NO_RETURN_VALUE;
 import static com.hazelcast.cp.internal.datastructures.atomicref.operation.ApplyOp.ReturnValueType.RETURN_NEW_VALUE;
 import static com.hazelcast.cp.internal.datastructures.atomicref.operation.ApplyOp.ReturnValueType.RETURN_OLD_VALUE;
@@ -125,63 +127,63 @@ public class RaftAtomicRefProxy<T> implements IAtomicReference<T> {
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> compareAndSetAsync(T expect, T update) {
-        return invocationManager.invoke(groupId, new CompareAndSetOp(objectName, toData(expect), toData(update)));
+    public CompletableFuture<Boolean> compareAndSetAsync(T expect, T update) {
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new CompareAndSetOp(objectName, toData(expect), toData(update)));
     }
 
     @Override
-    public InternalCompletableFuture<T> getAsync() {
-        return invocationManager.query(groupId, new GetOp(objectName), LINEARIZABLE);
+    public CompletableFuture<T> getAsync() {
+        throw new UnsupportedOperationException(); //return invocationManager.query(groupId, new GetOp(objectName), LINEARIZABLE);
     }
 
     @Override
-    public InternalCompletableFuture<Void> setAsync(T newValue) {
-        return invocationManager.invoke(groupId, new SetOp(objectName, toData(newValue), false));
+    public CompletableFuture<Void> setAsync(T newValue) {
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new SetOp(objectName, toData(newValue), false));
     }
 
     @Override
-    public InternalCompletableFuture<T> getAndSetAsync(T newValue) {
-        return invocationManager.invoke(groupId, new SetOp(objectName, toData(newValue), true));
+    public CompletableFuture<T> getAndSetAsync(T newValue) {
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new SetOp(objectName, toData(newValue), true));
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> isNullAsync() {
-        return containsAsync(null);
+    public CompletableFuture<Boolean> isNullAsync() {
+        throw new UnsupportedOperationException(); //return containsAsync(null);
     }
 
     @Override
-    public InternalCompletableFuture<Void> clearAsync() {
-        return setAsync(null);
+    public CompletableFuture<Void> clearAsync() {
+        throw new UnsupportedOperationException(); //return setAsync(null);
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> containsAsync(T expected) {
-        return invocationManager.query(groupId, new ContainsOp(objectName, toData(expected)), LINEARIZABLE);
+    public CompletableFuture<Boolean> containsAsync(T expected) {
+        throw new UnsupportedOperationException(); //return invocationManager.query(groupId, new ContainsOp(objectName, toData(expected)), LINEARIZABLE);
     }
 
     @Override
-    public InternalCompletableFuture<Void> alterAsync(IFunction<T, T> function) {
+    public CompletableFuture<Void> alterAsync(IFunction<T, T> function) {
         checkTrue(function != null, "Function cannot be null");
-        return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), NO_RETURN_VALUE, true));
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), NO_RETURN_VALUE, true));
     }
 
     @Override
-    public InternalCompletableFuture<T> alterAndGetAsync(IFunction<T, T> function) {
+    public CompletableFuture<T> alterAndGetAsync(IFunction<T, T> function) {
         checkTrue(function != null, "Function cannot be null");
-        return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), RETURN_NEW_VALUE, true));
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), RETURN_NEW_VALUE, true));
     }
 
     @Override
-    public InternalCompletableFuture<T> getAndAlterAsync(IFunction<T, T> function) {
+    public CompletableFuture<T> getAndAlterAsync(IFunction<T, T> function) {
         checkTrue(function != null, "Function cannot be null");
-        return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), RETURN_OLD_VALUE, true));
+        throw new UnsupportedOperationException(); //return invocationManager.invoke(groupId, new ApplyOp(objectName, toData(function), RETURN_OLD_VALUE, true));
     }
 
     @Override
-    public <R> InternalCompletableFuture<R> applyAsync(IFunction<T, R> function) {
+    public <R> CompletableFuture<R> applyAsync(IFunction<T, R> function) {
         checkTrue(function != null, "Function cannot be null");
         RaftOp op = new ApplyOp(objectName, toData(function), RETURN_NEW_VALUE, false);
-        return invocationManager.query(groupId, op, LINEARIZABLE);
+        throw new UnsupportedOperationException(); //return invocationManager.query(groupId, op, LINEARIZABLE);
     }
 
     @Override

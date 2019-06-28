@@ -18,7 +18,6 @@ package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.nio.Address;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -29,6 +28,8 @@ import com.hazelcast.test.annotation.SlowTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.spi.properties.GroupProperty.OPERATION_CALL_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertTrue;
@@ -51,7 +52,7 @@ public class OperationServiceImpl_timeoutSlowTest extends HazelcastTestSupport {
         // invoke on the "remote" member
         Address remoteAddress = getNode(hz2).getThisAddress();
         OperationService operationService = getNode(hz1).getNodeEngine().getOperationService();
-        ICompletableFuture<Boolean> future = operationService
+        CompletableFuture<Boolean> future = operationService
                 .invokeOnTarget(null, new OperationServiceImpl_timeoutTest.SleepingOperation(callTimeoutMillis * 5), remoteAddress);
 
         // wait more than operation timeout
