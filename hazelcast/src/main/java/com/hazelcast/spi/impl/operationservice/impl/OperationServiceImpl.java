@@ -34,18 +34,17 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.Packet;
 import com.hazelcast.spi.ExecutionService;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.LiveOperations;
 import com.hazelcast.spi.LiveOperationsTracker;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationFactory;
-import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.operationexecutor.OperationExecutor;
 import com.hazelcast.spi.impl.operationexecutor.impl.OperationExecutorImpl;
 import com.hazelcast.spi.impl.operationexecutor.slowoperationdetector.SlowOperationDetector;
+import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.operationservice.PartitionTaskFactory;
 import com.hazelcast.spi.properties.GroupProperty;
 
@@ -55,6 +54,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.MANDATORY;
@@ -100,7 +100,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
     // contains the current executing asyncOperations. This information is needed for the operation-heartbeats.
     // operations are added/removed using the {@link Offload} functionality.
     @Probe
-    final Set<Operation> asyncOperations = newSetFromMap(new ConcurrentHashMap<Operation, Boolean>());
+    final Set<Operation> asyncOperations = newSetFromMap(new ConcurrentHashMap<>());
 
     final InvocationRegistry invocationRegistry;
     final OperationExecutor operationExecutor;
@@ -298,45 +298,49 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
 
     @Override
     @SuppressWarnings("unchecked")
-    public <E> InternalCompletableFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId) {
+    public <E> CompletableFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId) {
         op.setServiceName(serviceName)
                 .setPartitionId(partitionId)
                 .setReplicaIndex(DEFAULT_REPLICA_INDEX);
 
         return new PartitionInvocation(
                 invocationContext, op, invocationMaxRetryCount, invocationRetryPauseMillis,
-                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState).invoke();
+                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState)
+                .invoke().toCompletableFuture();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <E> InternalCompletableFuture<E> invokeOnPartition(Operation op) {
+    public <E> CompletableFuture<E> invokeOnPartition(Operation op) {
         return new PartitionInvocation(
                 invocationContext, op, invocationMaxRetryCount, invocationRetryPauseMillis,
-                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState).invoke();
+                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState)
+                .invoke().toCompletableFuture();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <E> InternalCompletableFuture<E> invokeOnTarget(String serviceName, Operation op, Address target) {
+    public <E> CompletableFuture<E> invokeOnTarget(String serviceName, Operation op, Address target) {
         op.setServiceName(serviceName);
 
         return new TargetInvocation(invocationContext, op, target, invocationMaxRetryCount, invocationRetryPauseMillis,
-                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT).invoke();
+                DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT).invoke().toCompletableFuture();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <V> void asyncInvokeOnPartition(String serviceName, Operation op, int partitionId, ExecutionCallback<V> callback) {
+    public <V> CompletableFuture<V> asyncInvokeOnPartition(String serviceName, Operation op, int partitionId,
+                                                           ExecutionCallback<V> callback) {
         op.setServiceName(serviceName).setPartitionId(partitionId).setReplicaIndex(DEFAULT_REPLICA_INDEX);
 
-        InvocationFuture future = new PartitionInvocation(invocationContext, op,
+        InvocationCompletionStage<V> future = new PartitionInvocation(invocationContext, op,
                 invocationMaxRetryCount, invocationRetryPauseMillis,
                 DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState).invokeAsync();
 
         if (callback != null) {
             future.andThen(callback);
         }
+        return future.toCompletableFuture();
     }
 
     @Override
@@ -370,11 +374,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
 
         ClusterClock clusterClock = nodeEngine.getClusterService().getClusterClock();
         long now = clusterClock.getClusterTime();
-        if (expireTime < now) {
-            return true;
-        }
-
-        return false;
+        return (expireTime < now);
     }
 
     @Override

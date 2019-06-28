@@ -26,6 +26,7 @@ import com.hazelcast.spi.impl.operationservice.impl.responses.NormalResponse;
 import com.hazelcast.util.ExceptionUtil;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -34,6 +35,7 @@ import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.CA
 import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.HEARTBEAT_TIMEOUT;
 import static com.hazelcast.spi.impl.operationservice.impl.InvocationConstant.INTERRUPTED;
 import static com.hazelcast.util.Clock.currentTimeMillis;
+import static com.hazelcast.util.ExceptionUtil.rethrowIfError;
 import static com.hazelcast.util.StringUtil.timeToString;
 
 /**
@@ -77,11 +79,20 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
     @Override
     protected E resolveAndThrowIfException(Object unresolved) throws ExecutionException, InterruptedException {
         Object value = resolve(unresolved);
+        return returnOrThrowWithGetConventions(value);
+    }
 
-        if (!(value instanceof ExceptionalResult)) {
-            return (E) value;
+    @Override
+    protected E resolveAndThrowWithJoinConvention(Object unresolved) {
+        Object value = resolve(unresolved);
+        return returnOrThrowWithJoinConventions(value);
+    }
+
+    protected E returnOrThrowWithGetConventions(Object resolved) throws ExecutionException, InterruptedException {
+        if (!(resolved instanceof ExceptionalResult)) {
+            return (E) resolved;
         } else {
-            Throwable cause = ((ExceptionalResult) value).cause;
+            Throwable cause = ((ExceptionalResult) resolved).cause;
             if (cause instanceof CancellationException) {
                 throw (CancellationException) cause;
             } else if (cause instanceof ExecutionException) {
@@ -94,6 +105,18 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
                 throw new ExecutionException(cause);
             }
         }
+    }
+
+    protected E returnOrThrowWithJoinConventions(Object resolved) {
+        if (!(resolved instanceof ExceptionalResult)) {
+            return (E) resolved;
+        }
+        Throwable cause = ((ExceptionalResult) resolved).cause;
+        rethrowIfError(cause);
+        if (cause instanceof CompletionException) {
+            throw (CompletionException) cause;
+        }
+        throw new CompletionException(cause);
     }
 
     @SuppressWarnings("checkstyle:npathcomplexity")
@@ -135,7 +158,7 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         return value;
     }
 
-    private ExecutionException newOperationTimeoutException(boolean heartbeatTimeout) {
+    private OperationTimeoutException newOperationTimeoutException(boolean heartbeatTimeout) {
         StringBuilder sb = new StringBuilder();
         if (heartbeatTimeout) {
             sb.append(invocation.op.getClass().getSimpleName())
@@ -165,7 +188,7 @@ class InvocationFuture<E> extends AbstractInvocationFuture<E> {
 
         sb.append(invocation);
         String msg = sb.toString();
-        return new ExecutionException(msg, new OperationTimeoutException(msg));
+        return new OperationTimeoutException(msg);
     }
 
     private static void appendHeartbeat(StringBuilder sb, long lastHeartbeatMillis) {

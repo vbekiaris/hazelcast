@@ -22,6 +22,8 @@ import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.EndpointManager;
 
+import java.util.concurrent.CompletableFuture;
+
 import static com.hazelcast.spi.Operation.GENERIC_PARTITION_ID;
 import static com.hazelcast.util.Preconditions.checkFalse;
 
@@ -288,5 +290,5 @@ public abstract class InvocationBuilder {
         return this;
     }
 
-    public abstract <E> InternalCompletableFuture<E> invoke();
+    public abstract <E> CompletableFuture<E> invoke();
 }

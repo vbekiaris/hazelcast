@@ -20,7 +20,6 @@ import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.internal.management.dto.SlowOperationDTO;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.InternalCompletableFuture;
 import com.hazelcast.spi.InvocationBuilder;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.spi.OperationFactory;
@@ -30,6 +29,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The OperationService is responsible for executing operations.
@@ -118,9 +118,9 @@ public interface OperationService {
      */
     void executeOnPartitions(PartitionTaskFactory taskFactory, BitSet partitions);
 
-    <E> InternalCompletableFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId);
+    <E> CompletableFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId);
 
-    <V> void asyncInvokeOnPartition(String serviceName, Operation op, int partitionId, ExecutionCallback<V> callback);
+    <V> CompletableFuture<V> asyncInvokeOnPartition(String serviceName, Operation op, int partitionId, ExecutionCallback<V> callback);
 
     /**
      * Executes an operation on a partition.
@@ -129,9 +129,9 @@ public interface OperationService {
      * @param <E> the return type of the operation response
      * @return the future.
      */
-    <E> InternalCompletableFuture<E> invokeOnPartition(Operation op);
+    <E> CompletableFuture<E> invokeOnPartition(Operation op);
 
-    <E> InternalCompletableFuture<E> invokeOnTarget(String serviceName, Operation op, Address target);
+    <E> CompletableFuture<E> invokeOnTarget(String serviceName, Operation op, Address target);
 
     InvocationBuilder createInvocationBuilder(String serviceName, Operation op, int partitionId);
 

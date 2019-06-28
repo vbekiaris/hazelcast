@@ -24,11 +24,31 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-// todo support exceptional result: null and throwables should be a separate outcome boxed in an ExceptionalResult
-//  rather than a value of type Throwable
+/**
+ * Exceptions behaviour:
+ * <ul>
+ *     <li>In JDK CompletableFuture, futures completed exceptionally pass the exact exception to the callback,
+ *     wrap in {@code CompletionException} in {@code join()}, taking care not to re-wrap exceptions:<br>
+ *         <pre>{@code
+ *         future.completeExceptionally(new OperationTimeoutException())
+ *               .whenCompleteAsync((val, throwable) -> System.out.println(throwable)) // prints OperationTimeoutException
+ *               .join(); // throws CompletionException(OperationTimeoutException)
+ *
+ *         future.completeExceptionally(new CompletionException(new OperationTimeoutException()))
+ *  *               .whenCompleteAsync((val, throwable) -> System.out.println(throwable)) // prints CompletionException
+ *  *               .join(); // throws CompletionException(OperationTimeoutException)
+ *
+ *         }
+ *         </pre>
+ *
+ *     </li>
+ * </ul>
+ * @param <V>
+ */
 // todo check type arguments
 // todo deduplication of executor==null/executor.execute branches
-// todo deduplication of Nodes code (possible to extract interface?)
+// todo deduplication of WaitNodes code (possible to extract interface?)
+// todo pull CompletionStage implementation to AbstractInvocationFuture? or compose to other class for reuse in client-side futures?
 public class InvocationCompletionStage<V> extends InvocationFuture<V> implements CompletionStage<V> {
 
     public InvocationCompletionStage(Invocation invocation, boolean deserialize) {
@@ -176,9 +196,6 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
         }
     }
 
-    // todo thenCompose, handle implementations
-    // todo another kind of node per method family
-
     @Override
     public <U> CompletionStage<U> handle(BiFunction<? super V, Throwable, ? extends U> fn) {
         return unblock(fn, null);
@@ -251,7 +268,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
     protected CompletionStage<V> unblock(final BiConsumer<? super V, ? super Throwable> runnable, Executor executor) {
         Object result = resolve(state);
         final CompletableFuture<V> future = newCompletableFuture();
-        if (result != UNRESOLVED) {
+        if (result != UNRESOLVED && isDone()) {
             V value;
             Throwable throwable;
             if (result instanceof ExceptionalResult) {
@@ -277,6 +294,9 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             return future;
         }
     }
+
+    // todo thenCompose, thenCombine implementations
+    // todo another kind of node per method family
 
     @Override
     public <U> CompletionStage<U> thenCompose(Function<? super V, ? extends CompletionStage<U>> fn) {
@@ -398,6 +418,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     public CompletableFuture<V> toCompletableFuture() {
-        return null;
+        final InvocationCompletableFuture<V> completableFuture = new InvocationCompletableFuture<>(this);
+        return completableFuture;
     }
 }

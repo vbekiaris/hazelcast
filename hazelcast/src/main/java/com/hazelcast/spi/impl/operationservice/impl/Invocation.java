@@ -253,12 +253,12 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         }
     }
 
-    public final InvocationFuture invoke() {
+    public final InvocationCompletionStage invoke() {
         invoke0(false);
         return future;
     }
 
-    public final InvocationFuture invokeAsync() {
+    public final InvocationCompletionStage invokeAsync() {
         invoke0(true);
         return future;
     }

@@ -37,7 +37,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.Preconditions.isNotNull;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 import static java.util.concurrent.locks.LockSupport.park;
@@ -153,34 +152,16 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     @Override
     public final V join() {
         try {
-            return get();
-        } catch (Throwable throwable) {
-            throw rethrow(throwable);
+            return waitForResolution(this::resolveAndThrowWithJoinConvention);
+        } catch (ExecutionException | InterruptedException e) {
+            throw new AssertionError("Value resolution with join() conventions shouldn't throw ExecutionException or "
+                    + "InterruptedException", e);
         }
     }
 
     @Override
     public final V get() throws InterruptedException, ExecutionException {
-        Object response = registerWaiter(Thread.currentThread(), null);
-        if (response != UNRESOLVED) {
-            // no registration was done since a value is available.
-            return resolveAndThrowIfException(response);
-        }
-
-        boolean interrupted = false;
-        try {
-            for (; ; ) {
-                park();
-                if (isDone()) {
-                    return resolveAndThrowIfException(state);
-                } else if (Thread.interrupted()) {
-                    interrupted = true;
-                    onInterruptDetected();
-                }
-            }
-        } finally {
-            restoreInterrupt(interrupted);
-        }
+        return waitForResolution(this::resolveAndThrowIfException);
     }
 
     @Override
@@ -212,6 +193,30 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
 
         unregisterWaiter(Thread.currentThread());
         throw newTimeoutException(timeout, unit);
+    }
+
+    protected final V waitForResolution(ValueResolver<V> resolver)
+            throws InterruptedException, ExecutionException {
+        Object response = registerWaiter(Thread.currentThread(), null);
+        if (response != UNRESOLVED) {
+            // no registration was done since a value is available.
+            return resolver.resolveAndThrowIfException(response);
+        }
+
+        boolean interrupted = false;
+        try {
+            for (; ; ) {
+                park();
+                if (isDone()) {
+                    return resolver.resolveAndThrowIfException(state);
+                } else if (Thread.interrupted()) {
+                    interrupted = true;
+                    onInterruptDetected();
+                }
+            }
+        } finally {
+            restoreInterrupt(interrupted);
+        }
     }
 
     private static void restoreInterrupt(boolean interrupted) {
@@ -300,6 +305,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     protected abstract V resolveAndThrowIfException(Object state) throws ExecutionException, InterruptedException;
+
+    protected abstract V resolveAndThrowWithJoinConvention(Object state);
 
     protected abstract TimeoutException newTimeoutException(long timeout, TimeUnit unit);
 
@@ -617,5 +624,9 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         } else {
             future.completeExceptionally(throwable);
         }
+    }
+
+    interface ValueResolver<E> {
+        E resolveAndThrowIfException(Object unresolved) throws ExecutionException, InterruptedException;
     }
 }

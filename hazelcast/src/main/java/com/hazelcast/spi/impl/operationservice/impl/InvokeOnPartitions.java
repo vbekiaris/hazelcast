@@ -16,7 +16,6 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.logging.ILogger;
@@ -33,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.spi.impl.operationservice.impl.operations.PartitionAwareFactoryAccessor.extractPartitionAware;
 import static com.hazelcast.util.CollectionUtil.toIntArray;
@@ -119,7 +119,7 @@ final class InvokeOnPartitions {
                     .setTryCount(TRY_COUNT)
                     .setTryPauseMillis(TRY_PAUSE_MILLIS)
                     .invoke()
-                    .andThen(new FirstAttemptExecutionCallback(partitions));
+                    .whenCompleteAsync(new FirstAttemptExecutionCallback(partitions));
         }
     }
 
@@ -134,18 +134,13 @@ final class InvokeOnPartitions {
 
         operationService.createInvocationBuilder(serviceName, operation, partitionId)
                         .invoke()
-                        .andThen(new ExecutionCallback<Object>() {
-                            @Override
-                            public void onResponse(Object response) {
+                        .whenCompleteAsync((response, throwable) -> {
+                            if (throwable == null) {
                                 setPartitionResult(partitionId, response);
-                                decrementLatchAndHandle(1);
+                            } else {
+                                setPartitionResult(partitionId, throwable);
                             }
-
-                            @Override
-                            public void onFailure(Throwable t) {
-                                setPartitionResult(partitionId, t);
-                                decrementLatchAndHandle(1);
-                            }
+                            decrementLatchAndHandle(1);
                         });
     }
 
@@ -172,7 +167,7 @@ final class InvokeOnPartitions {
         future.setResult(result);
     }
 
-    private class FirstAttemptExecutionCallback implements ExecutionCallback<Object> {
+    private class FirstAttemptExecutionCallback implements BiConsumer<Object, Throwable> {
         private final List<Integer> requestedPartitions;
 
         FirstAttemptExecutionCallback(List<Integer> partitions) {
@@ -180,6 +175,14 @@ final class InvokeOnPartitions {
         }
 
         @Override
+        public void accept(Object o, Throwable throwable) {
+            if (throwable == null) {
+                onResponse(o);
+            } else {
+                onFailure(throwable);
+            }
+        }
+
         public void onResponse(Object response) {
             PartitionResponse result = operationService.nodeEngine.toObject(response);
             Object[] results = result.getResults();
@@ -206,7 +209,6 @@ final class InvokeOnPartitions {
             decrementLatchAndHandle(requestedPartitions.size() - failedPartitionsCnt);
         }
 
-        @Override
         public void onFailure(Throwable t) {
             if (operationService.logger.isFinestEnabled()) {
                 operationService.logger.finest(t);
