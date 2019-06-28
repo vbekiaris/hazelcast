@@ -719,6 +719,49 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         chained.join();
     }
 
+    @Test
+    public void exceptionally() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.exceptionally(t -> chainedReturnValue);
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(chainedReturnValue, chained.join());
+    }
+    @Test
+    public void exceptionally_whenAsync() {
+        CompletableFuture<Object> future = invokeAsync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.exceptionally(t -> chainedReturnValue);
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(chainedReturnValue, chained.join());
+    }
+
+    @Test
+    public void exceptionally_whenExceptionFromExceptionallyFunction() {
+        CompletableFuture<Object> future = invokeSync_withException();
+        CompletableFuture<Object> chained = future.exceptionally(t -> {
+            throw new IllegalArgumentException();
+        });
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalArgumentException.class));
+        chained.join();
+    }
+
+    @Test
+    public void exceptionally_whenAsync_andExceptionFromExceptionallyFunction() {
+        CompletableFuture<Object> future = invokeAsync_withException().toCompletableFuture();
+        CompletableFuture<Object> chained = future.exceptionally(t -> {
+            throw new IllegalArgumentException();
+        });
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalArgumentException.class));
+        chained.join();
+    }
+
     private CompletableFuture<Void> prepareThenAccept(CompletionStage invocationFuture,
                                 boolean async,
                                 boolean explicitExecutor) {

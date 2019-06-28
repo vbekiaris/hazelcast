@@ -134,6 +134,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 || state instanceof ApplyNode
                 || state instanceof AbstractInvocationFuture.WhenCompleteNode
                 || state instanceof HandleNode
+                || state instanceof ExceptionallyNode
                 || state instanceof AcceptNode);
     }
 
@@ -519,6 +520,31 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 executor.execute(() -> {
                     future.complete(function.apply(value));
                 });
+            }
+        }
+    }
+
+    // a WaitNode for exceptionally(Function<Throwable, V>)
+    protected static final class ExceptionallyNode<R> {
+        final CompletableFuture<R> future;
+        final Function<Throwable, ? extends R> function;
+
+        public ExceptionallyNode(CompletableFuture<R> future, Function<Throwable, ? extends R> function) {
+            this.future = future;
+            this.function = function;
+        }
+
+        public void execute(Object resolved) {
+            if (resolved instanceof ExceptionalResult) {
+                Throwable throwable = ((ExceptionalResult) resolved).cause;
+                try {
+                    R value = function.apply(throwable);
+                    future.complete(value);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            } else {
+                future.complete((R) resolved);
             }
         }
     }

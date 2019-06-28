@@ -118,6 +118,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             Throwable t = (value instanceof ExceptionalResult) ? ((ExceptionalResult) value).cause : null;
             value = (value instanceof ExceptionalResult)? null : value;
             handleNode.execute(executor, value, t);
+        } else if (waiter instanceof ExceptionallyNode) {
+            ((ExceptionallyNode) waiter).execute(value);
         }
     }
 
@@ -310,6 +312,29 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
         }
     }
 
+    @Override
+    public CompletionStage<V> exceptionally(Function<Throwable, ? extends V> fn) {
+        Object result = resolve(state);
+        final CompletableFuture<V> future = newCompletableFuture();
+        if (result != UNRESOLVED && isDone()) {
+            if (result instanceof ExceptionalResult) {
+                Throwable throwable = ((ExceptionalResult) result).cause;
+                try {
+                    V value = fn.apply(throwable);
+                    future.complete(value);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            } else {
+                future.complete((V) result);
+            }
+            return future;
+        } else {
+            registerWaiter(new ExceptionallyNode<V>(future, fn), null);
+            return future;
+        }
+    }
+
     // todo thenCompose, thenCombine implementations
     // todo another kind of node per method family
 
@@ -423,11 +448,6 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, Runnable action, Executor executor) {
-        return null;
-    }
-
-    @Override
-    public CompletionStage<V> exceptionally(Function<Throwable, ? extends V> fn) {
         return null;
     }
 
