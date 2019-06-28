@@ -21,6 +21,7 @@ import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.RootCauseMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -28,6 +29,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -100,8 +102,8 @@ public class Invocation_NestedRemoteTest extends Invocation_NestedAbstractTest {
         OuterOperation outerOperation = new OuterOperation(innerOperation, outerPartitionId);
         CompletableFuture future = operationService.invokeOnPartition(null, outerOperation, outerPartitionId);
 
-        expected.expect(IllegalThreadStateException.class);
-        expected.expectMessage("cannot make remote call");
+        expected.expect(CompletionException.class);
+        expected.expectCause(new RootCauseMatcher(IllegalThreadStateException.class, "cannot make remote call"));
         future.join();
     }
 
@@ -119,8 +121,8 @@ public class Invocation_NestedRemoteTest extends Invocation_NestedAbstractTest {
         OuterOperation outerOperation = new OuterOperation(innerOperation, outerPartitionId);
         CompletableFuture future = operationService.invokeOnPartition(null, outerOperation, outerPartitionId);
 
-        expected.expect(IllegalThreadStateException.class);
-        expected.expectMessage("cannot make remote call");
+        expected.expect(CompletionException.class);
+        expected.expectCause(new RootCauseMatcher(IllegalThreadStateException.class, "cannot make remote call"));
         future.join();
     }
 
@@ -138,8 +140,8 @@ public class Invocation_NestedRemoteTest extends Invocation_NestedAbstractTest {
         OuterOperation outerOperation = new OuterOperation(innerOperation, outerPartitionId);
         CompletableFuture future = operationService.invokeOnPartition(null, outerOperation, outerPartitionId);
 
-        expected.expect(IllegalThreadStateException.class);
-        expected.expectMessage("cannot make remote call");
+        expected.expect(CompletionException.class);
+        expected.expectCause(new RootCauseMatcher(IllegalThreadStateException.class, "cannot make remote call"));
         future.join();
     }
 

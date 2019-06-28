@@ -43,6 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -93,8 +94,8 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
         try {
             future.join();
             fail("Invocation should failed with timeout!");
-        } catch (OperationTimeoutException expected) {
-            ignore(expected);
+        } catch (CompletionException expected) {
+            assertInstanceOf(OperationTimeoutException.class, expected.getCause());
         }
 
         IsLockedOperation isLockedOperation = new IsLockedOperation(new InternalLockNamespace(key), nodeEngine.toData(key), 1);

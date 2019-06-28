@@ -24,6 +24,7 @@ import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.RootCauseMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -31,6 +32,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
@@ -52,7 +54,8 @@ public class Invocation_ExceptionTest extends HazelcastTestSupport {
         CompletableFuture f = operationService.invokeOnPartition(null, new OperationsReturnsNoResponse(), 0);
         assertCompletesEventually(f);
 
-        expected.expect(ExpectedRuntimeException.class);
+        expected.expect(CompletionException.class);
+        expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
         f.join();
     }
 

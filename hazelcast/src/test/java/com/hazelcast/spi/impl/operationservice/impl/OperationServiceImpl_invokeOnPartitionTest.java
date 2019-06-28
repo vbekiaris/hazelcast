@@ -23,19 +23,25 @@ import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.RootCauseMatcher;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
 public class OperationServiceImpl_invokeOnPartitionTest extends HazelcastTestSupport {
+
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     private HazelcastInstance local;
     private OperationServiceImpl operationService;
@@ -77,10 +83,8 @@ public class OperationServiceImpl_invokeOnPartitionTest extends HazelcastTestSup
         CompletableFuture<String> invocation = operationService.invokeOnPartition(
                 null, operation, getPartitionId(remote));
 
-        try {
-            invocation.join();
-            fail();
-        } catch (ExpectedRuntimeException expected) {
-        }
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        invocation.join();
     }
 }

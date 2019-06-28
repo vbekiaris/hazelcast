@@ -32,6 +32,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.spi.properties.GroupProperty.BACKPRESSURE_ENABLED;
@@ -184,7 +185,8 @@ public class InboundResponseHandler_NotifyTest extends HazelcastTestSupport {
         try {
             invocation.future.join();
             fail();
-        } catch (ExpectedRuntimeException expected) {
+        } catch (CompletionException expected) {
+            assertInstanceOf(ExpectedRuntimeException.class, expected.getCause());
         }
 
         assertInvocationDeregisteredEventually(callId);
@@ -215,7 +217,8 @@ public class InboundResponseHandler_NotifyTest extends HazelcastTestSupport {
         try {
             assertNull(invocation.future.join());
             fail();
-        } catch (OperationTimeoutException expected) {
+        } catch (CompletionException expected) {
+            assertInstanceOf(OperationTimeoutException.class, expected.getCause());
         }
 
         assertInvocationDeregisteredEventually(callId);

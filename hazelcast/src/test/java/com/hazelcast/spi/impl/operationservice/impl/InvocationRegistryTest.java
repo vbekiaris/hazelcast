@@ -31,6 +31,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -182,7 +183,8 @@ public class InvocationRegistryTest extends HazelcastTestSupport {
         try {
             f.join();
             fail();
-        } catch (HazelcastInstanceNotActiveException expected) {
+        } catch (CompletionException expected) {
+            assertInstanceOf(HazelcastInstanceNotActiveException.class, expected.getCause());
         }
 
         assertNull(invocationRegistry.get(callId));

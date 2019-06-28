@@ -37,13 +37,17 @@ import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.ParallelTest;
 import com.hazelcast.test.annotation.QuickTest;
+import com.hazelcast.util.RootCauseMatcher;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static com.hazelcast.spi.properties.GroupProperty.GENERIC_OPERATION_THREAD_COUNT;
@@ -54,6 +58,9 @@ import static org.junit.Assert.assertEquals;
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
 public class OperationServiceImpl_BasicTest extends HazelcastTestSupport {
+
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Test
     public void testGetPartitionThreadCount() {
@@ -194,7 +201,7 @@ public class OperationServiceImpl_BasicTest extends HazelcastTestSupport {
         });
     }
 
-    @Test(expected = HazelcastSerializationException.class)
+    @Test
     public void invocation_shouldFail_whenResponse_isNotSerializable() {
         TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory();
         HazelcastInstance hz1 = factory.newHazelcastInstance();
@@ -206,10 +213,12 @@ public class OperationServiceImpl_BasicTest extends HazelcastTestSupport {
         CompletableFuture<Object> future = operationService
                 .invokeOnTarget(null, new NonSerializableResponseOperation(), target);
 
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(HazelcastSerializationException.class));
         future.join();
     }
 
-    @Test(expected = HazelcastSerializationException.class)
+    @Test
     public void invocation_shouldFail_whenNormalResponse_isNotSerializable() {
         TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory();
         HazelcastInstance hz1 = factory.newHazelcastInstance();
@@ -222,6 +231,8 @@ public class OperationServiceImpl_BasicTest extends HazelcastTestSupport {
         CompletableFuture<Object> future = operationService
                 .invokeOnTarget(null, new NonSerializableResponseOperation_withNormalResponseWrapper(), target);
 
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(HazelcastSerializationException.class));
         future.join();
     }
 

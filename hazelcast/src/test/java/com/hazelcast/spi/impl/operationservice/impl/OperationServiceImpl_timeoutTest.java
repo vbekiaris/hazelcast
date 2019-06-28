@@ -39,6 +39,7 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -139,7 +140,8 @@ public class OperationServiceImpl_timeoutTest extends HazelcastTestSupport {
             try {
                 future.join();
                 fail("Should throw OperationTimeoutException!");
-            } catch (OperationTimeoutException ignored) {
+            } catch (CompletionException expected) {
+                assertInstanceOf(OperationTimeoutException.class, expected.getCause());
                 latch.countDown();
             }
         }
