@@ -17,7 +17,9 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.spi.impl.AbstractInvocationFuture;
+import com.hazelcast.util.ConcurrencyUtil;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -25,6 +27,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Exceptions behaviour:
@@ -48,9 +52,12 @@ import java.util.function.Function;
  * @param <V>
  */
 // todo check type arguments
-// todo deduplication of executor==null/executor.execute branches
+// todo tests for nullability of arguments
+// todo tests for exceptions thrown from user customizations
 // todo deduplication of WaitNodes code (possible to extract interface?)
 // todo pull CompletionStage implementation to AbstractInvocationFuture? or compose to other class for reuse in client-side futures?
+    // done
+    // extodo deduplication of executor==null/executor.execute branches
 public class InvocationCompletionStage<V> extends InvocationFuture<V> implements CompletionStage<V> {
 
     public InvocationCompletionStage(Invocation invocation, boolean deserialize) {
@@ -59,36 +66,37 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     // thenAccept* implementation
     @Override
-    public CompletionStage<Void> thenAccept(Consumer<? super V> action) {
+    public CompletionStage<Void> thenAccept(@Nonnull Consumer<? super V> action) {
         return unblock(action, null);
     }
 
     @Override
-    public CompletionStage<Void> thenAcceptAsync(Consumer<? super V> action) {
+    public CompletionStage<Void> thenAcceptAsync(@Nonnull Consumer<? super V> action) {
         return unblock(action, defaultExecutor);
     }
 
     @Override
-    public CompletionStage<Void> thenAcceptAsync(Consumer<? super V> action, Executor executor) {
+    public CompletionStage<Void> thenAcceptAsync(@Nonnull Consumer<? super V> action, Executor executor) {
         return unblock(action, executor);
     }
 
-    protected CompletionStage<Void> unblock(final Consumer<? super V> consumer, Executor executor) {
+    protected CompletionStage<Void> unblock(@Nonnull final Consumer<? super V> consumer, Executor executor) {
+        requireNonNull(consumer);
         final Object value = resolve(state);
         final CompletableFuture<Void> result = newCompletableFuture();
         if (value != UNRESOLVED) {
             if (cascadeException(value, result)) {
                 return result;
             }
-            if (executor != null) {
-                executor.execute(() -> {
+            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
                     consumer.accept((V) value);
                     result.complete(null);
-                });
-            } else {
-                consumer.accept((V) value);
-                result.complete(null);
-            }
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
             return result;
         } else {
             registerWaiter(new AcceptNode(result, consumer), executor);
@@ -130,34 +138,32 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     // thenApply* implementation
     @Override
-    public <U> CompletionStage<U> thenApply(Function<? super V, ? extends U> fn) {
+    public <U> CompletionStage<U> thenApply(@Nonnull Function<? super V, ? extends U> fn) {
         return unblock(fn, null);
     }
 
     @Override
-    public <U> CompletionStage<U> thenApplyAsync(Function<? super V, ? extends U> fn) {
+    public <U> CompletionStage<U> thenApplyAsync(@Nonnull Function<? super V, ? extends U> fn) {
         return unblock(fn, defaultExecutor);
     }
 
     @Override
-    public <U> CompletionStage<U> thenApplyAsync(Function<? super V, ? extends U> fn, Executor executor) {
+    public <U> CompletionStage<U> thenApplyAsync(@Nonnull Function<? super V, ? extends U> fn, Executor executor) {
         return unblock(fn, executor);
     }
 
-    protected <U> CompletionStage<U> unblock(final Function<? super V, ? extends U> function, Executor executor) {
+    protected <U> CompletionStage<U> unblock(@Nonnull final Function<? super V, ? extends U> function, Executor executor) {
+        requireNonNull(function);
         final Object value = resolve(state);
         final CompletableFuture<U> result = newCompletableFuture();
         if (value != UNRESOLVED) {
             if (cascadeException(value, result)) {
                 return result;
             }
-            if (executor != null) {
-                executor.execute(() -> {
-                    result.complete(function.apply((V) value));
-                });
-            } else {
+            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            e.execute(() -> {
                 result.complete(function.apply((V) value));
-            }
+            });
             return result;
         } else {
             registerWaiter(new ApplyNode(result, function), executor);
@@ -167,36 +173,37 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     // thenRun implementation
     @Override
-    public CompletionStage<Void> thenRun(Runnable action) {
+    public CompletionStage<Void> thenRun(@Nonnull Runnable action) {
         return unblock(action, null);
     }
 
     @Override
-    public CompletionStage<Void> thenRunAsync(Runnable action) {
+    public CompletionStage<Void> thenRunAsync(@Nonnull Runnable action) {
         return unblock(action, defaultExecutor);
     }
 
     @Override
-    public CompletionStage<Void> thenRunAsync(Runnable action, Executor executor) {
+    public CompletionStage<Void> thenRunAsync(@Nonnull Runnable action, Executor executor) {
         return unblock(action, executor);
     }
 
-    protected CompletionStage<Void> unblock(final Runnable runnable, Executor executor) {
+    protected CompletionStage<Void> unblock(@Nonnull final Runnable runnable, Executor executor) {
+        requireNonNull(runnable);
         final Object value = resolve(state);
         final CompletableFuture<Void> result = newCompletableFuture();
         if (value != UNRESOLVED) {
             if (cascadeException(value, result)) {
                 return result;
             }
-            if (executor != null) {
-                executor.execute(() -> {
+            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
                     runnable.run();
                     result.complete(null);
-                });
-            } else {
-                runnable.run();
-                result.complete(null);
-            }
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
             return result;
         } else {
             registerWaiter(new RunNode(result, runnable), executor);
@@ -205,21 +212,22 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
     }
 
     @Override
-    public <U> CompletionStage<U> handle(BiFunction<? super V, Throwable, ? extends U> fn) {
+    public <U> CompletionStage<U> handle(@Nonnull BiFunction<? super V, Throwable, ? extends U> fn) {
         return unblock(fn, null);
     }
 
     @Override
-    public <U> CompletionStage<U> handleAsync(BiFunction<? super V, Throwable, ? extends U> fn) {
+    public <U> CompletionStage<U> handleAsync(@Nonnull BiFunction<? super V, Throwable, ? extends U> fn) {
         return unblock(fn, defaultExecutor);
     }
 
     @Override
-    public <U> CompletionStage<U> handleAsync(BiFunction<? super V, Throwable, ? extends U> fn, Executor executor) {
+    public <U> CompletionStage<U> handleAsync(@Nonnull BiFunction<? super V, Throwable, ? extends U> fn, Executor executor) {
         return unblock(fn, executor);
     }
 
-    private <U> CompletionStage<U> unblock(BiFunction<? super V, Throwable, ? extends U> fn, Executor executor) {
+    private <U> CompletionStage<U> unblock(@Nonnull BiFunction<? super V, Throwable, ? extends U> fn, Executor executor) {
+        requireNonNull(fn);
         Object resolved = resolve(state);
         final CompletableFuture<U> future = newCompletableFuture();
         if (resolved != UNRESOLVED) {
@@ -259,21 +267,22 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     // whenComplete
     @Override
-    public CompletionStage<V> whenComplete(BiConsumer<? super V, ? super Throwable> action) {
+    public CompletionStage<V> whenComplete(@Nonnull BiConsumer<? super V, ? super Throwable> action) {
         return unblock(action, null);
     }
 
     @Override
-    public CompletionStage<V> whenCompleteAsync(BiConsumer<? super V, ? super Throwable> action) {
+    public CompletionStage<V> whenCompleteAsync(@Nonnull BiConsumer<? super V, ? super Throwable> action) {
         return unblock(action, defaultExecutor);
     }
 
     @Override
-    public CompletionStage<V> whenCompleteAsync(BiConsumer<? super V, ? super Throwable> action, Executor executor) {
+    public CompletionStage<V> whenCompleteAsync(@Nonnull BiConsumer<? super V, ? super Throwable> action, Executor executor) {
         return unblock(action, executor);
     }
 
-    protected CompletionStage<V> unblock(final BiConsumer<? super V, ? super Throwable> runnable, Executor executor) {
+    protected CompletionStage<V> unblock(@Nonnull final BiConsumer<? super V, ? super Throwable> biConsumer, Executor executor) {
+        requireNonNull(biConsumer);
         Object result = resolve(state);
         final CompletableFuture<V> future = newCompletableFuture();
         if (result != UNRESOLVED && isDone()) {
@@ -286,34 +295,26 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
                 throwable = null;
                 value = (V) result;
             }
-            if (executor != null) {
-                executor.execute(() -> {
-                    try {
-                        runnable.accept((V) value, throwable);
-                    } catch (Throwable t) {
-                        completeExceptionallyWithPriority(future, throwable, t);
-                        return;
-                    }
-                    completeFuture(future, value, throwable);
-                });
-            } else {
+            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            e.execute(() -> {
                 try {
-                    runnable.accept((V) value, throwable);
+                    biConsumer.accept((V) value, throwable);
                 } catch (Throwable t) {
                     completeExceptionallyWithPriority(future, throwable, t);
-                    return future;
+                    return;
                 }
                 completeFuture(future, value, throwable);
-            }
+            });
             return future;
         } else {
-            registerWaiter(new WhenCompleteNode(future, runnable), executor);
+            registerWaiter(new WhenCompleteNode(future, biConsumer), executor);
             return future;
         }
     }
 
     @Override
-    public CompletionStage<V> exceptionally(Function<Throwable, ? extends V> fn) {
+    public CompletionStage<V> exceptionally(@Nonnull Function<Throwable, ? extends V> fn) {
+        requireNonNull(fn);
         Object result = resolve(state);
         final CompletableFuture<V> future = newCompletableFuture();
         if (result != UNRESOLVED && isDone()) {
@@ -352,6 +353,35 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
     public <U> CompletionStage<U> thenComposeAsync(Function<? super V, ? extends CompletionStage<U>> fn, Executor executor) {
         return null;
     }
+// todo next
+
+//    protected <U> CompletionStage<U> unblockCompose(final Function<? super V, ? extends CompletionStage<U>> function, Executor executor) {
+//        final Object value = resolve(state);
+//        DelegatingCompletableFuture<U> result = new DelegatingCompletableFuture<>(defaultExecutor);
+//        if (value != UNRESOLVED) {
+//            if (cascadeException(value, result)) {
+//                return result;
+//            }
+//            V v = (V) value;
+//            if (executor != null) {
+//                executor.execute(() -> {
+//                    try {
+//                        CompletionStage<U> r = function.apply(v);
+//                    } catch (Throwable t) {
+//
+//                    }
+//
+//                    result.setOriginal(function.apply((V) value).toCompletableFuture());
+//                });
+//            } else {
+//                result.setOriginal(function.apply((V) value).toCompletableFuture());
+//            }
+//            return result;
+//        } else {
+//            registerWaiter(new ComposeNode<>(result, function), executor);
+//            return result;
+//        }
+//    }
 
     ///// stubs to implement
     @Override

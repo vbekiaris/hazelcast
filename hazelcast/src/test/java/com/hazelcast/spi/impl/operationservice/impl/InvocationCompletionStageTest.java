@@ -58,8 +58,8 @@ import static org.junit.Assert.assertTrue;
  *     <li>across all method variants: plain, async, async with explicit executor as argument</li>
  *     <li>as a stage following a future that at the time of registration is either incomplete or completed</li>
  * </ul>
- *todo test exception rules
  */
+// todo test exceptions from user customization implementations (eg more like thenRun_whenExceptionThrownFromRunnable)
 @RunWith(HazelcastParallelClassRunner.class)
 @Category({QuickTest.class, ParallelTest.class})
 public class InvocationCompletionStageTest extends HazelcastTestSupport {
@@ -345,6 +345,20 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         assertTrue(chained.isCompletedExceptionally());
         expectedException.expect(CompletionException.class);
         expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        chained.join();
+    }
+
+    @Test
+    public void thenRun_whenExceptionThrownFromRunnable() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Void> chained = future.thenRun(() -> {
+            throw new IllegalStateException();
+        });
+
+        assertTrueEventually(()-> assertTrue(chained.isDone()));
+        assertTrue(chained.isCompletedExceptionally());
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalStateException.class));
         chained.join();
     }
 
@@ -762,6 +776,27 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         chained.join();
     }
 
+    @Test
+    public void exceptionally_whenCompletedNormally() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Object> chained = future.exceptionally(t -> {
+            throw new IllegalArgumentException();
+        });
+
+        assertTrueEventually(() -> assertTrue(chained.isDone()));
+        assertEquals(future.join(), chained.join());
+    }
+
+    @Test
+    public void thenCompose() {
+        CompletableFuture<Object> future = invokeSync();
+        CompletableFuture<Object> composedFuture = future
+                .thenCompose(value -> CompletableFuture.completedFuture(returnValue));
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+    }
+
     private CompletableFuture<Void> prepareThenAccept(CompletionStage invocationFuture,
                                 boolean async,
                                 boolean explicitExecutor) {
@@ -795,6 +830,7 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     }
 
     private <R> CompletableFuture<R> invokeSync() {
+//        return CompletableFuture.supplyAsync(() -> null);
         return invokeSync(new DummyOperation(null));
     }
 

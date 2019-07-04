@@ -22,6 +22,7 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.InternalCompletableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -38,6 +39,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static com.hazelcast.util.ConcurrencyUtil.CALLER_RUNS;
 import static com.hazelcast.util.Preconditions.isNotNull;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 import static java.util.concurrent.locks.LockSupport.park;
@@ -103,7 +105,8 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     // TODO can we avoid making this one protected?
     protected volatile Object state = UNRESOLVED;
 
-    protected AbstractInvocationFuture(Executor defaultExecutor, ILogger logger) {
+    protected AbstractInvocationFuture(@Nonnull Executor defaultExecutor,
+                                       @Nonnull ILogger logger) {
         this.defaultExecutor = defaultExecutor;
         this.logger = logger;
     }
@@ -132,7 +135,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 || state instanceof ExecutionCallback
                 || state instanceof RunNode
                 || state instanceof ApplyNode
-                || state instanceof AbstractInvocationFuture.WhenCompleteNode
+                || state instanceof WhenCompleteNode
                 || state instanceof HandleNode
                 || state instanceof ExceptionallyNode
                 || state instanceof AcceptNode);
@@ -524,6 +527,32 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    // a WaitNode for a Function<V, ? extends CompletionStage<R>>
+    // todo next
+//    protected static final class ComposeNode<V, U> {
+//        final AtomicReference<? extends CompletionStage<U>> future;
+//        final Function<? super V, ? extends CompletionStage<U>> function;
+//
+//        public ComposeNode(AtomicReference<? extends CompletionStage<U>> future,
+//                           Function<? super V, ? extends CompletionStage<U>> function) {
+//            this.future = future;
+//            this.function = function;
+//        }
+//
+//        public void execute(Executor executor, V value) {
+//            if (cascadeException(value, future.get())) {
+//                return;
+//            }
+//            if (executor == null) {
+//                future.complete(function.apply(value));
+//            } else {
+//                executor.execute(() -> {
+//                    future.complete(function.apply(value));
+//                });
+//            }
+//        }
+//    }
+
     // a WaitNode for exceptionally(Function<Throwable, V>)
     protected static final class ExceptionallyNode<R> {
         final CompletableFuture<R> future;
@@ -560,21 +589,14 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
 
         public void execute(Executor executor, V value, T throwable) {
-            if (executor == null) {
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
                 try {
                     future.complete(biFunction.apply(value, throwable));
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
-            } else {
-                executor.execute(() -> {
-                    try {
-                        future.complete(biFunction.apply(value, throwable));
-                    } catch (Throwable t) {
-                        future.completeExceptionally(t);
-                    }
-                });
-            }
+            });
         }
     }
 
@@ -583,13 +605,14 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         final CompletableFuture<V> future;
         final BiConsumer<V, T> biFunction;
 
-        public WhenCompleteNode(CompletableFuture<V> future, BiConsumer<V, T> biFunction) {
+        public WhenCompleteNode(@Nonnull CompletableFuture<V> future, @Nonnull BiConsumer<V, T> biFunction) {
             this.future = future;
             this.biFunction = biFunction;
         }
 
         public void execute(Executor executor, V value, T throwable) {
-            if (executor == null) {
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
                 try {
                     biFunction.accept(value, throwable);
                 } catch (Throwable t) {
@@ -597,17 +620,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                     return;
                 }
                 complete(value, throwable);
-            } else {
-                executor.execute(() -> {
-                    try {
-                        biFunction.accept(value, throwable);
-                    } catch (Throwable t) {
-                        completeExceptionallyWithPriority(future, throwable, t);
-                        return;
-                    }
-                    complete(value, throwable);
-                });
-            }
+            });
         }
 
         private void complete(V value, T throwable) {
@@ -624,7 +637,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         final CompletableFuture<Void> future;
         final Consumer<T> consumer;
 
-        public AcceptNode(CompletableFuture<Void> future, Consumer<T> consumer) {
+        public AcceptNode(@Nonnull CompletableFuture<Void> future, @Nonnull Consumer<T> consumer) {
             this.future = future;
             this.consumer = consumer;
         }
@@ -633,14 +646,14 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             if (cascadeException(value, future)) {
                 return;
             }
-            if (executor == null) {
-                consumer.accept(value);
-                future.complete(null);
-                return;
-            }
-            executor.execute(() -> {
-                consumer.accept(value);
-                future.complete(null);
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    consumer.accept(value);
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
             });
         }
     }
@@ -650,7 +663,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         final CompletableFuture<Void> future;
         final Runnable runnable;
 
-        public RunNode(CompletableFuture<Void> future, Runnable runnable) {
+        public RunNode(@Nonnull CompletableFuture<Void> future, @Nonnull Runnable runnable) {
             this.future = future;
             this.runnable = runnable;
         }
@@ -659,14 +672,14 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             if (cascadeException(resolved, future)) {
                 return;
             }
-            if (executor == null) {
-                runnable.run();
-                future.complete(null);
-                return;
-            }
-            executor.execute(() -> {
-                runnable.run();
-                future.complete(null);
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    runnable.run();
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
             });
         }
     }
