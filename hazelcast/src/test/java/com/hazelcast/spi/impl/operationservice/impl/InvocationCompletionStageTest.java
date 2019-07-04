@@ -788,13 +788,83 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
     }
 
     @Test
-    public void thenCompose() {
+    public void thenCompose_onCompletedFuture() {
         CompletableFuture<Object> future = invokeSync();
         CompletableFuture<Object> composedFuture = future
                 .thenCompose(value -> CompletableFuture.completedFuture(returnValue));
 
         assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
         assertEquals(returnValue, composedFuture.join());
+    }
+
+    @Test
+    public void thenCompose_onIncompleteFuture() {
+        InvocationCompletionStage<Object> future = invokeAsync(new SlowOperation(3000, "#"));
+        CompletableFuture<Object> composedFuture = future.toCompletableFuture()
+                .thenCompose(value -> CompletableFuture.completedFuture(returnValue));
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+    }
+
+    @Test
+    public void thenComposeAsync_onCompletedFuture() {
+        CompletionStage<Object> future = invokeSync();
+        CompletableFuture<Object> composedFuture = future.toCompletableFuture()
+                .thenComposeAsync(value -> CompletableFuture.completedFuture(returnValue));
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+    }
+
+    @Test
+    public void thenComposeAsync_onIncompleteFuture() {
+        InvocationCompletionStage<Object> future = invokeAsync(new SlowOperation(3000, "#"));
+        CompletableFuture<Object> composedFuture = future.toCompletableFuture()
+                .thenComposeAsync(value -> CompletableFuture.completedFuture(returnValue));
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+    }
+
+    @Test
+    public void thenComposeAsync_withExecutor_onCompletedFuture() {
+        CompletionStage<Object> future = invokeAsync();
+        CompletableFuture<Object> composedFuture = future.toCompletableFuture()
+                .thenComposeAsync(value -> CompletableFuture.completedFuture(returnValue), countingExecutor);
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void thenComposeAsync_withExecutor_onIncompleteFuture() {
+        InvocationCompletionStage<Object> future = invokeAsync(new SlowOperation(3000, "#"));
+        CompletableFuture<Object> composedFuture = future.toCompletableFuture()
+                .thenComposeAsync(value -> CompletableFuture.completedFuture(returnValue), countingExecutor);
+
+        assertTrueEventually(() -> assertTrue(composedFuture.isDone()));
+        assertEquals(returnValue, composedFuture.join());
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void thenCompose_whenNullFunction() {
+        CompletableFuture<Object> future = invokeSync();
+        future.thenCompose(null);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void thenComposeAsync_whenNullFunction() {
+        CompletableFuture<Object> future = invokeSync();
+        future.thenComposeAsync(null);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void thenComposeAsync_withExecutor_whenNullFunction() {
+        CompletableFuture<Object> future = invokeSync();
+        future.thenComposeAsync(null, countingExecutor);
     }
 
     private CompletableFuture<Void> prepareThenAccept(CompletionStage invocationFuture,

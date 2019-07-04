@@ -133,12 +133,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                 || state instanceof WaitNode
                 || state instanceof Thread
                 || state instanceof ExecutionCallback
-                || state instanceof RunNode
-                || state instanceof ApplyNode
-                || state instanceof WhenCompleteNode
-                || state instanceof HandleNode
-                || state instanceof ExceptionallyNode
-                || state instanceof AcceptNode);
+                || state instanceof Waiter);
     }
 
     protected void onInterruptDetected() {
@@ -503,8 +498,12 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    interface Waiter {
+        // marker interface for waiter nodes
+    }
+
     // a WaitNode for a Function<V, R>
-    protected static final class ApplyNode<V, R> {
+    protected static final class ApplyNode<V, R> implements Waiter {
         final CompletableFuture<R> future;
         final Function<V, R> function;
 
@@ -554,7 +553,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
 //    }
 
     // a WaitNode for exceptionally(Function<Throwable, V>)
-    protected static final class ExceptionallyNode<R> {
+    protected static final class ExceptionallyNode<R> implements Waiter {
         final CompletableFuture<R> future;
         final Function<Throwable, ? extends R> function;
 
@@ -579,7 +578,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     // a WaitNode for a BiFunction<V, T, R>
-    protected static final class HandleNode<V, T, R> {
+    protected static final class HandleNode<V, T, R> implements Waiter {
         final CompletableFuture<R> future;
         final BiFunction<V, T, R> biFunction;
 
@@ -601,7 +600,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     // a WaitNode for a BiConsumer<V, T>
-    protected static final class WhenCompleteNode<V, T extends Throwable> {
+    protected static final class WhenCompleteNode<V, T extends Throwable> implements Waiter {
         final CompletableFuture<V> future;
         final BiConsumer<V, T> biFunction;
 
@@ -633,7 +632,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     // a WaitNode for a Consumer<? super V>
-    protected static final class AcceptNode<T> {
+    protected static final class AcceptNode<T> implements Waiter {
         final CompletableFuture<Void> future;
         final Consumer<T> consumer;
 
@@ -659,7 +658,7 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
     }
 
     // a WaitNode for a Runnable
-    protected static final class RunNode {
+    protected static final class RunNode implements Waiter {
         final CompletableFuture<Void> future;
         final Runnable runnable;
 
@@ -684,18 +683,34 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
-    // todo
-    protected static final class ComposeNode<T, U> {
+    protected static final class ComposeNode<T, U> implements Waiter {
         final CompletableFuture<U> future;
-        final Function<? extends T, ? extends CompletionStage<U>> function;
+        final Function<? super T, ? extends CompletionStage<U>> function;
 
-        public ComposeNode(CompletableFuture<U> future, Function<? extends T, ? extends CompletionStage<U>> function) {
+        public ComposeNode(CompletableFuture<U> future, Function<? super T, ? extends CompletionStage<U>> function) {
             this.future = future;
             this.function = function;
         }
 
-        public void execute(T value, Executor executor) {
-
+        public void execute(Executor executor, Object resolved) {
+            if (cascadeException(resolved, future)) {
+                return;
+            }
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    CompletionStage<U> r = function.apply((T) resolved);
+                    r.whenComplete((v, t) -> {
+                        if (t == null) {
+                            future.complete(v);
+                        } else {
+                            future.completeExceptionally(t);
+                        }
+                    });
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
         }
     }
 

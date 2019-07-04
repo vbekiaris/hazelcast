@@ -17,7 +17,6 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.spi.impl.AbstractInvocationFuture;
-import com.hazelcast.util.ConcurrencyUtil;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +27,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static com.hazelcast.util.ConcurrencyUtil.CALLER_RUNS;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -56,8 +56,6 @@ import static java.util.Objects.requireNonNull;
 // todo tests for exceptions thrown from user customizations
 // todo deduplication of WaitNodes code (possible to extract interface?)
 // todo pull CompletionStage implementation to AbstractInvocationFuture? or compose to other class for reuse in client-side futures?
-    // done
-    // extodo deduplication of executor==null/executor.execute branches
 public class InvocationCompletionStage<V> extends InvocationFuture<V> implements CompletionStage<V> {
 
     public InvocationCompletionStage(Invocation invocation, boolean deserialize) {
@@ -88,7 +86,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             if (cascadeException(value, result)) {
                 return result;
             }
-            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
             e.execute(() -> {
                 try {
                     consumer.accept((V) value);
@@ -128,6 +126,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             handleNode.execute(executor, value, t);
         } else if (waiter instanceof ExceptionallyNode) {
             ((ExceptionallyNode) waiter).execute(value);
+        } else if (waiter instanceof ComposeNode) {
+            ((ComposeNode) waiter).execute(executor, value);
         }
     }
 
@@ -160,7 +160,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             if (cascadeException(value, result)) {
                 return result;
             }
-            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
             e.execute(() -> {
                 result.complete(function.apply((V) value));
             });
@@ -195,7 +195,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             if (cascadeException(value, result)) {
                 return result;
             }
-            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
             e.execute(() -> {
                 try {
                     runnable.run();
@@ -295,7 +295,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
                 throwable = null;
                 value = (V) result;
             }
-            Executor e = (executor == null) ? ConcurrencyUtil.CALLER_RUNS : executor;
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
             e.execute(() -> {
                 try {
                     biConsumer.accept((V) value, throwable);
@@ -336,52 +336,53 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
         }
     }
 
-    // todo thenCompose, thenCombine implementations
-    // todo another kind of node per method family
-
     @Override
-    public <U> CompletionStage<U> thenCompose(Function<? super V, ? extends CompletionStage<U>> fn) {
-        return null;
+    public <U> CompletionStage<U> thenCompose(@Nonnull Function<? super V, ? extends CompletionStage<U>> fn) {
+        return unblockCompose(fn, null);
     }
 
     @Override
-    public <U> CompletionStage<U> thenComposeAsync(Function<? super V, ? extends CompletionStage<U>> fn) {
-        return null;
+    public <U> CompletionStage<U> thenComposeAsync(@Nonnull Function<? super V, ? extends CompletionStage<U>> fn) {
+        return unblockCompose(fn, defaultExecutor);
     }
 
     @Override
-    public <U> CompletionStage<U> thenComposeAsync(Function<? super V, ? extends CompletionStage<U>> fn, Executor executor) {
-        return null;
+    public <U> CompletionStage<U> thenComposeAsync(@Nonnull Function<? super V, ? extends CompletionStage<U>> fn,
+                                                   Executor executor) {
+        return unblockCompose(fn, executor);
     }
-// todo next
 
-//    protected <U> CompletionStage<U> unblockCompose(final Function<? super V, ? extends CompletionStage<U>> function, Executor executor) {
-//        final Object value = resolve(state);
-//        DelegatingCompletableFuture<U> result = new DelegatingCompletableFuture<>(defaultExecutor);
-//        if (value != UNRESOLVED) {
-//            if (cascadeException(value, result)) {
-//                return result;
-//            }
-//            V v = (V) value;
-//            if (executor != null) {
-//                executor.execute(() -> {
-//                    try {
-//                        CompletionStage<U> r = function.apply(v);
-//                    } catch (Throwable t) {
-//
-//                    }
-//
-//                    result.setOriginal(function.apply((V) value).toCompletableFuture());
-//                });
-//            } else {
-//                result.setOriginal(function.apply((V) value).toCompletableFuture());
-//            }
-//            return result;
-//        } else {
-//            registerWaiter(new ComposeNode<>(result, function), executor);
-//            return result;
-//        }
-//    }
+    protected <U> CompletionStage<U> unblockCompose(@Nonnull final Function<? super V, ? extends CompletionStage<U>> function,
+                                                    Executor executor) {
+        requireNonNull(function);
+        final Object value = resolve(state);
+
+        CompletableFuture<U> result = newCompletableFuture();
+        if (value != UNRESOLVED && isDone()) {
+            if (cascadeException(value, result)) {
+                return result;
+            }
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    CompletionStage<U> r = function.apply((V) value);
+                    r.whenComplete((v, t) -> {
+                        if (t == null) {
+                            result.complete(v);
+                        } else {
+                            result.completeExceptionally(t);
+                        }
+                    });
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+            return result;
+        } else {
+            registerWaiter(new ComposeNode<>(result, function), executor);
+            return result;
+        }
+    }
 
     ///// stubs to implement
     @Override
