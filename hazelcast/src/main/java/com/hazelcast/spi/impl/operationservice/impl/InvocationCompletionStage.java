@@ -386,21 +386,59 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     ///// stubs to implement
     @Override
-    public <U, V1> CompletionStage<V1> thenCombine(CompletionStage<? extends U> other,
-                                                   BiFunction<? super V, ? super U, ? extends V1> fn) {
+    public <U, R> CompletionStage<R> thenCombine(@Nonnull CompletionStage<? extends U> other,
+                                                 @Nonnull BiFunction<? super V, ? super U, ? extends R> fn) {
+        return unblockCombine(other, fn, null);
+    }
+
+    @Override
+    public <U, R> CompletionStage<R> thenCombineAsync(CompletionStage<? extends U> other,
+                                                        BiFunction<? super V, ? super U, ? extends R> fn) {
         return null;
     }
 
     @Override
-    public <U, V1> CompletionStage<V1> thenCombineAsync(CompletionStage<? extends U> other,
-                                                        BiFunction<? super V, ? super U, ? extends V1> fn) {
+    public <U, R> CompletionStage<R> thenCombineAsync(CompletionStage<? extends U> other,
+                                                        BiFunction<? super V, ? super U, ? extends R> fn, Executor executor) {
         return null;
     }
 
-    @Override
-    public <U, V1> CompletionStage<V1> thenCombineAsync(CompletionStage<? extends U> other,
-                                                        BiFunction<? super V, ? super U, ? extends V1> fn, Executor executor) {
-        return null;
+    protected <U, R> CompletionStage<R> unblockCombine(@Nonnull CompletionStage<? extends U> other,
+                                                       @Nonnull final BiFunction<? super V, ? super U, ? extends R> function,
+                                                       Executor executor) {
+        requireNonNull(other);
+        requireNonNull(function);
+        final Object value = resolve(state);
+        final CompletableFuture<? extends U> otherFuture =
+                (other instanceof CompletableFuture) ? (CompletableFuture<? extends U>) other : other.toCompletableFuture();
+
+        CompletableFuture<R> result = newCompletableFuture();
+        if (value != UNRESOLVED && isDone() && otherFuture.isDone()) {
+            if (cascadeException(value, result)) {
+                return result;
+            }
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.exceptionally(t -> {
+                    result.completeExceptionally(t);
+                    return null;
+                });
+                return result;
+            }
+            U otherValue = otherFuture.join();
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    R r = function.apply((V) value, otherValue);
+                    result.complete(r);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+            return result;
+        } else {
+            registerWaiter(new CombineNode(result, otherFuture, function), executor);
+            return result;
+        }
     }
 
     @Override

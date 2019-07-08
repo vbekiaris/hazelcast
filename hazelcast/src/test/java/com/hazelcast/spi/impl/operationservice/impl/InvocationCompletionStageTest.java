@@ -867,6 +867,34 @@ public class InvocationCompletionStageTest extends HazelcastTestSupport {
         future.thenComposeAsync(null, countingExecutor);
     }
 
+    @Test
+    public void thenCompose_whenExceptionFromFirstStage() {
+        CompletableFuture<Object> future = invokeSync_withException();
+
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        future.thenCompose(v -> null).join();
+    }
+
+    @Test
+    public void thenCompose_whenExceptionFromUserFunction() {
+        CompletableFuture<Object> future = invokeSync();
+
+        expectedException.expect(CompletionException.class);
+        expectedException.expectCause(new RootCauseMatcher(IllegalStateException.class));
+        future.thenCompose(v -> {throw new IllegalStateException();}).join();
+    }
+
+    @Test
+    public void thenCompose_whenExceptionFromFirstStageAndUserFunction_thenFirstStageExceptionBubbles() {
+        CompletableFuture<Object> future = invokeSync_withException();
+
+        expectedException.expect(CompletionException.class);
+        // expect the exception thrown from first future
+        expectedException.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+        future.thenCompose(v -> {throw new IllegalStateException();}).join();
+    }
+
     private CompletableFuture<Void> prepareThenAccept(CompletionStage invocationFuture,
                                 boolean async,
                                 boolean explicitExecutor) {

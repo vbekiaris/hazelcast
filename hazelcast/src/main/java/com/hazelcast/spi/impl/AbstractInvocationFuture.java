@@ -714,6 +714,44 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    protected static final class CombineNode<T, U, R> implements Waiter {
+        final CompletableFuture<R> result;
+        final CompletableFuture<? extends U> otherFuture;
+        final BiFunction<? super T, ? super U, ? extends R> function;
+
+        public CombineNode(CompletableFuture<R> future,
+                           CompletableFuture<? extends U> otherFuture,
+                           BiFunction<? super T, ? super U, ? extends R> function) {
+            this.result = future;
+            this.otherFuture = otherFuture;
+            this.function = function;
+        }
+
+        public void execute(Executor executor, Object resolved) {
+            if (cascadeException(resolved, result)) {
+                return;
+            }
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.exceptionally(t -> {
+                    result.completeExceptionally(t);
+                    return null;
+                });
+                return;
+            }
+            U otherValue = otherFuture.join();
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    R r = function.apply((T) resolved, otherValue);
+                    result.complete(r);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+            return;
+        }
+    }
+
     private static boolean isStateCancelled(final Object state) {
         return ((state instanceof ExceptionalResult) &&
                 (((ExceptionalResult) state).cause instanceof CancellationException));
