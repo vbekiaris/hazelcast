@@ -718,17 +718,15 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
-    protected static final class CombineNode<T, U, R> implements Waiter {
+    // common superclass of waiters for two futures (combine, acceptBoth, runAfterBoth)
+    protected abstract static class AbstractBiNode<T, U, R> implements Waiter {
         final CompletableFuture<R> result;
         final CompletableFuture<? extends U> otherFuture;
-        final BiFunction<? super T, ? super U, ? extends R> function;
 
-        public CombineNode(CompletableFuture<R> future,
-                           CompletableFuture<? extends U> otherFuture,
-                           BiFunction<? super T, ? super U, ? extends R> function) {
+        public AbstractBiNode(CompletableFuture<R> future,
+                           CompletableFuture<? extends U> otherFuture) {
             this.result = future;
             this.otherFuture = otherFuture;
-            this.function = function;
         }
 
         public void execute(Executor executor, Object resolved) {
@@ -739,12 +737,12 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             }
             if (!otherFuture.isDone()) {
                 // register on other future and exit
-                otherFuture.whenCompleteAsync((v, t) -> {
+                otherFuture.whenCompleteAsync((u, t) -> {
                     if (t != null) {
                         result.completeExceptionally(t);
                     }
                     try {
-                        R r = function.apply((T) resolved, v);
+                        R r = process((T) resolved, u);
                         result.complete(r);
                     } catch (Throwable e) {
                         result.completeExceptionally(e);
@@ -763,66 +761,47 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
             Executor e = (executor == null) ? CALLER_RUNS : executor;
             e.execute(() -> {
                 try {
-                    R r = function.apply((T) resolved, otherValue);
+                    R r = process((T) resolved, otherValue);
                     result.complete(r);
                 } catch (Throwable t) {
                     result.completeExceptionally(t);
                 }
             });
         }
+
+        abstract R process(T t, U u);
     }
 
-    protected static final class AcceptBothNode<T, U> implements Waiter {
-        final CompletableFuture<Void> result;
-        final CompletableFuture<? extends U> otherFuture;
+    protected static final class CombineNode<T, U, R> extends AbstractBiNode<T, U, R> {
+        final BiFunction<? super T, ? super U, ? extends R> function;
+
+        public CombineNode(CompletableFuture<R> future,
+                           CompletableFuture<? extends U> otherFuture,
+                           BiFunction<? super T, ? super U, ? extends R> function) {
+            super(future, otherFuture);
+            this.function = function;
+        }
+
+        @Override
+        R process(T t, U u) {
+            return function.apply(t, u);
+        }
+    }
+
+    protected static final class AcceptBothNode<T, U> extends AbstractBiNode<T, U, Void> {
         final BiConsumer<? super T, ? super U> action;
 
         public AcceptBothNode(CompletableFuture<Void> future,
                            CompletableFuture<? extends U> otherFuture,
                               BiConsumer<? super T, ? super U> action) {
-            this.result = future;
-            this.otherFuture = otherFuture;
+            super(future, otherFuture);
             this.action = action;
         }
 
-        public void execute(Executor executor, Object resolved) {
-            // todo do we need additional coordination to avoid having combiner
-            //  executed twice? (once by other future and another time by this??
-            if (cascadeException(resolved, result)) {
-                return;
-            }
-            if (!otherFuture.isDone()) {
-                // register on other future and exit
-                otherFuture.whenCompleteAsync((u, t) -> {
-                    if (t != null) {
-                        result.completeExceptionally(t);
-                    }
-                    try {
-                        action.accept((T) resolved, u);
-                        result.complete(null);
-                    } catch (Throwable e) {
-                        result.completeExceptionally(e);
-                    }
-                }, executor);
-                return;
-            }
-            if (otherFuture.isCompletedExceptionally()) {
-                otherFuture.exceptionally(t -> {
-                    result.completeExceptionally(t);
-                    return null;
-                });
-                return;
-            }
-            U otherValue = otherFuture.join();
-            Executor e = (executor == null) ? CALLER_RUNS : executor;
-            e.execute(() -> {
-                try {
-                    action.accept((T) resolved, otherValue);
-                    result.complete(null);
-                } catch (Throwable t) {
-                    result.completeExceptionally(t);
-                }
-            });
+        @Override
+        Void process(T t, U u) {
+            action.accept(t, u);
+            return null;
         }
     }
 
