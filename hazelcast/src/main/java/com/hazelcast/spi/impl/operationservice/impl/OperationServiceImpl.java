@@ -303,7 +303,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
                 .setPartitionId(partitionId)
                 .setReplicaIndex(DEFAULT_REPLICA_INDEX);
 
-        return new PartitionInvocation(
+        return (CompletableFuture<E>) new PartitionInvocation(
                 invocationContext, op, invocationMaxRetryCount, invocationRetryPauseMillis,
                 DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState)
                 .invoke().toCompletableFuture();
@@ -312,7 +312,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
     @Override
     @SuppressWarnings("unchecked")
     public <E> CompletableFuture<E> invokeOnPartition(Operation op) {
-        return new PartitionInvocation(
+        return (CompletableFuture<E>) new PartitionInvocation(
                 invocationContext, op, invocationMaxRetryCount, invocationRetryPauseMillis,
                 DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState)
                 .invoke().toCompletableFuture();
@@ -323,7 +323,8 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
     public <E> CompletableFuture<E> invokeOnTarget(String serviceName, Operation op, Address target) {
         op.setServiceName(serviceName);
 
-        return new TargetInvocation(invocationContext, op, target, invocationMaxRetryCount, invocationRetryPauseMillis,
+        return (CompletableFuture<E>)
+                new TargetInvocation(invocationContext, op, target, invocationMaxRetryCount, invocationRetryPauseMillis,
                 DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT).invoke().toCompletableFuture();
     }
 

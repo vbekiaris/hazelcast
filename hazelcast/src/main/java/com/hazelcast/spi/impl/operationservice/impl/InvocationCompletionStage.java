@@ -128,6 +128,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             ((ExceptionallyNode) waiter).execute(value);
         } else if (waiter instanceof ComposeNode) {
             ((ComposeNode) waiter).execute(executor, value);
+        } else if (waiter instanceof CombineNode) {
+            ((CombineNode) waiter).execute(executor, value);
         }
     }
 
@@ -394,13 +396,13 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
     @Override
     public <U, R> CompletionStage<R> thenCombineAsync(CompletionStage<? extends U> other,
                                                         BiFunction<? super V, ? super U, ? extends R> fn) {
-        return null;
+        return unblockCombine(other, fn, defaultExecutor);
     }
 
     @Override
     public <U, R> CompletionStage<R> thenCombineAsync(CompletionStage<? extends U> other,
                                                         BiFunction<? super V, ? super U, ? extends R> fn, Executor executor) {
-        return null;
+        return unblockCombine(other, fn, executor);
     }
 
     protected <U, R> CompletionStage<R> unblockCombine(@Nonnull CompletionStage<? extends U> other,
@@ -413,10 +415,31 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
                 (other instanceof CompletableFuture) ? (CompletableFuture<? extends U>) other : other.toCompletableFuture();
 
         CompletableFuture<R> result = newCompletableFuture();
-        if (value != UNRESOLVED && isDone() && otherFuture.isDone()) {
+        if (value != UNRESOLVED && isDone()) {
+            // TODO does this violate contract of exception handling in CompletionStage?
+            //  thenCombine would wait for both futures to complete normally, but does not
+            //  indicate that it is required to wait for both when completed exceptionally
+            // in case this future is completed exceptionally, the result is also exceptionally completed
+            // without checking whether otherFuture is completed or not
             if (cascadeException(value, result)) {
                 return result;
             }
+            if (!otherFuture.isDone()) {
+                // register on other future as waiter and return
+                otherFuture.whenCompleteAsync((v, t) -> {
+                    if (t != null) {
+                        result.completeExceptionally(t);
+                    }
+                    try {
+                        R r = function.apply((V) value, v);
+                        result.complete(r);
+                    } catch (Throwable e) {
+                        result.completeExceptionally(e);
+                    }
+                }, executor);
+                return result;
+            }
+            // both futures are done
             if (otherFuture.isCompletedExceptionally()) {
                 otherFuture.exceptionally(t -> {
                     result.completeExceptionally(t);
@@ -436,7 +459,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             });
             return result;
         } else {
-            registerWaiter(new CombineNode(result, otherFuture, function), executor);
+            CombineNode waiter = new CombineNode(result, otherFuture, function);
+            registerWaiter(waiter, executor);
             return result;
         }
     }

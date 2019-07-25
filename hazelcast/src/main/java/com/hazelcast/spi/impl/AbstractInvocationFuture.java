@@ -149,6 +149,10 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         return isStateCancelled(state);
     }
 
+    public boolean isCompletedExceptionally() {
+        return (state instanceof ExceptionalResult);
+    }
+
     @Override
     public final V join() {
         try {
@@ -728,7 +732,24 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
 
         public void execute(Executor executor, Object resolved) {
+            // todo do we need additional coordination to avoid having combiner
+            //  executed twice? (once by other future and another time by this??
             if (cascadeException(resolved, result)) {
+                return;
+            }
+            if (!otherFuture.isDone()) {
+                // register on other future and exit
+                otherFuture.whenCompleteAsync((v, t) -> {
+                    if (t != null) {
+                        result.completeExceptionally(t);
+                    }
+                    try {
+                        R r = function.apply((T) resolved, v);
+                        result.complete(r);
+                    } catch (Throwable e) {
+                        result.completeExceptionally(e);
+                    }
+                }, executor);
                 return;
             }
             if (otherFuture.isCompletedExceptionally()) {
@@ -748,7 +769,6 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
                     result.completeExceptionally(t);
                 }
             });
-            return;
         }
     }
 

@@ -242,7 +242,7 @@ public class InvocationCompletableFuture<T> extends CompletableFuture<T> {
 
     @Override
     public CompletableFuture<T> toCompletableFuture() {
-        return future.toCompletableFuture();
+        return this;
     }
 
     // CompletableFuture API methods
@@ -296,8 +296,7 @@ public class InvocationCompletableFuture<T> extends CompletableFuture<T> {
 
     @Override
     public boolean isCompletedExceptionally() {
-        // todo
-        throw new UnsupportedOperationException("Not implemented yet");
+        return future.isCompletedExceptionally();
     }
 
     @Override
