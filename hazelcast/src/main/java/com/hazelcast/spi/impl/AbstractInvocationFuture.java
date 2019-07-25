@@ -772,6 +772,60 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    protected static final class AcceptBothNode<T, U> implements Waiter {
+        final CompletableFuture<Void> result;
+        final CompletableFuture<? extends U> otherFuture;
+        final BiConsumer<? super T, ? super U> action;
+
+        public AcceptBothNode(CompletableFuture<Void> future,
+                           CompletableFuture<? extends U> otherFuture,
+                              BiConsumer<? super T, ? super U> action) {
+            this.result = future;
+            this.otherFuture = otherFuture;
+            this.action = action;
+        }
+
+        public void execute(Executor executor, Object resolved) {
+            // todo do we need additional coordination to avoid having combiner
+            //  executed twice? (once by other future and another time by this??
+            if (cascadeException(resolved, result)) {
+                return;
+            }
+            if (!otherFuture.isDone()) {
+                // register on other future and exit
+                otherFuture.whenCompleteAsync((u, t) -> {
+                    if (t != null) {
+                        result.completeExceptionally(t);
+                    }
+                    try {
+                        action.accept((T) resolved, u);
+                        result.complete(null);
+                    } catch (Throwable e) {
+                        result.completeExceptionally(e);
+                    }
+                }, executor);
+                return;
+            }
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.exceptionally(t -> {
+                    result.completeExceptionally(t);
+                    return null;
+                });
+                return;
+            }
+            U otherValue = otherFuture.join();
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    action.accept((T) resolved, otherValue);
+                    result.complete(null);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+        }
+    }
+
     private static boolean isStateCancelled(final Object state) {
         return ((state instanceof ExceptionalResult) &&
                 (((ExceptionalResult) state).cause instanceof CancellationException));

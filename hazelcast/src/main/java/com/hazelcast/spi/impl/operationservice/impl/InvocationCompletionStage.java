@@ -130,6 +130,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             ((ComposeNode) waiter).execute(executor, value);
         } else if (waiter instanceof CombineNode) {
             ((CombineNode) waiter).execute(executor, value);
+        } else if (waiter instanceof AcceptBothNode) {
+            ((AcceptBothNode) waiter).execute(executor, value);
         }
     }
 
@@ -467,19 +469,79 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBoth(CompletionStage<? extends U> other, BiConsumer<? super V, ? super U> action) {
-        return null;
+        return unblockAcceptBoth(other, action, null);
     }
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other,
                                                          BiConsumer<? super V, ? super U> action) {
-        return null;
+        return unblockAcceptBoth(other, action, defaultExecutor);
     }
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other,
                                                          BiConsumer<? super V, ? super U> action, Executor executor) {
-        return null;
+        return unblockAcceptBoth(other, action, executor);
+    }
+
+    protected <U> CompletionStage<Void> unblockAcceptBoth(@Nonnull CompletionStage<? extends U> other,
+                                                       @Nonnull final BiConsumer<? super V, ? super U> action,
+                                                       Executor executor) {
+        requireNonNull(other);
+        requireNonNull(action);
+        final Object value = resolve(state);
+        final CompletableFuture<? extends U> otherFuture =
+                (other instanceof CompletableFuture) ? (CompletableFuture<? extends U>) other : other.toCompletableFuture();
+
+        CompletableFuture<Void> result = newCompletableFuture();
+        if (value != UNRESOLVED && isDone()) {
+            // TODO does this violate contract of exception handling in CompletionStage?
+            //  thenCombine would wait for both futures to complete normally, but does not
+            //  indicate that it is required to wait for both when completed exceptionally
+            // in case this future is completed exceptionally, the result is also exceptionally completed
+            // without checking whether otherFuture is completed or not
+            if (cascadeException(value, result)) {
+                return result;
+            }
+            if (!otherFuture.isDone()) {
+                // register on other future as waiter and return
+                otherFuture.whenCompleteAsync((u, t) -> {
+                    if (t != null) {
+                        result.completeExceptionally(t);
+                    }
+                    try {
+                        action.accept((V) value, u);
+                        result.complete(null);
+                    } catch (Throwable e) {
+                        result.completeExceptionally(e);
+                    }
+                }, executor);
+                return result;
+            }
+            // both futures are done
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.exceptionally(t -> {
+                    result.completeExceptionally(t);
+                    return null;
+                });
+                return result;
+            }
+            U otherValue = otherFuture.join();
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    action.accept((V) value, otherValue);
+                    result.complete(null);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+            return result;
+        } else {
+            AcceptBothNode waiter = new AcceptBothNode(result, otherFuture, action);
+            registerWaiter(waiter, executor);
+            return result;
+        }
     }
 
     @Override
