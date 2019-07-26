@@ -96,7 +96,7 @@ public class BiCompletionStageTest extends HazelcastTestSupport {
 
     @Before
     public void setup() {
-        local = createHazelcastInstance();
+        local = createHazelcastInstance(smallInstanceConfig());
         future1 = invocation1.invoke(local);
         future2 = invocation2.invoke(local);
         countingExecutor = new CountingExecutor();
@@ -218,6 +218,64 @@ public class BiCompletionStageTest extends HazelcastTestSupport {
             assertTrue(future2.isDone());
             assertNull(v1);
             assertNull(v2);
+        }, countingExecutor);
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(combinedFuture.isDone());
+        });
+        if (exceptionalCompletion) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            combinedFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(combinedFuture.join());
+        assertEquals(1, countingExecutor.counter.get());
+    }
+
+    @Test
+    public void runAfterBoth() {
+        CompletableFuture<Void> combinedFuture = future1.runAfterBoth(future2, () -> {
+            assertTrue(future1.isDone());
+            assertTrue(future2.isDone());
+        });
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(combinedFuture.isDone());
+        });
+        if (exceptionalCompletion) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            combinedFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(combinedFuture.join());
+    }
+
+    @Test
+    public void runAfterBothAsync() {
+        CompletableFuture<Void> combinedFuture = future1.runAfterBothAsync(future2, () -> {
+            assertTrue(future1.isDone());
+            assertTrue(future2.isDone());
+        });
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(combinedFuture.isDone());
+        });
+        if (exceptionalCompletion) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            combinedFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(combinedFuture.join());
+    }
+
+    @Test
+    public void runAfterBothAsync_withExecutor() {
+        CompletableFuture<Void> combinedFuture = future1.runAfterBothAsync(future2, () -> {
+            assertTrue(future1.isDone());
+            assertTrue(future2.isDone());
         }, countingExecutor);
         boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
         assertTrueEventually(() -> {

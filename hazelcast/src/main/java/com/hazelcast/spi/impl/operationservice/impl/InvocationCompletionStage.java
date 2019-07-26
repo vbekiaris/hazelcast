@@ -128,10 +128,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             ((ExceptionallyNode) waiter).execute(value);
         } else if (waiter instanceof ComposeNode) {
             ((ComposeNode) waiter).execute(executor, value);
-        } else if (waiter instanceof CombineNode) {
-            ((CombineNode) waiter).execute(executor, value);
-        } else if (waiter instanceof AcceptBothNode) {
-            ((AcceptBothNode) waiter).execute(executor, value);
+        } else if (waiter instanceof AbstractBiNode) {
+            ((AbstractBiNode) waiter).execute(executor, value);
         }
     }
 
@@ -546,17 +544,76 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     public CompletionStage<Void> runAfterBoth(CompletionStage<?> other, Runnable action) {
-        return null;
+        return unblockRunAfterBoth(other, action, null);
     }
 
     @Override
     public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, Runnable action) {
-        return null;
+        return unblockRunAfterBoth(other, action, defaultExecutor);
     }
 
     @Override
     public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, Runnable action, Executor executor) {
-        return null;
+        return unblockRunAfterBoth(other, action, executor);
+    }
+
+    protected <U> CompletionStage<Void> unblockRunAfterBoth(@Nonnull CompletionStage<? extends U> other,
+                                                          @Nonnull final Runnable action,
+                                                          Executor executor) {
+        requireNonNull(other);
+        requireNonNull(action);
+        final Object value = resolve(state);
+        final CompletableFuture<? extends U> otherFuture =
+                (other instanceof CompletableFuture) ? (CompletableFuture<? extends U>) other : other.toCompletableFuture();
+
+        CompletableFuture<Void> result = newCompletableFuture();
+        if (value != UNRESOLVED && isDone()) {
+            // TODO does this violate contract of exception handling in CompletionStage?
+            //  thenCombine would wait for both futures to complete normally, but does not
+            //  indicate that it is required to wait for both when completed exceptionally
+            // in case this future is completed exceptionally, the result is also exceptionally completed
+            // without checking whether otherFuture is completed or not
+            if (cascadeException(value, result)) {
+                return result;
+            }
+            if (!otherFuture.isDone()) {
+                // register on other future as waiter and return
+                otherFuture.whenCompleteAsync((u, t) -> {
+                    if (t != null) {
+                        result.completeExceptionally(t);
+                    }
+                    try {
+                        action.run();
+                        result.complete(null);
+                    } catch (Throwable e) {
+                        result.completeExceptionally(e);
+                    }
+                }, executor);
+                return result;
+            }
+            // both futures are done
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.exceptionally(t -> {
+                    result.completeExceptionally(t);
+                    return null;
+                });
+                return result;
+            }
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    action.run();
+                    result.complete(null);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+            return result;
+        } else {
+            RunAfterBothNode waiter = new RunAfterBothNode(result, otherFuture, action);
+            registerWaiter(waiter, executor);
+            return result;
+        }
     }
 
     @Override

@@ -805,6 +805,23 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    protected static final class RunAfterBothNode<T, U> extends AbstractBiNode<T, U, Void> {
+        final Runnable action;
+
+        public RunAfterBothNode(CompletableFuture<Void> future,
+                           CompletableFuture<? extends U> otherFuture,
+                              Runnable action) {
+            super(future, otherFuture);
+            this.action = action;
+        }
+
+        @Override
+        Void process(T t, U u) {
+            action.run();
+            return null;
+        }
+    }
+
     private static boolean isStateCancelled(final Object state) {
         return ((state instanceof ExceptionalResult) &&
                 (((ExceptionalResult) state).cause instanceof CancellationException));
