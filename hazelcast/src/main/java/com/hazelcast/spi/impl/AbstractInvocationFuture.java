@@ -885,6 +885,35 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
     }
 
+    protected static final class AcceptEither<T> extends AbstractEitherNode<T, Void> {
+        final Consumer<T> action;
+
+        public AcceptEither(CompletableFuture<Void> future, Consumer<T> action) {
+            super(future);
+            this.action = action;
+        }
+
+        @Override
+        Void process(T t) {
+            action.accept(t);
+            return null;
+        }
+    }
+
+    protected static final class ApplyEither<T, R> extends AbstractEitherNode<T, R> {
+        final Function<T, R> action;
+
+        public ApplyEither(CompletableFuture<R> future, Function<T, R> action) {
+            super(future);
+            this.action = action;
+        }
+
+        @Override
+        R process(T t) {
+            return action.apply(t);
+        }
+    }
+
     private static boolean isStateCancelled(final Object state) {
         return ((state instanceof ExceptionalResult) &&
                 (((ExceptionalResult) state).cause instanceof CancellationException));
