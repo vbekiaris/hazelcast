@@ -38,6 +38,7 @@ import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -289,5 +290,69 @@ public class BiCompletionStageTest extends HazelcastTestSupport {
         // non-exceptional completion
         assertNull(combinedFuture.join());
         assertEquals(1, countingExecutor.counter.get());
+    }
+
+
+    // {run|accept|apply}AfterEither* tests. Javadoc of CompletionStage states:
+    // If a stage is dependent on
+    // <em>either</em> of two others, and only one of them completes
+    // exceptionally, no guarantees are made about whether the dependent
+    // stage completes normally or exceptionally.
+
+    @Test
+    public void runAfterEither() {
+        CompletableFuture<Void> eitherFuture = future1.runAfterEither(future2, () -> {
+            assertTrue(future1.isDone() || future2.isDone());
+        });
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(eitherFuture.isDone());
+        });
+        if (exceptionalCompletion && eitherFuture.isCompletedExceptionally()) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            eitherFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(eitherFuture.join());
+    }
+
+    @Test
+    public void runAfterEitherAsync() {
+        CompletableFuture<Void> eitherFuture = future1.runAfterEitherAsync(future2, () -> {
+            assertTrue(future1.isDone()|| future2.isDone());
+        });
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(eitherFuture.isDone());
+        });
+        if (exceptionalCompletion && eitherFuture.isCompletedExceptionally()) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            eitherFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(eitherFuture.join());
+    }
+
+    @Test
+    public void runAfterEitherAsync_withExecutor() {
+        AtomicInteger executionCounter = new AtomicInteger();
+        CompletableFuture<Void> eitherFuture = future1.runAfterEitherAsync(future2, () -> {
+            assertTrue(future1.isDone()|| future2.isDone());
+            executionCounter.getAndIncrement();
+        }, countingExecutor);
+        boolean exceptionalCompletion = invocation1.throwsException || invocation2.throwsException;
+        assertTrueEventually(() -> {
+            assertTrue(eitherFuture.isDone());
+        });
+        if (exceptionalCompletion && eitherFuture.isCompletedExceptionally()) {
+            expected.expect(CompletionException.class);
+            expected.expectCause(new RootCauseMatcher(ExpectedRuntimeException.class));
+            eitherFuture.join();
+        }
+        // non-exceptional completion
+        assertNull(eitherFuture.join());
+        assertEquals(1, executionCounter.get());
     }
 }

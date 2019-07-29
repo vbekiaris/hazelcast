@@ -32,6 +32,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -817,6 +818,68 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
 
         @Override
         Void process(T t, U u) {
+            action.run();
+            return null;
+        }
+    }
+
+    // common superclass of waiters for either of two futures (applyEither, acceptEither, runAfterEither)
+    protected abstract static class AbstractEitherNode<T, R> implements Waiter, BiConsumer<T, Throwable> {
+        final CompletableFuture<R> result;
+        final AtomicBoolean executed;
+
+        public AbstractEitherNode(CompletableFuture<R> future) {
+            this.result = future;
+            this.executed = new AtomicBoolean();
+        }
+
+        public void execute(Executor executor, Object resolved) {
+            if (!executed.compareAndSet(false, true)) {
+                return;
+            }
+            if (cascadeException(resolved, result)) {
+                return;
+            }
+            Executor e = (executor == null) ? CALLER_RUNS : executor;
+            e.execute(() -> {
+                try {
+                    R r = process((T) resolved);
+                    result.complete(r);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+        }
+
+        @Override
+        public void accept(T t, Throwable throwable) {
+            if (!executed.compareAndSet(false, true)) {
+                return;
+            }
+            if (throwable != null) {
+                result.completeExceptionally(throwable);
+            }
+            try {
+                R r = process(t);
+                result.complete(r);
+            } catch (Throwable e) {
+                result.completeExceptionally(e);
+            }
+        }
+
+        abstract R process(T t);
+    }
+
+    protected static final class RunAfterEither<T> extends AbstractEitherNode<T, Void> {
+        final Runnable action;
+
+        public RunAfterEither(CompletableFuture<Void> future, Runnable action) {
+            super(future);
+            this.action = action;
+        }
+
+        @Override
+        Void process(T t) {
             action.run();
             return null;
         }

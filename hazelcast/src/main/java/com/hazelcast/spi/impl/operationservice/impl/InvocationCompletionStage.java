@@ -130,6 +130,8 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             ((ComposeNode) waiter).execute(executor, value);
         } else if (waiter instanceof AbstractBiNode) {
             ((AbstractBiNode) waiter).execute(executor, value);
+        } else if (waiter instanceof AbstractEitherNode) {
+            ((AbstractEitherNode) waiter).execute(executor, value);
         }
     }
 
@@ -197,16 +199,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
             if (cascadeException(value, result)) {
                 return result;
             }
-            Executor e = (executor == null) ? CALLER_RUNS : executor;
-            e.execute(() -> {
-                try {
-                    runnable.run();
-                    result.complete(null);
-                } catch (Throwable t) {
-                    result.completeExceptionally(t);
-                }
-            });
-            return result;
+            return runAfter0(result, runnable, executor);
         } else {
             registerWaiter(new RunNode(result, runnable), executor);
             return result;
@@ -599,16 +592,7 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
                 });
                 return result;
             }
-            Executor e = (executor == null) ? CALLER_RUNS : executor;
-            e.execute(() -> {
-                try {
-                    action.run();
-                    result.complete(null);
-                } catch (Throwable t) {
-                    result.completeExceptionally(t);
-                }
-            });
-            return result;
+            return runAfter0(result, action, executor);
         } else {
             RunAfterBothNode waiter = new RunAfterBothNode(result, otherFuture, action);
             registerWaiter(waiter, executor);
@@ -650,17 +634,62 @@ public class InvocationCompletionStage<V> extends InvocationFuture<V> implements
 
     @Override
     public CompletionStage<Void> runAfterEither(CompletionStage<?> other, Runnable action) {
-        return null;
+        return unblockRunAfterEither(other, action, null);
     }
 
     @Override
     public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, Runnable action) {
-        return null;
+        return unblockRunAfterEither(other, action, defaultExecutor);
     }
 
     @Override
     public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, Runnable action, Executor executor) {
-        return null;
+        return unblockRunAfterEither(other, action, executor);
+    }
+
+    protected <U> CompletionStage<Void> unblockRunAfterEither(@Nonnull CompletionStage other,
+                                                              @Nonnull final Runnable action,
+                                                              Executor executor) {
+        requireNonNull(other);
+        requireNonNull(action);
+        final Object value = resolve(state);
+        final CompletableFuture<? extends V> otherFuture =
+                (other instanceof CompletableFuture) ? (CompletableFuture<? extends V>) other : other.toCompletableFuture();
+
+        CompletableFuture<Void> result = newCompletableFuture();
+        if (value != UNRESOLVED && isDone()) {
+            // in case this future is completed exceptionally, the result is also exceptionally completed
+            if (cascadeException(value, result)) {
+                return result;
+            }
+            return runAfter0(result, action, executor);
+        } else if (otherFuture.isDone()) {
+            if (otherFuture.isCompletedExceptionally()) {
+                otherFuture.whenComplete((v, t) -> {
+                    result.completeExceptionally(t);
+                });
+                return result;
+            }
+            return runAfter0(result, action, executor);
+        } else {
+            RunAfterEither waiter = new RunAfterEither(result, action);
+            registerWaiter(waiter, executor);
+            otherFuture.whenCompleteAsync(waiter, executor);
+            return result;
+        }
+    }
+
+    private CompletionStage<Void> runAfter0(CompletableFuture<Void> result, @Nonnull Runnable action, Executor executor) {
+        Executor e = (executor == null) ? CALLER_RUNS : executor;
+        e.execute(() -> {
+            try {
+                action.run();
+                result.complete(null);
+            } catch (Throwable t) {
+                result.completeExceptionally(t);
+            }
+        });
+        return result;
     }
 
     @Override
