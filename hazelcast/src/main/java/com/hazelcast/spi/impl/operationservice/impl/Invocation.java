@@ -37,6 +37,7 @@ import com.hazelcast.spi.exception.RetryableException;
 import com.hazelcast.spi.exception.RetryableIOException;
 import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.exception.WrongTargetException;
+import com.hazelcast.spi.impl.AbstractInvocationFuture.ExceptionalResult;
 import com.hazelcast.spi.impl.AllowedDuringPassiveState;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.executionservice.ExecutionService;
@@ -346,7 +347,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
 
         switch (onException(cause)) {
             case THROW_EXCEPTION:
-                notifyNormalResponse(cause, 0);
+                notifyThrowable(cause, 0);
                 break;
             case RETRY_INVOCATION:
                 if (invokeCount < tryCount) {
@@ -354,7 +355,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
                     handleRetry(cause);
                 } else {
                     // we can't retry anymore, so lets send the cause to the future.
-                    notifyNormalResponse(cause, 0);
+                    notifyThrowable(cause, 0);
                 }
                 break;
             default:
@@ -388,6 +389,34 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         // - we had a regular operation (so no backups we need to wait for) that completed
         // - we had a backup-aware operation that has completed, but also all its backups have completed
         complete(value);
+    }
+
+    protected void notifyThrowable(Throwable cause, int expectedBackups) {
+        // if a regular response comes and there are backups, we need to wait for the backups
+        // when the backups complete, the response will be send by the last backup or backup-timeout-handle mechanism kicks on
+
+        if (expectedBackups > backupsAcksReceived) {
+            // so the invocation has backups and since not all backups have completed, we need to wait
+            // (it could be that backups arrive earlier than the response)
+
+            this.pendingResponseReceivedMillis = Clock.currentTimeMillis();
+
+            this.backupsAcksExpected = expectedBackups;
+
+            // it is very important that the response is set after the backupsAcksExpected is set, else the system
+            // can assume the invocation is complete because there is a response and no backups need to respond
+            this.pendingResponse = new ExceptionalResult(cause);
+
+            if (backupsAcksReceived != expectedBackups) {
+                // we are done since not all backups have completed. Therefor we should not notify the future
+                return;
+            }
+        }
+
+        // we are going to notify the future that a response is available; this can happen when:
+        // - we had a regular operation (so no backups we need to wait for) that completed
+        // - we had a backup-aware operation that has completed, but also all its backups have completed
+        completeExceptionally(cause);
     }
 
     @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT",
@@ -452,7 +481,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
 
         // we are the lucky one since we just managed to complete the last backup for this invocation and since the
         // pendingResponse is set, we can set it on the future
-        complete(pendingResponse);
+        completeWithPendingResponse();
     }
 
     /**
@@ -537,7 +566,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         }
 
         if (shouldFailOnIndeterminateOperationState()) {
-            complete(new IndeterminateOperationStateException(this + " failed because backup acks missed."));
+            completeExceptionally(new IndeterminateOperationStateException(this + " failed because backup acks missed."));
             return true;
         }
 
@@ -555,8 +584,17 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         }
 
         // the backups have not yet completed, but we are going to release the future anyway if a pendingResponse has been set
-        complete(pendingResponse);
+        completeWithPendingResponse();
         return true;
+    }
+
+    // complete the invocation future with normal or exceptional value available in pendingResponse
+    private void completeWithPendingResponse() {
+        if (pendingResponse instanceof ExceptionalResult) {
+            completeExceptionally(((ExceptionalResult) pendingResponse).getCause());
+        } else {
+            complete(pendingResponse);
+        }
     }
 
     private boolean engineActive() {
@@ -707,6 +745,13 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         }
     }
 
+    private void completeExceptionally(Throwable t) {
+        future.completeExceptionallyInternal(t);
+        if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
+            context.asyncExecutor.execute(taskDoneCallback);
+        }
+    }
+
     private void handleRetry(Object cause) {
         context.retryCount.inc();
 
@@ -740,7 +785,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
         if (context.logger.isFinestEnabled()) {
             context.logger.finest(e);
         }
-        complete(new HazelcastInstanceNotActiveException(e.getMessage()));
+        completeExceptionally(new HazelcastInstanceNotActiveException(e.getMessage()));
     }
 
     private void resetAndReInvoke() {

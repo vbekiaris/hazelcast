@@ -294,6 +294,10 @@
     <!-- PhoneHome -->
     <suppress checks="NPathComplexity" files="com[\\/]hazelcast[\\/]util[\\/]PhoneHome"/>
 
+    <!-- SPI -->
+    <suppress checks="FileLength|MethodCount|ClassDataAbstractionCoupling|ClassFanOutComplexity"
+              files="com[\\/]hazelcast[\\/]spi[\\/]impl[\\/]AbstractInvocationFuture"/>
+
     <!-- Adopted public domain code with different style -->
     <suppress
             checks="MagicNumber|FileLength|DeclarationOrder|RedundantModifier|InnerAssignment|NPathComplexity|CyclomaticComplexity"

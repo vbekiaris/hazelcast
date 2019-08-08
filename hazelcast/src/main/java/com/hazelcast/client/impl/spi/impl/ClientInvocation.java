@@ -17,8 +17,8 @@
 package com.hazelcast.client.impl.spi.impl;
 
 import com.hazelcast.client.HazelcastClientNotActiveException;
-import com.hazelcast.client.impl.connection.nio.ClientConnection;
 import com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl;
+import com.hazelcast.client.impl.connection.nio.ClientConnection;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.spi.ClientClusterService;
 import com.hazelcast.client.impl.spi.ClientExecutionService;
@@ -96,8 +96,7 @@ public class ClientInvocation implements Runnable {
         this.retryPauseMillis = invocationService.getInvocationRetryPauseMillis();
         this.logger = invocationService.invocationLogger;
         this.callIdSequence = invocationService.getCallIdSequence();
-        this.clientInvocationFuture = new ClientInvocationFuture(this, executionService,
-                clientMessage, logger, callIdSequence);
+        this.clientInvocationFuture = new ClientInvocationFuture(this, clientMessage, logger, callIdSequence);
         this.invocationTimeoutMillis = invocationService.getInvocationTimeoutMillis();
     }
 
