@@ -190,7 +190,7 @@ class RaftGroupMembershipManager {
 
         private Collection<CPGroupId> getDestroyingRaftGroupIds() {
             InternalCompletableFuture<Collection<CPGroupId>> f = queryMetadata(new GetDestroyingRaftGroupIdsOp());
-            return f.join();
+            return f.joinInternal();
         }
 
         private boolean isRaftGroupDestroyed(CPGroupId groupId, Future<Object> future) {
@@ -266,7 +266,7 @@ class RaftGroupMembershipManager {
 
         private MembershipChangeSchedule getMembershipChangeSchedule() {
             InternalCompletableFuture<MembershipChangeSchedule> f = queryMetadata(new GetMembershipChangeScheduleOp());
-            return f.join();
+            return f.joinInternal();
         }
 
         private void applyOnRaftGroup(CountDownLatch latch, Map<CPGroupId, BiTuple<Long, Long>> changedGroups,
