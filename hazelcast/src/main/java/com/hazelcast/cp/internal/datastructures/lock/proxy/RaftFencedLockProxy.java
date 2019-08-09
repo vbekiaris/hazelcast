@@ -74,7 +74,7 @@ public class RaftFencedLockProxy extends AbstractRaftFencedLockProxy {
     @Override
     public void destroy() {
         try {
-            invocationManager.invoke(groupId, new DestroyRaftObjectOp(getServiceName(), objectName)).join();
+            invocationManager.invoke(groupId, new DestroyRaftObjectOp(getServiceName(), objectName)).joinInternal();
         } finally {
             super.destroy();
         }

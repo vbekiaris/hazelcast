@@ -59,7 +59,7 @@ public class RaftCountDownLatchProxy extends ClientProxy implements ICountDownLa
 
         long timeoutMillis = Math.max(0, unit.toMillis(timeout));
         ClientMessage request = CPCountDownLatchAwaitCodec.encodeRequest(groupId, objectName, newUnsecureUUID(), timeoutMillis);
-        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().join();
+        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().joinInternal();
 
         return CPCountDownLatchAwaitCodec.decodeResponse(response).response;
     }
@@ -81,7 +81,7 @@ public class RaftCountDownLatchProxy extends ClientProxy implements ICountDownLa
 
     private int getRound() {
         ClientMessage request = CPCountDownLatchGetRoundCodec.encodeRequest(groupId, objectName);
-        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().join();
+        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().joinInternal();
 
         return CPCountDownLatchGetRoundCodec.decodeResponse(response).response;
     }
@@ -89,13 +89,13 @@ public class RaftCountDownLatchProxy extends ClientProxy implements ICountDownLa
     private void countDown(int round, UUID invocationUid) {
         ClientMessage request = CPCountDownLatchCountDownCodec.encodeRequest(groupId, objectName, invocationUid, round);
 
-        new ClientInvocation(getClient(), request, name).invoke().join();
+        new ClientInvocation(getClient(), request, name).invoke().joinInternal();
     }
 
     @Override
     public int getCount() {
         ClientMessage request = CPCountDownLatchGetCountCodec.encodeRequest(groupId, objectName);
-        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().join();
+        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().joinInternal();
 
         return CPCountDownLatchGetCountCodec.decodeResponse(response).response;
     }
@@ -103,7 +103,7 @@ public class RaftCountDownLatchProxy extends ClientProxy implements ICountDownLa
     @Override
     public boolean trySetCount(int count) {
         ClientMessage request = CPCountDownLatchTrySetCountCodec.encodeRequest(groupId, objectName, count);
-        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().join();
+        ClientMessage response = new ClientInvocation(getClient(), request, name).invoke().joinInternal();
 
         return CPCountDownLatchTrySetCountCodec.decodeResponse(response).response;
     }
@@ -120,7 +120,7 @@ public class RaftCountDownLatchProxy extends ClientProxy implements ICountDownLa
     @Override
     public void onDestroy() {
         ClientMessage request = CPGroupDestroyCPObjectCodec.encodeRequest(groupId, getServiceName(), objectName);
-        new ClientInvocation(getClient(), request, name).invoke().join();
+        new ClientInvocation(getClient(), request, name).invoke().joinInternal();
     }
 
 }

@@ -72,7 +72,7 @@ public class ClientProxySessionManager extends AbstractProxySessionManager {
     @Override
     protected long generateThreadId(RaftGroupId groupId) {
         ClientMessage request = CPSessionGenerateThreadIdCodec.encodeRequest(groupId);
-        ClientMessage response = new ClientInvocation(client, request, "sessionManager").invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, "sessionManager").invoke().joinInternal();
 
         return CPSessionGenerateThreadIdCodec.decodeResponse(response).response;
     }
@@ -80,7 +80,7 @@ public class ClientProxySessionManager extends AbstractProxySessionManager {
     @Override
     protected SessionResponse requestNewSession(RaftGroupId groupId) {
         ClientMessage request = CPSessionCreateSessionCodec.encodeRequest(groupId, client.getName());
-        ClientMessage response = new ClientInvocation(client, request, "sessionManager").invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, "sessionManager").invoke().joinInternal();
         CPSessionCreateSessionCodec.ResponseParameters params = CPSessionCreateSessionCodec.decodeResponse(response);
         return new SessionResponse(params.sessionId, params.ttlMillis, params.heartbeatMillis);
     }

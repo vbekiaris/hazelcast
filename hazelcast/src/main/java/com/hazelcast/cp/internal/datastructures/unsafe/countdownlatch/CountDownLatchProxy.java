@@ -71,7 +71,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
         Operation op = new CountDownOperation(name)
                 .setPartitionId(partitionId);
         InternalCompletableFuture f = invokeOnPartition(op);
-        f.join();
+        f.joinInternal();
     }
 
     @Override
@@ -79,7 +79,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
         Operation op = new GetCountOperation(name)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Integer> f = invokeOnPartition(op);
-        return f.join();
+        return f.joinInternal();
     }
 
     @Override
@@ -89,7 +89,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
         Operation op = new SetCountOperation(name, count)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Boolean> f = invokeOnPartition(op);
-        return f.join();
+        return f.joinInternal();
     }
 
     @Override

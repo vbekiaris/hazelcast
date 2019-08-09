@@ -142,7 +142,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         invocationManager.invoke(groupId, new LockOp(objectName, sessionId, getThreadId(), invUid2));
 
         try {
-            f.join();
+            f.joinInternal();
             fail();
         } catch (WaitKeyCancelledException ignored) {
         }
@@ -225,7 +225,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         invocationManager.invoke(groupId, new TryLockOp(objectName, sessionId, getThreadId(), invUid2, MINUTES.toMillis(5)));
 
         try {
-            f.join();
+            f.joinInternal();
             fail();
         } catch (WaitKeyCancelledException ignored) {
         }
@@ -288,7 +288,7 @@ public class FencedLockFailureTest extends HazelcastRaftTestSupport {
         }
 
         try {
-            f.join();
+            f.joinInternal();
             fail();
         } catch (WaitKeyCancelledException ignored) {
         }

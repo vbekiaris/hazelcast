@@ -249,7 +249,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         PutOperation putOperation = new PutOperation(getName(), dataKey, dataValue);
         InternalCompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), putOperation, partitionId);
-        VersionResponsePair result = (VersionResponsePair) future.join();
+        VersionResponsePair result = (VersionResponsePair) future.joinInternal();
         return nodeEngine.toObject(result.getResponse());
     }
 
@@ -268,7 +268,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         PutOperation putOperation = new PutOperation(getName(), dataKey, dataValue, ttlMillis);
         InternalCompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), putOperation, partitionId);
-        VersionResponsePair result = (VersionResponsePair) future.join();
+        VersionResponsePair result = (VersionResponsePair) future.joinInternal();
         return nodeEngine.toObject(result.getResponse());
     }
 
@@ -280,7 +280,7 @@ public class ReplicatedMapProxy<K, V> extends AbstractDistributedObject<Replicat
         RemoveOperation removeOperation = new RemoveOperation(getName(), dataKey);
         InternalCompletableFuture<Object> future = getOperationService()
                 .invokeOnPartition(getServiceName(), removeOperation, partitionId);
-        VersionResponsePair result = (VersionResponsePair) future.join();
+        VersionResponsePair result = (VersionResponsePair) future.joinInternal();
         return nodeEngine.toObject(result.getResponse());
     }
 

@@ -65,7 +65,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
 
         ClientMessage request = CPSemaphoreInitCodec.encodeRequest(groupId, objectName, permits);
         HazelcastClientInstanceImpl client = getClient();
-        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().joinInternal();
         return CPSemaphoreInitCodec.decodeResponse(response).response;
     }
 
@@ -84,7 +84,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
         ClientMessage request = CPSemaphoreAcquireCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid, permits, -1);
         HazelcastClientInstanceImpl client = getClient();
-        new ClientInvocation(client, request, objectName).invoke().join();
+        new ClientInvocation(client, request, objectName).invoke().joinInternal();
     }
 
     @Override
@@ -113,7 +113,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
         ClientMessage request = CPSemaphoreAcquireCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid, permits, timeoutMs);
         HazelcastClientInstanceImpl client = getClient();
-        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().joinInternal();
         return CPSemaphoreAcquireCodec.decodeResponse(response).response;
     }
 
@@ -132,14 +132,14 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
         ClientMessage request = CPSemaphoreReleaseCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid, permits);
         HazelcastClientInstanceImpl client = getClient();
-        new ClientInvocation(client, request, objectName).invoke().join();
+        new ClientInvocation(client, request, objectName).invoke().joinInternal();
     }
 
     @Override
     public int availablePermits() {
         ClientMessage request = CPSemaphoreAvailablePermitsCodec.encodeRequest(groupId, objectName);
         HazelcastClientInstanceImpl client = getClient();
-        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().joinInternal();
         return CPSemaphoreAvailablePermitsCodec.decodeResponse(response).response;
     }
 
@@ -151,7 +151,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
         ClientMessage request = CPSemaphoreDrainCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid);
         HazelcastClientInstanceImpl client = getClient();
-        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().join();
+        ClientMessage response = new ClientInvocation(client, request, objectName).invoke().joinInternal();
         return CPSemaphoreDrainCodec.decodeResponse(response).response;
     }
 
@@ -167,7 +167,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
 
         ClientMessage request = CPSemaphoreChangeCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid, -reduction);
-        new ClientInvocation(getClient(), request, objectName).invoke().join();
+        new ClientInvocation(getClient(), request, objectName).invoke().joinInternal();
     }
 
     @Override
@@ -182,7 +182,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
 
         ClientMessage request = CPSemaphoreChangeCodec.encodeRequest(groupId, objectName, NO_SESSION_ID, clusterWideThreadId,
                 invocationUid, increase);
-        new ClientInvocation(getClient(), request, objectName).invoke().join();
+        new ClientInvocation(getClient(), request, objectName).invoke().joinInternal();
     }
 
     @Override
@@ -193,7 +193,7 @@ public class RaftSessionlessSemaphoreProxy extends ClientProxy implements ISemap
     @Override
     public void onDestroy() {
         ClientMessage request = CPGroupDestroyCPObjectCodec.encodeRequest(groupId, getServiceName(), objectName);
-        new ClientInvocation(getClient(), request, name).invoke().join();
+        new ClientInvocation(getClient(), request, name).invoke().joinInternal();
     }
 
     public CPGroupId getGroupId() {

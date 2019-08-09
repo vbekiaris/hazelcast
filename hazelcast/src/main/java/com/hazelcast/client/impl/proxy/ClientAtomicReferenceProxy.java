@@ -55,7 +55,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public <R> R apply(IFunction<E, R> function) {
-        return applyAsync(function).join();
+        return applyAsync(function).joinInternal();
     }
 
     @Override
@@ -67,7 +67,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public void alter(IFunction<E, E> function) {
-        alterAsync(function).join();
+        alterAsync(function).joinInternal();
     }
 
     @Override
@@ -79,7 +79,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public E alterAndGet(IFunction<E, E> function) {
-        return alterAndGetAsync(function).join();
+        return alterAndGetAsync(function).joinInternal();
     }
 
     @Override
@@ -91,7 +91,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public E getAndAlter(IFunction<E, E> function) {
-        return getAndAlterAsync(function).join();
+        return getAndAlterAsync(function).joinInternal();
     }
 
     @Override
@@ -102,7 +102,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public boolean compareAndSet(E expect, E update) {
-        return compareAndSetAsync(expect, update).join();
+        return compareAndSetAsync(expect, update).joinInternal();
     }
 
     @Override
@@ -113,7 +113,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public boolean contains(E expected) {
-        return containsAsync(expected).join();
+        return containsAsync(expected).joinInternal();
     }
 
     @Override
@@ -124,7 +124,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public E get() {
-        return getAsync().join();
+        return getAsync().joinInternal();
     }
 
     @Override
@@ -135,7 +135,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public void set(E newValue) {
-        setAsync(newValue).join();
+        setAsync(newValue).joinInternal();
     }
 
     @Override
@@ -146,7 +146,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public void clear() {
-        clearAsync().join();
+        clearAsync().joinInternal();
     }
 
     @Override
@@ -157,7 +157,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public E getAndSet(E newValue) {
-        return getAndSetAsync(newValue).join();
+        return getAndSetAsync(newValue).joinInternal();
     }
 
     @Override
@@ -168,7 +168,7 @@ public class ClientAtomicReferenceProxy<E> extends PartitionSpecificClientProxy 
 
     @Override
     public boolean isNull() {
-        return isNullAsync().join();
+        return isNullAsync().joinInternal();
     }
 
     @Override

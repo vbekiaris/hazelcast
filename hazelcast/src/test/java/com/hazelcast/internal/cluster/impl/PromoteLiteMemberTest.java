@@ -36,6 +36,7 @@ import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.ParallelJVMTest;
 import com.hazelcast.test.annotation.QuickTest;
 import com.hazelcast.test.annotation.SerializationSamplesExcluded;
+import com.hazelcast.util.RootCauseMatcher;
 import com.hazelcast.util.UuidUtil;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +46,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -129,7 +131,8 @@ public class PromoteLiteMemberTest extends HazelcastTestSupport {
 
         InternalCompletableFuture<MembersView> future =
                 getOperationService(hz2).invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, op, getAddress(hz3));
-        exception.expect(IllegalStateException.class);
+        exception.expect(CompletionException.class);
+        exception.expect(new RootCauseMatcher(IllegalStateException.class));
         future.join();
     }
 
@@ -160,7 +163,8 @@ public class PromoteLiteMemberTest extends HazelcastTestSupport {
 
         InternalCompletableFuture<MembersView> future =
                 getOperationService(hz2).invokeOnTarget(ClusterServiceImpl.SERVICE_NAME, op, getAddress(hz1));
-        exception.expect(IllegalStateException.class);
+        exception.expect(CompletionException.class);
+        exception.expect(new RootCauseMatcher(IllegalStateException.class));
         future.join();
     }
 

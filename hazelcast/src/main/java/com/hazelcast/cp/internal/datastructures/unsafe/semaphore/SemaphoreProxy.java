@@ -59,7 +59,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new InitOperation(name, permits)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Boolean> future = invokeOnPartition(operation);
-        return future.join();
+        return future.joinInternal();
     }
 
     @Override
@@ -86,7 +86,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new AvailableOperation(name)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
-        return future.join();
+        return future.joinInternal();
     }
 
     @Override
@@ -94,7 +94,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new DrainOperation(name)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
-        return future.join();
+        return future.joinInternal();
     }
 
     @Override
@@ -104,7 +104,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new ReduceOperation(name, reduction)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Object> future = invokeOnPartition(operation);
-        future.join();
+        future.joinInternal();
     }
 
     @Override
@@ -114,7 +114,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new IncreaseOperation(name, increase)
                 .setPartitionId(partitionId);
         InternalCompletableFuture<Object> future = invokeOnPartition(operation);
-        future.join();
+        future.joinInternal();
     }
 
     @Override
@@ -129,7 +129,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         Operation operation = new ReleaseOperation(name, permits)
                 .setPartitionId(partitionId);
         InternalCompletableFuture future = invokeOnPartition(operation);
-        future.join();
+        future.joinInternal();
     }
 
     @Override
