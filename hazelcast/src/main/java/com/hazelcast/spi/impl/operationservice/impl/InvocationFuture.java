@@ -24,7 +24,6 @@ import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.impl.AbstractInvocationFuture;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.operationservice.impl.responses.NormalResponse;
-import com.hazelcast.util.ExceptionUtil;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -49,8 +48,8 @@ import static com.hazelcast.util.StringUtil.timeToString;
  */
 public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
 
-    volatile boolean interrupted;
     final Invocation invocation;
+    volatile boolean interrupted;
     private final boolean deserialize;
 
     InvocationFuture(Invocation invocation, boolean deserialize) {
@@ -149,7 +148,7 @@ public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         if (value instanceof Throwable || value instanceof ExceptionalResult) {
             Throwable throwable = (value instanceof Throwable) ? ((Throwable) value) : ((ExceptionalResult) value).getCause();
             // todo async stack trace rewriting
-            ExceptionUtil.fixAsyncStackTrace(throwable, Thread.currentThread().getStackTrace());
+//            ExceptionUtil.fixAsyncStackTrace(throwable, Thread.currentThread().getStackTrace());
             return new ExceptionalResult(throwable);
         }
 

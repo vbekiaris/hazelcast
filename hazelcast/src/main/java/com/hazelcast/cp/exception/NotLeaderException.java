@@ -30,4 +30,13 @@ public class NotLeaderException extends CPSubsystemException {
         super(local + " is not LEADER of " + groupId + ". Known leader is: "
                 + (leader != null ? leader : "N/A") , leader);
     }
+
+    private NotLeaderException(String message, Endpoint leader, Throwable cause) {
+        super(message, leader, cause);
+    }
+
+    @Override
+    public NotLeaderException wrap() {
+        return new NotLeaderException(getMessage(), getLeader(), this);
+    }
 }

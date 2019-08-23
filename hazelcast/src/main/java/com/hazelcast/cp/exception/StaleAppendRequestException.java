@@ -31,4 +31,13 @@ public class StaleAppendRequestException extends CPSubsystemException implements
     public StaleAppendRequestException(Endpoint leader) {
         super(leader);
     }
+
+    private StaleAppendRequestException(Endpoint leader, Throwable cause) {
+        super(null, leader, cause);
+    }
+
+    @Override
+    public StaleAppendRequestException wrap() {
+        return new StaleAppendRequestException(getLeader(), this);
+    }
 }

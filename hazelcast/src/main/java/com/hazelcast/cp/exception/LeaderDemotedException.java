@@ -30,4 +30,13 @@ public class LeaderDemotedException extends CPSubsystemException {
         super(local + " is not LEADER anymore. Known leader is: "
                 + (leader != null ? leader : "N/A") , leader);
     }
+
+    private LeaderDemotedException(String message, Endpoint leader, Throwable cause) {
+        super(message, leader, cause);
+    }
+
+    @Override
+    public LeaderDemotedException wrap() {
+        return new LeaderDemotedException(getMessage(), getLeader(), this);
+    }
 }

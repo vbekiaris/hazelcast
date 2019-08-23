@@ -16,8 +16,8 @@
 
 package com.hazelcast.cp.exception;
 
-import com.hazelcast.config.cp.RaftAlgorithmConfig;
 import com.hazelcast.cluster.Endpoint;
+import com.hazelcast.config.cp.RaftAlgorithmConfig;
 import com.hazelcast.spi.exception.RetryableException;
 
 /**
@@ -38,5 +38,14 @@ public class CannotReplicateException extends CPSubsystemException implements Re
 
     public CannotReplicateException(Endpoint leader) {
         super("Cannot replicate new operations for now", leader);
+    }
+
+    private CannotReplicateException(Endpoint leader, Throwable cause) {
+        super("Cannot replicate new operations for now", leader, cause);
+    }
+
+    @Override
+    public CannotReplicateException wrap() {
+        return new CannotReplicateException(getLeader(), this);
     }
 }
