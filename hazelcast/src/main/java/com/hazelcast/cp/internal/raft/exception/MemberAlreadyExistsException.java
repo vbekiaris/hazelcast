@@ -31,4 +31,13 @@ public class MemberAlreadyExistsException extends CPSubsystemException {
     public MemberAlreadyExistsException(Endpoint member) {
         super("Member already exists: " + member, null);
     }
+
+    private MemberAlreadyExistsException(String message, Throwable cause) {
+        super(message, null, cause);
+    }
+
+    @Override
+    public MemberAlreadyExistsException wrap() {
+        return new MemberAlreadyExistsException(getMessage(), this);
+    }
 }
