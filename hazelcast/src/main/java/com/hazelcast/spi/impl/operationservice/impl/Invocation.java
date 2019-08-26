@@ -591,7 +591,7 @@ public abstract class Invocation<T> implements OperationResponseHandler {
     // complete the invocation future with normal or exceptional value available in pendingResponse
     private void completeWithPendingResponse() {
         if (pendingResponse instanceof ExceptionalResult) {
-            completeExceptionally(((ExceptionalResult) pendingResponse).getCause());
+            completeExceptionally((ExceptionalResult) pendingResponse);
         } else {
             complete(pendingResponse);
         }
@@ -740,6 +740,13 @@ public abstract class Invocation<T> implements OperationResponseHandler {
     // because both invocationRegistry.deregister() and future.complete() are idempotent.
     private void complete(Object value) {
         future.complete(value);
+        if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
+            context.asyncExecutor.execute(taskDoneCallback);
+        }
+    }
+
+    private void completeExceptionally(ExceptionalResult result) {
+        future.completeExceptionallyInternal(result);
         if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
             context.asyncExecutor.execute(taskDoneCallback);
         }
