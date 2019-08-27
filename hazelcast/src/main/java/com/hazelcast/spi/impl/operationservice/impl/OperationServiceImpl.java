@@ -18,7 +18,6 @@ package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.cluster.impl.MemberImpl;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.LocalMemberResetException;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.internal.cluster.ClusterClock;
@@ -33,7 +32,6 @@ import com.hazelcast.internal.util.counters.MwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.Packet;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.executionservice.ExecutionService;
@@ -56,6 +54,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.MANDATORY;
@@ -300,7 +299,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
 
     @Override
     @SuppressWarnings("unchecked")
-    public <E> InternalCompletableFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId) {
+    public <E> InvocationFuture<E> invokeOnPartition(String serviceName, Operation op, int partitionId) {
         op.setServiceName(serviceName)
                 .setPartitionId(partitionId)
                 .setReplicaIndex(DEFAULT_REPLICA_INDEX);
@@ -312,7 +311,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
 
     @Override
     @SuppressWarnings("unchecked")
-    public <E> InternalCompletableFuture<E> invokeOnPartition(Operation op) {
+    public <E> InvocationFuture<E> invokeOnPartition(Operation op) {
         return new PartitionInvocation(
                 invocationContext, op, invocationMaxRetryCount, invocationRetryPauseMillis,
                 DEFAULT_CALL_TIMEOUT, DEFAULT_DESERIALIZE_RESULT, failOnIndeterminateOperationState).invoke();
@@ -387,8 +386,8 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
     }
 
     @Override
-    public <T> ICompletableFuture<Map<Integer, T>> invokeOnAllPartitionsAsync(String serviceName,
-                                                                              OperationFactory operationFactory) {
+    public <T> CompletableFuture<Map<Integer, T>> invokeOnAllPartitionsAsync(String serviceName,
+                                                                             OperationFactory operationFactory) {
 
         Map<Address, List<Integer>> memberPartitions = nodeEngine.getPartitionService().getMemberPartitionsMap();
         InvokeOnPartitions invokeOnPartitions =
@@ -416,7 +415,7 @@ public final class OperationServiceImpl implements MetricsProvider, LiveOperatio
     }
 
     @Override
-    public <T> ICompletableFuture<Map<Integer, T>> invokeOnPartitionsAsync(
+    public <T> CompletableFuture<Map<Integer, T>> invokeOnPartitionsAsync(
             String serviceName, OperationFactory operationFactory, Collection<Integer> partitions) {
 
         Map<Address, List<Integer>> memberPartitions = getMemberPartitions(partitions);

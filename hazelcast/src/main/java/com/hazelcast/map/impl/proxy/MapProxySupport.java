@@ -28,12 +28,13 @@ import com.hazelcast.core.EntryView;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.map.IMap;
 import com.hazelcast.core.ReadOnly;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.LockProxySupport;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.LockServiceImpl;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.map.IMap;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.EntryEventFilter;
 import com.hazelcast.map.impl.MapEntries;
@@ -71,10 +72,10 @@ import com.hazelcast.projection.Projection;
 import com.hazelcast.query.PartitionPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
-import com.hazelcast.spi.impl.eventservice.EventFilter;
 import com.hazelcast.spi.impl.InitializingObject;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
+import com.hazelcast.spi.impl.eventservice.EventFilter;
 import com.hazelcast.spi.impl.operationservice.BinaryOperationFactory;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationFactory;
@@ -83,7 +84,6 @@ import com.hazelcast.spi.partition.IPartition;
 import com.hazelcast.spi.partition.IPartitionService;
 import com.hazelcast.spi.properties.HazelcastProperties;
 import com.hazelcast.spi.properties.HazelcastProperty;
-import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.IterableUtil;
 import com.hazelcast.util.IterationType;
@@ -1150,29 +1150,24 @@ abstract class MapProxySupport<K, V>
                 entryProcessor);
 
         final SimpleCompletableFuture<Map<K, R>> resultFuture = new SimpleCompletableFuture<>(getNodeEngine());
-        ExecutionCallback<Map<Integer, Object>> partialCallback = new ExecutionCallback<Map<Integer, Object>>() {
-            @Override
-            public void onResponse(Map<Integer, Object> response) {
-                Map<K, Object> result = null;
-                try {
-                    result = createHashMap(response.size());
-                    for (Object object : response.values()) {
-                        MapEntries mapEntries = (MapEntries) object;
-                        mapEntries.putAllToMap(serializationService, result);
-                    }
-                } catch (Throwable e) {
-                    resultFuture.setResult(e);
-                }
-                resultFuture.setResult(result);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                resultFuture.setResult(t);
-            }
-        };
-
-        operationService.invokeOnPartitionsAsync(SERVICE_NAME, operationFactory, partitionsForKeys).andThen(partialCallback);
+        operationService.invokeOnPartitionsAsync(SERVICE_NAME, operationFactory, partitionsForKeys)
+                        .whenCompleteAsync((response, throwable) -> {
+                            if (throwable == null) {
+                                Map<K, Object> result = null;
+                                try {
+                                    result = createHashMap(response.size());
+                                    for (Object object : response.values()) {
+                                        MapEntries mapEntries = (MapEntries) object;
+                                        mapEntries.putAllToMap(serializationService, result);
+                                    }
+                                } catch (Throwable e) {
+                                    resultFuture.setResult(e);
+                                }
+                                resultFuture.setResult(result);
+                            } else {
+                                resultFuture.setResult(throwable);
+                            }
+                        });
         return resultFuture;
     }
 
