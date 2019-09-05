@@ -36,7 +36,6 @@ import com.hazelcast.client.impl.protocol.codec.ClientIsFailoverSupportedCodec;
 import com.hazelcast.client.impl.spi.ClientExecutionService;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import com.hazelcast.client.impl.spi.impl.ClientInvocationFuture;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.instance.BuildInfo;
 import com.hazelcast.instance.BuildInfoProvider;
@@ -44,12 +43,13 @@ import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelErrorHandler;
 import com.hazelcast.internal.networking.ChannelInitializerProvider;
 import com.hazelcast.internal.networking.nio.NioNetworking;
-import com.hazelcast.internal.serialization.InternalSerializationService;
-import com.hazelcast.internal.serialization.impl.HeapData;
-import com.hazelcast.logging.ILogger;
-import com.hazelcast.nio.Address;
 import com.hazelcast.internal.nio.Connection;
 import com.hazelcast.internal.nio.ConnectionListener;
+import com.hazelcast.internal.serialization.InternalSerializationService;
+import com.hazelcast.internal.serialization.impl.HeapData;
+import com.hazelcast.internal.util.AddressUtil;
+import com.hazelcast.logging.ILogger;
+import com.hazelcast.nio.Address;
 import com.hazelcast.nio.SocketInterceptor;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.security.Credentials;
@@ -57,7 +57,6 @@ import com.hazelcast.security.PasswordCredentials;
 import com.hazelcast.security.TokenCredentials;
 import com.hazelcast.spi.exception.TargetDisconnectedException;
 import com.hazelcast.spi.properties.HazelcastProperties;
-import com.hazelcast.internal.util.AddressUtil;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -77,6 +76,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.client.properties.ClientProperty.ALLOW_INVOCATIONS_WHEN_DISCONNECTED;
 import static com.hazelcast.client.properties.ClientProperty.IO_BALANCER_INTERVAL_SECONDS;
@@ -592,7 +592,7 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
             ScheduledFuture timeoutTaskFuture = executionService.schedule(
                     new TimeoutAuthenticationTask(invocationFuture), authenticationTimeout, MILLISECONDS);
             AuthCallback callback = new AuthCallback(connection, asOwner, target, future, timeoutTaskFuture, failoverFuture);
-            invocationFuture.andThen(callback);
+            invocationFuture.whenCompleteAsync(callback);
         }
 
         private ClientMessage encodeAuthenticationRequest() {
@@ -654,7 +654,7 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
         }
     }
 
-    private class AuthCallback implements ExecutionCallback<ClientMessage> {
+    private class AuthCallback implements BiConsumer<ClientMessage, Throwable> {
         private final ClientConnection connection;
         private final boolean asOwner;
         private final Address target;
@@ -673,6 +673,14 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
         }
 
         @Override
+        public void accept(ClientMessage response, Throwable throwable) {
+            if (throwable == null) {
+                onResponse(response);
+            } else {
+                onFailure(throwable);
+            }
+        }
+
         public void onResponse(ClientMessage response) {
             timeoutTaskFuture.cancel(true);
             ClientAuthenticationCodec.ResponseParameters result;
@@ -795,7 +803,6 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
             }
         }
 
-        @Override
         public void onFailure(Throwable cause) {
             timeoutTaskFuture.cancel(true);
             if (logger.isFinestEnabled()) {

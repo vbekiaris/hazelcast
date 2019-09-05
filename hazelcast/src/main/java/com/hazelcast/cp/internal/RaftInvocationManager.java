@@ -16,9 +16,7 @@
 
 package com.hazelcast.cp.internal;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastException;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.internal.exception.CannotCreateRaftGroupException;
 import com.hazelcast.cp.internal.operation.ChangeRaftGroupMembershipOp;
@@ -33,8 +31,6 @@ import com.hazelcast.cp.internal.raft.QueryPolicy;
 import com.hazelcast.cp.internal.raftop.metadata.CreateRaftGroupOp;
 import com.hazelcast.cp.internal.raftop.metadata.GetActiveCPMembersOp;
 import com.hazelcast.internal.cluster.ClusterService;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
-import com.hazelcast.internal.util.SimpleCompletedFuture;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
@@ -49,11 +45,8 @@ import com.hazelcast.spi.properties.GroupProperty;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
-import static com.hazelcast.spi.impl.executionservice.ExecutionService.ASYNC_EXECUTOR;
 import static java.util.Collections.shuffle;
 
 /**
@@ -99,33 +92,33 @@ public class RaftInvocationManager {
             return completedFuture;
         }
 
-        Executor executor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
-        SimpleCompletableFuture<RaftGroupId> resultFuture = new SimpleCompletableFuture<>(executor, logger);
+        InternalCompletableFuture<RaftGroupId> resultFuture = new InternalCompletableFuture<>();
         invokeGetMembersToCreateRaftGroup(groupName, groupSize, resultFuture);
         return resultFuture;
     }
 
     private <V> InternalCompletableFuture<V> completeExceptionallyIfCPSubsystemNotAvailable() {
         if (!cpSubsystemEnabled) {
-            return new SimpleCompletedFuture<>(new HazelcastException("CP Subsystem is not enabled!"));
+            InternalCompletableFuture future = new InternalCompletableFuture();
+            future.completeExceptionally(new HazelcastException("CP Subsystem is not enabled!"));
+            return future;
         }
         return null;
     }
 
     private void invokeGetMembersToCreateRaftGroup(String groupName, int groupSize,
-                                                   SimpleCompletableFuture<RaftGroupId> resultFuture) {
+                                                   InternalCompletableFuture<RaftGroupId> resultFuture) {
         RaftOp op = new GetActiveCPMembersOp();
-        ICompletableFuture<List<CPMemberInfo>> f = query(raftService.getMetadataGroupId(), op, LINEARIZABLE);
+        InternalCompletableFuture<List<CPMemberInfo>> f = query(raftService.getMetadataGroupId(), op, LINEARIZABLE);
 
-        f.andThen(new ExecutionCallback<List<CPMemberInfo>>() {
-            @Override
-            public void onResponse(List<CPMemberInfo> members) {
+        f.whenCompleteAsync((members, t) -> {
+            if (t == null) {
                 members = new ArrayList<>(members);
 
                 if (members.size() < groupSize) {
                     Exception result = new IllegalArgumentException("There are not enough active members to create CP group "
                             + groupName + ". Active members: " + members.size() + ", Requested count: " + groupSize);
-                    resultFuture.setResult(result);
+                    resultFuture.completeExceptionally(result);
                     return;
                 }
 
@@ -133,35 +126,29 @@ public class RaftInvocationManager {
                 members.sort(new CPMemberReachabilityComparator());
                 members = members.subList(0, groupSize);
                 invokeCreateRaftGroup(groupName, groupSize, members, resultFuture);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                resultFuture.setResult(new ExecutionException(t));
+            } else {
+                // todo wrapping ExecutionException seemed unnecessary here, needs verification
+                resultFuture.completeExceptionally(t);
             }
         });
     }
 
     private void invokeCreateRaftGroup(String groupName, int groupSize, List<CPMemberInfo> members,
-                                       SimpleCompletableFuture<RaftGroupId> resultFuture) {
-        ICompletableFuture<RaftGroupId> f = invoke(raftService.getMetadataGroupId(), new CreateRaftGroupOp(groupName, members));
+                                       InternalCompletableFuture<RaftGroupId> resultFuture) {
+        InternalCompletableFuture<RaftGroupId> f =
+                invoke(raftService.getMetadataGroupId(), new CreateRaftGroupOp(groupName, members));
 
-        f.andThen(new ExecutionCallback<RaftGroupId>() {
-            @Override
-            public void onResponse(RaftGroupId groupId) {
-                resultFuture.setResult(groupId);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
+        f.whenCompleteAsync((groupId, t) -> {
+            if (t == null) {
+                resultFuture.complete(groupId);
+            } else {
                 if (t instanceof CannotCreateRaftGroupException) {
                     logger.fine("Could not create CP group: " + groupName + " with members: " + members,
                             t.getCause());
                     invokeGetMembersToCreateRaftGroup(groupName, groupSize, resultFuture);
                     return;
                 }
-
-                resultFuture.setResult(t);
+                resultFuture.completeExceptionally(t);
             }
         });
     }

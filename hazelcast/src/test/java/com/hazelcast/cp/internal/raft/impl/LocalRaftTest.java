@@ -18,7 +18,6 @@ package com.hazelcast.cp.internal.raft.impl;
 
 import com.hazelcast.cluster.Endpoint;
 import com.hazelcast.config.cp.RaftAlgorithmConfig;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.exception.CannotReplicateException;
 import com.hazelcast.cp.exception.LeaderDemotedException;
 import com.hazelcast.cp.exception.NotLeaderException;
@@ -29,6 +28,7 @@ import com.hazelcast.cp.internal.raft.impl.dto.AppendRequest;
 import com.hazelcast.cp.internal.raft.impl.dto.AppendSuccessResponse;
 import com.hazelcast.cp.internal.raft.impl.dto.VoteRequest;
 import com.hazelcast.cp.internal.raft.impl.testing.LocalRaftGroup;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.ParallelJVMTest;
@@ -142,14 +142,19 @@ public class LocalRaftTest extends HazelcastTestSupport {
         });
     }
 
-    @Test(expected = NotLeaderException.class)
+    @Test
     public void when_followerAttemptsToReplicate_then_itFails() throws ExecutionException, InterruptedException {
         group = newGroupWithService(3, new RaftAlgorithmConfig());
         group.start();
         RaftNodeImpl leader = group.waitUntilLeaderElected();
         RaftNodeImpl[] followers = group.getNodesExcept(leader.getLocalMember());
 
-        followers[0].replicate(new ApplyRaftRunnable("val")).get();
+        try {
+            followers[0].replicate(new ApplyRaftRunnable("val")).joinInternal();
+            fail("NotLeaderException should have been thrown");
+        } catch (NotLeaderException e) {
+            ignore(e);
+        }
 
         for (RaftNodeImpl raftNode : group.getNodes()) {
             RaftDataService service = group.getIntegration(raftNode.getLocalMember()).getService();
@@ -721,7 +726,7 @@ public class LocalRaftTest extends HazelcastTestSupport {
             }
         });
 
-        List<Future> isolatedFutures = new ArrayList<>();
+        List<InternalCompletableFuture> isolatedFutures = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             isolatedFutures.add(leader.replicate(new ApplyRaftRunnable("isolated" + i)));
         }
@@ -742,9 +747,9 @@ public class LocalRaftTest extends HazelcastTestSupport {
         RaftNodeImpl finalLeader = group.waitUntilLeaderElected();
 
         assertNotEquals(leader.getLocalMember(), finalLeader.getLocalMember());
-        for (Future f : isolatedFutures) {
+        for (InternalCompletableFuture f : isolatedFutures) {
             try {
-                f.get();
+                f.joinInternal();
                 fail();
             } catch (LeaderDemotedException ignored) {
             }
@@ -778,7 +783,7 @@ public class LocalRaftTest extends HazelcastTestSupport {
         }
 
         try {
-            leader.replicate(new ApplyRaftRunnable("valFinal")).get();
+            leader.replicate(new ApplyRaftRunnable("valFinal")).joinInternal();
             fail();
         } catch (CannotReplicateException ignored) {
         }
@@ -792,10 +797,10 @@ public class LocalRaftTest extends HazelcastTestSupport {
         RaftNodeImpl leader = group.waitUntilLeaderElected();
 
         group.split(leader.getLocalMember());
-        ICompletableFuture f = leader.replicate(new ApplyRaftRunnable("val"));
+        InternalCompletableFuture f = leader.replicate(new ApplyRaftRunnable("val"));
 
         try {
-            f.get();
+            f.joinInternal();
             fail();
         } catch (StaleAppendRequestException ignored) {
         }

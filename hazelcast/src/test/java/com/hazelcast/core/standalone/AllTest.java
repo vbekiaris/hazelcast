@@ -303,7 +303,7 @@ public class AllTest {
             public void run() {
                 IMap map = hazelcast.getMap("myMap");
                 try {
-                    map.getAsync(random.nextInt(SIZE)).get();
+                    map.getAsync(random.nextInt(SIZE)).toCompletableFuture().get();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 } catch (ExecutionException e) {
@@ -425,8 +425,8 @@ public class AllTest {
             public void run() {
                 IMap map = hazelcast.getMap("myMap");
                 try {
-                    map.putAsync(random.nextInt(SIZE), new Customer(random.nextInt(100), String.valueOf(random.nextInt(10000)))
-                    ).get();
+                    map.putAsync(random.nextInt(SIZE), new Customer(random.nextInt(100), String.valueOf(random.nextInt(10000))))
+                       .toCompletableFuture().get();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 } catch (ExecutionException e) {

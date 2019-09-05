@@ -16,8 +16,6 @@
 
 package com.hazelcast.cp.internal;
 
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.CPGroup.CPGroupStatus;
 import com.hazelcast.cp.CPGroupId;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
@@ -33,11 +31,10 @@ import com.hazelcast.cp.internal.raftop.metadata.GetDestroyingRaftGroupIdsOp;
 import com.hazelcast.cp.internal.raftop.metadata.GetMembershipChangeScheduleOp;
 import com.hazelcast.cp.internal.raftop.metadata.GetRaftGroupOp;
 import com.hazelcast.internal.util.BiTuple;
-import com.hazelcast.internal.util.SimpleCompletedFuture;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
+import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 
 import java.util.Collection;
@@ -48,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -116,20 +114,16 @@ class RaftGroupMembershipManager {
                     continue;
                 }
 
-                ICompletableFuture<CPGroupInfo> f = queryMetadata(new GetRaftGroupOp(groupId));
+                CompletableFuture<CPGroupInfo> f = queryMetadata(new GetRaftGroupOp(groupId));
 
-                f.andThen(new ExecutionCallback<CPGroupInfo>() {
-                    @Override
-                    public void onResponse(CPGroupInfo group) {
+                f.whenCompleteAsync((group, t) -> {
+                    if (t == null) {
                         if (group == null) {
                             logger.severe("Could not find CP group for local raft node of " + groupId);
                         } else if (group.status() == CPGroupStatus.DESTROYED) {
                             raftService.destroyRaftNode(groupId);
                         }
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
+                    } else {
                         logger.warning("Could not get CP group info of " + groupId, t);
                     }
                 });
@@ -271,30 +265,31 @@ class RaftGroupMembershipManager {
 
         private void applyOnRaftGroup(CountDownLatch latch, Map<CPGroupId, BiTuple<Long, Long>> changedGroups,
                                       CPGroupMembershipChange change) {
-            ICompletableFuture<Long> future;
+            CompletableFuture<Long> future;
             if (change.getMemberToRemove() != null) {
                 future = invocationManager.changeMembership(change.getGroupId(), change.getMembersCommitIndex(),
                         change.getMemberToRemove(), MembershipChangeMode.REMOVE);
             } else {
-                future = new SimpleCompletedFuture<>(change.getMembersCommitIndex());
+                future = CompletableFuture.completedFuture(change.getMembersCommitIndex());
             }
 
-            future.andThen(new ExecutionCallback<Long>() {
-                @Override
-                public void onResponse(Long removeCommitIndex) {
+            future.whenCompleteAsync((removeCommitIndex, t) -> {
+                if (t == null) {
                     if (change.getMemberToAdd() != null) {
                         addMember(latch, changedGroups, change, removeCommitIndex);
                     } else {
                         changedGroups.put(change.getGroupId(), BiTuple.of(change.getMembersCommitIndex(), removeCommitIndex));
                         latch.countDown();
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    long removeCommitIndex = checkMemberRemoveCommitIndex(changedGroups, change, t);
-                    if (removeCommitIndex != NA_MEMBERS_COMMIT_INDEX) {
-                        onResponse(removeCommitIndex);
+                } else {
+                    long commitIndex = checkMemberRemoveCommitIndex(changedGroups, change, t);
+                    if (commitIndex != NA_MEMBERS_COMMIT_INDEX) {
+                        if (change.getMemberToAdd() != null) {
+                            addMember(latch, changedGroups, change, commitIndex);
+                        } else {
+                            changedGroups.put(change.getGroupId(), BiTuple.of(change.getMembersCommitIndex(), commitIndex));
+                            latch.countDown();
+                        }
                     } else {
                         latch.countDown();
                     }
@@ -304,17 +299,13 @@ class RaftGroupMembershipManager {
 
         private void addMember(CountDownLatch latch, Map<CPGroupId, BiTuple<Long, Long>> changedGroups,
                                CPGroupMembershipChange change, long currentCommitIndex) {
-            ICompletableFuture<Long> future = invocationManager.changeMembership(change.getGroupId(), currentCommitIndex,
+            CompletableFuture<Long> future = invocationManager.changeMembership(change.getGroupId(), currentCommitIndex,
                     change.getMemberToAdd(), MembershipChangeMode.ADD);
-            future.andThen(new ExecutionCallback<Long>() {
-                @Override
-                public void onResponse(Long addCommitIndex) {
+            future.whenCompleteAsync((addCommitIndex, t) -> {
+                if (t == null) {
                     changedGroups.put(change.getGroupId(), BiTuple.of(change.getMembersCommitIndex(), addCommitIndex));
                     latch.countDown();
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+                } else {
                     checkMemberAddCommitIndex(changedGroups, change, t);
                     latch.countDown();
                 }
@@ -430,7 +421,7 @@ class RaftGroupMembershipManager {
         private void completeMembershipChanges(Map<CPGroupId, BiTuple<Long, Long>> changedGroups) {
             RaftOp op = new CompleteRaftGroupMembershipChangesOp(changedGroups);
             CPGroupId metadataGroupId = raftService.getMetadataGroupId();
-            ICompletableFuture<Object> future = invocationManager.invoke(metadataGroupId, op);
+            CompletableFuture<Object> future = invocationManager.invoke(metadataGroupId, op);
 
             try {
                 future.get();

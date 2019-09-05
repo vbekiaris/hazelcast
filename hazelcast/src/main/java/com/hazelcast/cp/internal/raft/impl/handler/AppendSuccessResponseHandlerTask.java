@@ -26,7 +26,7 @@ import com.hazelcast.cp.internal.raft.impl.state.LeaderState;
 import com.hazelcast.cp.internal.raft.impl.state.QueryState;
 import com.hazelcast.cp.internal.raft.impl.state.RaftState;
 import com.hazelcast.internal.util.BiTuple;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -194,14 +194,14 @@ public class AppendSuccessResponseHandlerTask extends AbstractResponseHandlerTas
             return;
         }
 
-        Collection<BiTuple<Object, SimpleCompletableFuture>> operations = queryState.operations();
+        Collection<BiTuple<Object, InternalCompletableFuture>> operations = queryState.operations();
 
         if (logger.isFineEnabled()) {
             logger.fine("Running " + operations.size() + " queries at commit index: " + commitIndex
                     + ", query round: " + queryState.queryRound());
         }
 
-        for (BiTuple<Object, SimpleCompletableFuture> t : operations) {
+        for (BiTuple<Object, InternalCompletableFuture> t : operations) {
             raftNode.runQuery(t.element1, t.element2);
         }
 
