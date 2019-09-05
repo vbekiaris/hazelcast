@@ -269,7 +269,7 @@ public class ClientMapTest extends HazelcastTestSupport {
         IMap<String, String> map = createMap();
         fillMap(map);
 
-        Future<String> future = map.getAsync("key1");
+        Future<String> future = map.getAsync("key1").toCompletableFuture();
         assertEquals("value1", future.get());
     }
 
@@ -277,7 +277,7 @@ public class ClientMapTest extends HazelcastTestSupport {
     public void testAsyncPut() throws Exception {
         IMap<String, String> map = createMap();
         fillMap(map);
-        Future<String> future = map.putAsync("key3", "value");
+        Future<String> future = map.putAsync("key3", "value").toCompletableFuture();
         assertEquals("value3", future.get());
         assertEquals("value", map.get("key3"));
     }
@@ -289,7 +289,7 @@ public class ClientMapTest extends HazelcastTestSupport {
         final CountDownLatch latch = new CountDownLatch(1);
         map.addEntryListener((EntryExpiredListener<String, String>) event -> latch.countDown(), true);
 
-        Future<String> future = map.putAsync("key", "value1", 10, TimeUnit.SECONDS);
+        Future<String> future = map.putAsync("key", "value1", 10, TimeUnit.SECONDS).toCompletableFuture();
         assertNull(future.get());
         assertEquals("value1", map.get("key"));
 
@@ -304,7 +304,7 @@ public class ClientMapTest extends HazelcastTestSupport {
         final CountDownLatch latch = new CountDownLatch(1);
         map.addEntryListener((EntryExpiredListener<String, String>) event -> latch.countDown(), true);
 
-        Future<String> future = map.putAsync("key", "value1", 0, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
+        Future<String> future = map.putAsync("key", "value1", 0, TimeUnit.SECONDS, 10, TimeUnit.SECONDS).toCompletableFuture();
         assertNull(future.get());
         assertEquals("value1", map.get("key"));
 
@@ -316,7 +316,7 @@ public class ClientMapTest extends HazelcastTestSupport {
     public void testAsyncSet() throws Exception {
         IMap<String, String> map = createMap();
         fillMap(map);
-        Future<Void> future = map.setAsync("key3", "value");
+        Future<Void> future = map.setAsync("key3", "value").toCompletableFuture();
         future.get();
         assertEquals("value", map.get("key3"));
     }
@@ -327,7 +327,7 @@ public class ClientMapTest extends HazelcastTestSupport {
         final CountDownLatch latch = new CountDownLatch(1);
         map.addEntryListener((EntryExpiredListener<String, String>) event -> latch.countDown(), true);
 
-        Future<Void> future = map.setAsync("key", "value1", 10, TimeUnit.SECONDS);
+        Future<Void> future = map.setAsync("key", "value1", 10, TimeUnit.SECONDS).toCompletableFuture();
         future.get();
         assertEquals("value1", map.get("key"));
 
@@ -341,7 +341,7 @@ public class ClientMapTest extends HazelcastTestSupport {
         final CountDownLatch latch = new CountDownLatch(1);
         map.addEntryListener((EntryExpiredListener<String, String>) event -> latch.countDown(), true);
 
-        Future<Void> future = map.setAsync("key", "value1", 0, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
+        Future<Void> future = map.setAsync("key", "value1", 0, TimeUnit.SECONDS, 10, TimeUnit.SECONDS).toCompletableFuture();
         future.get();
         assertEquals("value1", map.get("key"));
 
@@ -353,7 +353,7 @@ public class ClientMapTest extends HazelcastTestSupport {
     public void testAsyncRemove() throws Exception {
         IMap<String, String> map = createMap();
         fillMap(map);
-        Future<String> future = map.removeAsync("key4");
+        Future<String> future = map.removeAsync("key4").toCompletableFuture();
         assertEquals("value4", future.get());
         assertEquals(9, map.size());
     }
@@ -547,7 +547,7 @@ public class ClientMapTest extends HazelcastTestSupport {
     public void testSubmitToKey() throws Exception {
         IMap<Integer, Integer> map = createMap();
         map.put(1, 1);
-        Future future = map.submitToKey(1, new IncrementerEntryProcessor());
+        Future future = map.submitToKey(1, new IncrementerEntryProcessor()).toCompletableFuture();
         assertEquals(2, future.get());
 
         int actual = map.get(1);
@@ -557,7 +557,7 @@ public class ClientMapTest extends HazelcastTestSupport {
     @Test
     public void testSubmitToNonExistentKey() throws Exception {
         IMap<Integer, Integer> map = createMap();
-        Future future = map.submitToKey(11, new IncrementerEntryProcessor());
+        Future future = map.submitToKey(11, new IncrementerEntryProcessor()).toCompletableFuture();
         assertEquals(1, future.get());
 
         int actual = map.get(11);

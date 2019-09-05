@@ -27,8 +27,8 @@ import com.hazelcast.cp.internal.raft.impl.command.UpdateRaftGroupMembersCmd;
 import com.hazelcast.cp.internal.raft.impl.log.LogEntry;
 import com.hazelcast.cp.internal.raft.impl.log.RaftLog;
 import com.hazelcast.cp.internal.raft.impl.state.RaftState;
-import com.hazelcast.internal.util.SimpleCompletableFuture;
 import com.hazelcast.logging.ILogger;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 
 import static com.hazelcast.cp.internal.raft.impl.RaftNodeStatus.UPDATING_GROUP_MEMBER_LIST;
 import static com.hazelcast.cp.internal.raft.impl.RaftRole.LEADER;
@@ -49,10 +49,10 @@ import static com.hazelcast.cp.internal.raft.impl.RaftRole.LEADER;
 public class ReplicateTask implements Runnable {
     private final RaftNodeImpl raftNode;
     private final Object operation;
-    private final SimpleCompletableFuture resultFuture;
+    private final InternalCompletableFuture resultFuture;
     private final ILogger logger;
 
-    public ReplicateTask(RaftNodeImpl raftNode, Object operation, SimpleCompletableFuture resultFuture) {
+    public ReplicateTask(RaftNodeImpl raftNode, Object operation, InternalCompletableFuture resultFuture) {
         this.raftNode = raftNode;
         this.operation = operation;
         this.logger = raftNode.getLogger(getClass());
@@ -68,12 +68,13 @@ public class ReplicateTask implements Runnable {
 
             RaftState state = raftNode.state();
             if (state.role() != LEADER) {
-                resultFuture.setResult(new NotLeaderException(raftNode.getGroupId(), raftNode.getLocalMember(), state.leader()));
+                resultFuture.completeExceptionally(
+                        new NotLeaderException(raftNode.getGroupId(), raftNode.getLocalMember(), state.leader()));
                 return;
             }
 
             if (!raftNode.canReplicateNewEntry(operation)) {
-                resultFuture.setResult(new CannotReplicateException(raftNode.getLocalMember()));
+                resultFuture.completeExceptionally(new CannotReplicateException(raftNode.getLocalMember()));
                 return;
             }
 
@@ -84,7 +85,7 @@ public class ReplicateTask implements Runnable {
             RaftLog log = state.log();
 
             if (!log.checkAvailableCapacity(1)) {
-                resultFuture.setResult(new IllegalStateException("Not enough capacity in RaftLog!"));
+                resultFuture.completeExceptionally(new IllegalStateException("Not enough capacity in RaftLog!"));
                 return;
             }
 
@@ -97,18 +98,18 @@ public class ReplicateTask implements Runnable {
             raftNode.broadcastAppendRequest();
         } catch (Throwable t) {
             logger.severe(operation + " could not be replicated to leader: " + raftNode.getLocalMember(), t);
-            resultFuture.setResult(new CPSubsystemException("Internal failure", raftNode.getLeader(), t));
+            resultFuture.completeExceptionally(new CPSubsystemException("Internal failure", raftNode.getLeader(), t));
         }
     }
 
     private boolean verifyRaftNodeStatus() {
         if (raftNode.getStatus() == RaftNodeStatus.TERMINATED) {
-            resultFuture.setResult(new CPGroupDestroyedException(raftNode.getGroupId()));
+            resultFuture.completeExceptionally(new CPGroupDestroyedException(raftNode.getGroupId()));
             logger.fine("Won't run " + operation + ", since raft node is terminated");
             return false;
         } else if (raftNode.getStatus() == RaftNodeStatus.STEPPED_DOWN) {
             logger.fine("Won't run " + operation + ", since raft node is stepped down");
-            resultFuture.setResult(new NotLeaderException(raftNode.getGroupId(), raftNode.getLocalMember(), null));
+            resultFuture.completeExceptionally(new NotLeaderException(raftNode.getGroupId(), raftNode.getLocalMember(), null));
             return false;
         }
 

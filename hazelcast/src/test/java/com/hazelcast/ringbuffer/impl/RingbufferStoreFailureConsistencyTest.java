@@ -21,11 +21,10 @@ import com.hazelcast.config.RingbufferConfig;
 import com.hazelcast.config.RingbufferStoreConfig;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.partition.Partition;
-import com.hazelcast.ringbuffer.RingbufferStore;
 import com.hazelcast.ringbuffer.OverflowPolicy;
 import com.hazelcast.ringbuffer.Ringbuffer;
+import com.hazelcast.ringbuffer.RingbufferStore;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
@@ -38,6 +37,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.hazelcast.config.InMemoryFormat.OBJECT;
@@ -120,9 +120,9 @@ public class RingbufferStoreFailureConsistencyTest extends HazelcastTestSupport 
         long seqTwo = seqInit;
         doThrow(new IllegalStateException("Expected test exception")).when(store).store(seqInit + 2, TWO);
 
-        ICompletableFuture<Long> seqOneFuture = ringbufferPrimary.addAsync(ONE, OverflowPolicy.OVERWRITE);
-        ICompletableFuture<Long> seqTwoFuture = ringbufferPrimary.addAsync(TWO, OverflowPolicy.OVERWRITE);
-        ICompletableFuture<Long> seqThreeFuture = ringbufferPrimary.addAsync(THREE, OverflowPolicy.OVERWRITE);
+        Future<Long> seqOneFuture = ringbufferPrimary.addAsync(ONE, OverflowPolicy.OVERWRITE).toCompletableFuture();
+        Future<Long> seqTwoFuture = ringbufferPrimary.addAsync(TWO, OverflowPolicy.OVERWRITE).toCompletableFuture();
+        Future<Long> seqThreeFuture = ringbufferPrimary.addAsync(THREE, OverflowPolicy.OVERWRITE).toCompletableFuture();
 
         long seqOne = seqOneFuture.get();
         try {
@@ -144,7 +144,8 @@ public class RingbufferStoreFailureConsistencyTest extends HazelcastTestSupport 
         doThrow(new IllegalStateException("Expected test exception")).when(store).storeAll(eq(seqFirstItem),
                 (String[]) any(Object[].class));
 
-        ICompletableFuture<Long> result = ringbufferPrimary.addAllAsync(newArrayList(ONE, TWO, THREE), OverflowPolicy.FAIL);
+        Future<Long> result = ringbufferPrimary.addAllAsync(newArrayList(ONE, TWO, THREE), OverflowPolicy.FAIL)
+                                               .toCompletableFuture();
         try {
             result.get();
         } catch (ExecutionException expected) {

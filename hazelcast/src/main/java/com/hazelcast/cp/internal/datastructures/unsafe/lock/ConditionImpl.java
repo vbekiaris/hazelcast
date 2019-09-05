@@ -20,11 +20,11 @@ import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.AwaitOper
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.BeforeAwaitOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.SignalOperation;
 import com.hazelcast.cp.lock.ICondition;
-import com.hazelcast.nio.serialization.Data;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
-import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.internal.services.ObjectNamespace;
+import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.ThreadUtil;
@@ -94,11 +94,11 @@ final class ConditionImpl implements ICondition {
     private void beforeAwait(long threadId) {
         Data key = lockProxy.getKeyData();
         BeforeAwaitOperation op = new BeforeAwaitOperation(namespace, key, threadId, conditionId);
-        InternalCompletableFuture f = invoke(op);
+        InvocationFuture f = invoke(op);
         f.joinInternal();
     }
 
-    private InternalCompletableFuture invoke(Operation op) {
+    private InvocationFuture<Object> invoke(Operation op) {
         NodeEngine nodeEngine = lockProxy.getNodeEngine();
         return nodeEngine.getOperationService().invokeOnPartition(LockService.SERVICE_NAME, op, partitionId);
     }
@@ -122,7 +122,7 @@ final class ConditionImpl implements ICondition {
         long threadId = ThreadUtil.getThreadId();
         Data key = lockProxy.getKeyData();
         SignalOperation op = new SignalOperation(namespace, key, threadId, conditionId, all);
-        InternalCompletableFuture f = invoke(op);
+        InvocationFuture f = invoke(op);
         f.joinInternal();
     }
 

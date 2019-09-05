@@ -37,7 +37,6 @@ import com.hazelcast.client.impl.spi.ClientExecutionService;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import com.hazelcast.client.impl.spi.impl.ClientInvocationFuture;
 import com.hazelcast.config.SSLConfig;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.instance.BuildInfo;
 import com.hazelcast.instance.BuildInfoProvider;
@@ -77,6 +76,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.client.properties.ClientProperty.ALLOW_INVOCATIONS_WHEN_DISCONNECTED;
 import static com.hazelcast.client.properties.ClientProperty.IO_BALANCER_INTERVAL_SECONDS;
@@ -593,7 +593,7 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
             ScheduledFuture timeoutTaskFuture = executionService.schedule(
                     new TimeoutAuthenticationTask(invocationFuture), authenticationTimeout, MILLISECONDS);
             AuthCallback callback = new AuthCallback(connection, asOwner, target, future, timeoutTaskFuture, failoverFuture);
-            invocationFuture.andThen(callback);
+            invocationFuture.whenCompleteAsync(callback);
         }
 
         private ClientMessage encodeAuthenticationRequest() {
@@ -655,7 +655,7 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
         }
     }
 
-    private class AuthCallback implements ExecutionCallback<ClientMessage> {
+    private class AuthCallback implements BiConsumer<ClientMessage, Throwable> {
         private final ClientConnection connection;
         private final boolean asOwner;
         private final Address target;
@@ -674,6 +674,14 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
         }
 
         @Override
+        public void accept(ClientMessage response, Throwable throwable) {
+            if (throwable == null) {
+                onResponse(response);
+            } else {
+                onFailure(throwable);
+            }
+        }
+
         public void onResponse(ClientMessage response) {
             timeoutTaskFuture.cancel(true);
             ClientAuthenticationCodec.ResponseParameters result;
@@ -796,7 +804,6 @@ public class ClientConnectionManagerImpl implements ClientConnectionManager {
             }
         }
 
-        @Override
         public void onFailure(Throwable cause) {
             timeoutTaskFuture.cancel(true);
             if (logger.isFinestEnabled()) {

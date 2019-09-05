@@ -19,7 +19,6 @@ package com.hazelcast.map.impl.proxy;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.NearCacheConfig;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.internal.cluster.ClusterService;
 import com.hazelcast.internal.nearcache.NearCache;
 import com.hazelcast.internal.nearcache.impl.invalidation.BatchNearCacheInvalidation;
@@ -33,11 +32,9 @@ import com.hazelcast.map.impl.nearcache.invalidation.InvalidationListener;
 import com.hazelcast.map.impl.nearcache.invalidation.UuidFilter;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.query.Predicate;
-import com.hazelcast.spi.impl.eventservice.EventFilter;
-import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
-import com.hazelcast.util.executor.CompletedFuture;
+import com.hazelcast.spi.impl.eventservice.EventFilter;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -50,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import static com.hazelcast.internal.nearcache.NearCache.CACHED_AS_NULL;
 import static com.hazelcast.internal.nearcache.NearCache.NOT_CACHED;
 import static com.hazelcast.internal.nearcache.NearCacheRecord.NOT_RESERVED;
-import static com.hazelcast.spi.impl.executionservice.ExecutionService.ASYNC_EXECUTOR;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.MapUtil.createHashMap;
 
@@ -128,8 +124,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
         final Object ncKey = toNearCacheKeyWithStrategy(key);
         Object value = getCachedValue(ncKey, false);
         if (value != NOT_CACHED) {
-            ExecutionService executionService = getNodeEngine().getExecutionService();
-            return new CompletedFuture<>(serializationService, value, executionService.getExecutor(ASYNC_EXECUTOR));
+            return InternalCompletableFuture.newCompletedFuture(value);
         }
 
         final Data keyData = toDataWithStrategy(key);
@@ -143,14 +138,10 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
         }
 
         if (reservationId != NOT_RESERVED) {
-            future.andThen(new ExecutionCallback<Data>() {
-                @Override
-                public void onResponse(Data value) {
-                    nearCache.tryPublishReserved(ncKey, value, reservationId, false);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+            future.whenCompleteAsync((v, t) -> {
+                if (t == null) {
+                    nearCache.tryPublishReserved(ncKey, v, reservationId, false);
+                } else {
                     invalidateNearCache(ncKey);
                 }
             });
@@ -520,7 +511,7 @@ public class NearCachedMapProxyImpl<K, V> extends MapProxyImpl<K, V> {
     }
 
     @Override
-    public <R> ICompletableFuture<Map<K, R>> submitToKeysInternal(Set<K> keys,
+    public <R> InternalCompletableFuture<Map<K, R>> submitToKeysInternal(Set<K> keys,
                                                                   Set<Data> dataKeys,
                                                                   EntryProcessor<K, V, R> entryProcessor) {
         if (serializeKeys) {

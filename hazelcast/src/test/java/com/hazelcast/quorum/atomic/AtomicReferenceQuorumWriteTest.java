@@ -81,24 +81,24 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndAlterAsync_quorum() throws Exception {
-        aref(0).getAndAlterAsync(function()).get();
+        aref(0).getAndAlterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void getAndAlterAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).getAndAlterAsync(function()).get();
+        aref(3).getAndAlterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void alterAndGetAsync_quorum() throws Exception {
-        aref(0).alterAndGetAsync(function()).get();
+        aref(0).alterAndGetAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void alterAndGetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).alterAndGetAsync(function()).get();
+        aref(3).alterAndGetAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -113,13 +113,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void alterAsync_quorum() throws Exception {
-        aref(0).alterAsync(function()).get();
+        aref(0).alterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void alterAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).alterAsync(function()).get();
+        aref(3).alterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -134,13 +134,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void applyAsync_quorum() throws Exception {
-        aref(0).applyAsync(function()).get();
+        aref(0).applyAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void applyAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).applyAsync(function()).get();
+        aref(3).applyAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -155,13 +155,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void clearAsync_quorum() throws Exception {
-        aref(0).clearAsync().get();
+        aref(0).clearAsync().toCompletableFuture().get();
     }
 
     @Test
     public void clearAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).clearAsync().get();
+        aref(3).clearAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -176,13 +176,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void compareAndSetAsync_quorum() throws Exception {
-        aref(0).compareAndSetAsync(object(), object()).get();
+        aref(0).compareAndSetAsync(object(), object()).toCompletableFuture().get();
     }
 
     @Test
     public void compareAndSetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).compareAndSetAsync(object(), object()).get();
+        aref(3).compareAndSetAsync(object(), object()).toCompletableFuture().get();
     }
 
     @Test
@@ -197,13 +197,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndSetAsync_quorum() throws Exception {
-        aref(0).getAndSetAsync(object()).get();
+        aref(0).getAndSetAsync(object()).toCompletableFuture().get();
     }
 
     @Test
     public void getAndSetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).getAndSetAsync(object()).get();
+        aref(3).getAndSetAsync(object()).toCompletableFuture().get();
     }
 
     @Test
@@ -218,13 +218,13 @@ public class AtomicReferenceQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void setAsync_quorum() throws Exception {
-        aref(0).setAsync(object()).get();
+        aref(0).setAsync(object()).toCompletableFuture().get();
     }
 
     @Test
     public void setAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).setAsync(object()).get();
+        aref(3).setAsync(object()).toCompletableFuture().get();
     }
 
     @Test

@@ -80,13 +80,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void addAndGetAsync() throws Exception {
-        along(0).addAndGetAsync(1).get();
+        along(0).addAndGetAsync(1).toCompletableFuture().get();
     }
 
     @Test
     public void addAndGetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).addAndGetAsync(1).get();
+        along(3).addAndGetAsync(1).toCompletableFuture().get();
     }
 
     @Test
@@ -101,13 +101,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void alterAsync() throws Exception {
-        along(0).alterAsync(function()).get();
+        along(0).alterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void alterAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).alterAsync(function()).get();
+        along(3).alterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -122,13 +122,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void alterAndGetAsync() throws Exception {
-        along(0).alterAndGetAsync(function()).get();
+        along(0).alterAndGetAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void alterAndGetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).alterAndGetAsync(function()).get();
+        along(3).alterAndGetAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -143,13 +143,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void applyAsync() throws Exception {
-        along(0).applyAsync(function()).get();
+        along(0).applyAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void applyAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).applyAsync(function()).get();
+        along(3).applyAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -164,13 +164,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void compareAndSetAsync() throws Exception {
-        along(0).compareAndSetAsync(1L, 2L).get();
+        along(0).compareAndSetAsync(1L, 2L).toCompletableFuture().get();
     }
 
     @Test
     public void compareAndSetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).compareAndSetAsync(1L, 2L).get();
+        along(3).compareAndSetAsync(1L, 2L).toCompletableFuture().get();
     }
 
     @Test
@@ -185,13 +185,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void decrementAndGetAsync() throws Exception {
-        along(0).decrementAndGetAsync().get();
+        along(0).decrementAndGetAsync().toCompletableFuture().get();
     }
 
     @Test
     public void decrementAndGetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).decrementAndGetAsync().get();
+        along(3).decrementAndGetAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -206,13 +206,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndAddAsync() throws Exception {
-        along(0).getAndAddAsync(1L).get();
+        along(0).getAndAddAsync(1L).toCompletableFuture().get();
     }
 
     @Test
     public void getAndAddAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).getAndAddAsync(1L).get();
+        along(3).getAndAddAsync(1L).toCompletableFuture().get();
     }
 
     @Test
@@ -227,13 +227,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndAlterAsync() throws Exception {
-        along(0).getAndAlterAsync(function()).get();
+        along(0).getAndAlterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
     public void getAndAlterAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).getAndAlterAsync(function()).get();
+        along(3).getAndAlterAsync(function()).toCompletableFuture().get();
     }
 
     @Test
@@ -248,13 +248,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndIncrementAsync() throws Exception {
-        along(0).getAndIncrementAsync().get();
+        along(0).getAndIncrementAsync().toCompletableFuture().get();
     }
 
     @Test
     public void getAndIncrementAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).getAndIncrementAsync().get();
+        along(3).getAndIncrementAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -269,13 +269,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndSetAsync() throws Exception {
-        along(0).getAndSetAsync(2L).get();
+        along(0).getAndSetAsync(2L).toCompletableFuture().get();
     }
 
     @Test
     public void getAndSetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).getAndSetAsync(2L).get();
+        along(3).getAndSetAsync(2L).toCompletableFuture().get();
     }
 
     @Test
@@ -290,13 +290,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void incrementAndGetAsync() throws Exception {
-        along(0).incrementAndGetAsync().get();
+        along(0).incrementAndGetAsync().toCompletableFuture().get();
     }
 
     @Test
     public void incrementAndGetAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).incrementAndGetAsync().get();
+        along(3).incrementAndGetAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -311,13 +311,13 @@ public class AtomicLongQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void setAsync() throws Exception {
-        along(0).setAsync(2L).get();
+        along(0).setAsync(2L).toCompletableFuture().get();
     }
 
     @Test
     public void setAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).setAsync(2L).get();
+        along(3).setAsync(2L).toCompletableFuture().get();
     }
 
     private IAtomicLong along(int index) {

@@ -33,14 +33,14 @@ import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.IExecutorService;
 import com.hazelcast.core.MultiExecutionCallback;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.monitor.LocalExecutorStats;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
-import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.partition.PartitionAware;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.UuidUtil;
-import com.hazelcast.util.executor.CompletedFuture;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.hazelcast.spi.impl.InternalCompletableFuture.newCompletedFuture;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.Preconditions.checkNotNull;
 
@@ -361,14 +362,13 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         Executor userExecutor = getContext().getExecutionService().getUserExecutor();
         for (Future<T> future : futures) {
             Object value = retrieveResult(future);
-            result.add(new CompletedFuture<T>(getSerializationService(), value, userExecutor));
+            result.add(newCompletedFuture(value, getSerializationService(), userExecutor));
         }
         return result;
     }
 
     @Override
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
-            throws InterruptedException {
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) {
         throw new UnsupportedOperationException();
     }
 
@@ -411,7 +411,7 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         ClientDelegatingFuture<T> delegatingFuture = new ClientDelegatingFuture<T>(f, getSerializationService(),
                 message -> ExecutorServiceSubmitToPartitionCodec.decodeResponse(message).response);
         if (callback != null) {
-            delegatingFuture.andThen(callback);
+            delegatingFuture.whenCompleteAsync(new ExecutionCallbackAdapter<>(callback));
         }
         return delegatingFuture;
     }
@@ -435,7 +435,7 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         ClientInvocationFuture f = invokeOnPartitionOwner(request, partitionId);
         ClientDelegatingFuture<T> delegatingFuture = new ClientDelegatingFuture<T>(f, getSerializationService(),
                 message -> ExecutorServiceSubmitToPartitionCodec.decodeResponse(message).response);
-        delegatingFuture.andThen(callback);
+        delegatingFuture.whenCompleteAsync(new ExecutionCallbackAdapter<>(callback));
     }
 
     private <T> Future<T> submitToTargetInternal(Data task, Address address, T defaultValue, boolean preventSync) {
@@ -456,7 +456,7 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         ClientDelegatingFuture<T> delegatingFuture = new ClientDelegatingFuture<T>(f, getSerializationService(),
                 message -> ExecutorServiceSubmitToAddressCodec.decodeResponse(message).response);
         if (callback != null) {
-            delegatingFuture.andThen(callback);
+            delegatingFuture.whenCompleteAsync(new ExecutionCallbackAdapter<>(callback));
         }
     }
 
@@ -471,7 +471,7 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         if (sync) {
             Object response = retrieveResultFromMessage(f);
             Executor userExecutor = getContext().getExecutionService().getUserExecutor();
-            return new CompletedFuture<T>(getSerializationService(), response, userExecutor);
+            return newCompletedFuture(response, getSerializationService(), userExecutor);
         } else {
             return new IExecutorDelegatingFuture<T>(f, getContext(), uuid, defaultValue,
                     message -> ExecutorServiceSubmitToAddressCodec.decodeResponse(message).response, name, address);
@@ -484,7 +484,7 @@ public class ClientExecutorServiceProxy extends ClientProxy implements IExecutor
         if (sync) {
             Object response = retrieveResultFromMessage(f);
             Executor userExecutor = getContext().getExecutionService().getUserExecutor();
-            return new CompletedFuture<T>(getSerializationService(), response, userExecutor);
+            return newCompletedFuture(response, getSerializationService(), userExecutor);
         } else {
             return new IExecutorDelegatingFuture<T>(f, getContext(), uuid, defaultValue,
                     message -> ExecutorServiceSubmitToPartitionCodec.decodeResponse(message).response, name, partitionId);

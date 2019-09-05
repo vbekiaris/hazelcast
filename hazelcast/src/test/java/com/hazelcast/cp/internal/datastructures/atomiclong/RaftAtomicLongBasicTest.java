@@ -17,7 +17,6 @@
 package com.hazelcast.cp.internal.datastructures.atomiclong;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.cp.CPGroup;
 import com.hazelcast.cp.CPGroup.CPGroupStatus;
@@ -40,8 +39,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 import static com.hazelcast.cp.CPGroup.DEFAULT_GROUP_NAME;
 import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
@@ -166,8 +165,8 @@ public class RaftAtomicLongBasicTest extends HazelcastRaftTestSupport {
     public void testAlterAsync() throws ExecutionException, InterruptedException {
         atomicLong.set(2);
 
-        ICompletableFuture<Void> f = atomicLong.alterAsync(new MultiplyByTwo());
-        f.get();
+        CompletionStage<Void> f = atomicLong.alterAsync(new MultiplyByTwo());
+        f.toCompletableFuture().get();
 
         assertEquals(4, atomicLong.get());
     }
@@ -176,8 +175,8 @@ public class RaftAtomicLongBasicTest extends HazelcastRaftTestSupport {
     public void testAlterAndGetAsync() throws ExecutionException, InterruptedException {
         atomicLong.set(2);
 
-        ICompletableFuture<Long> f = atomicLong.alterAndGetAsync(new MultiplyByTwo());
-        long result = f.get();
+        CompletionStage<Long> f = atomicLong.alterAndGetAsync(new MultiplyByTwo());
+        long result = f.toCompletableFuture().get();
 
         assertEquals(4, result);
     }
@@ -186,8 +185,8 @@ public class RaftAtomicLongBasicTest extends HazelcastRaftTestSupport {
     public void testGetAndAlterAsync() throws ExecutionException, InterruptedException {
         atomicLong.set(2);
 
-        ICompletableFuture<Long> f = atomicLong.getAndAlterAsync(new MultiplyByTwo());
-        long result = f.get();
+        CompletionStage<Long> f = atomicLong.getAndAlterAsync(new MultiplyByTwo());
+        long result = f.toCompletableFuture().get();
 
         assertEquals(2, result);
         assertEquals(4, atomicLong.get());
@@ -207,8 +206,8 @@ public class RaftAtomicLongBasicTest extends HazelcastRaftTestSupport {
     public void testApplyAsync() throws ExecutionException, InterruptedException {
         atomicLong.set(2);
 
-        Future<Long> f = atomicLong.applyAsync(new MultiplyByTwo());
-        long result = f.get();
+        CompletionStage<Long> f = atomicLong.applyAsync(new MultiplyByTwo());
+        long result = f.toCompletableFuture().get();
 
         assertEquals(4, result);
         assertEquals(2, atomicLong.get());

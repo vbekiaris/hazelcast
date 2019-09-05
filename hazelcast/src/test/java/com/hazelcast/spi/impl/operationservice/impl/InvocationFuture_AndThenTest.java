@@ -16,7 +16,6 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.test.AssertTask;
@@ -31,6 +30,7 @@ import org.junit.runner.RunWith;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -50,54 +50,54 @@ public class InvocationFuture_AndThenTest extends HazelcastTestSupport {
         operationService = getOperationService(local);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void whenNullCallback() {
         DummyOperation op = new DummyOperation(null);
 
         InternalCompletableFuture<Object> future = operationService.invokeOnTarget(null, op, getAddress(local));
 
-        future.andThen(null);
+        future.whenCompleteAsync(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void whenNullCallback2() {
         DummyOperation op = new DummyOperation(null);
 
         InternalCompletableFuture<Object> future = operationService.invokeOnTarget(null, op, getAddress(local));
 
-        future.andThen(null, mock(Executor.class));
+        future.whenCompleteAsync(null, mock(Executor.class));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void whenNullExecutor() {
         DummyOperation op = new DummyOperation(null);
 
         InternalCompletableFuture<Object> future = operationService.invokeOnTarget(null, op, getAddress(local));
 
-        future.andThen(getExecutionCallbackMock(), null);
+        future.whenCompleteAsync(getExecutionCallbackMock(), null);
     }
 
     // there is a bug: https://github.com/hazelcast/hazelcast/issues/5001
     @Test
     public void whenNullResponse_thenCallbackExecuted() throws ExecutionException, InterruptedException {
         DummyOperation op = new DummyOperation(null);
-        final ExecutionCallback<Object> callback = getExecutionCallbackMock();
+        final BiConsumer<Object, Throwable> callback = getExecutionCallbackMock();
         InternalCompletableFuture<Object> future = operationService.invokeOnTarget(null, op, getAddress(local));
         future.get();
 
         // callback can be completed immediately, since a response (NULL_RESPONSE) has been already set
-        future.andThen(callback);
+        future.whenCompleteAsync(callback);
 
         assertTrueEventually(new AssertTask() {
             @Override
             public void run() throws Exception {
-                verify(callback, times(1)).onResponse(isNull());
+                verify(callback, times(1)).accept(isNull(), isNull());
             }
         });
     }
 
     @SuppressWarnings("unchecked")
-    private static ExecutionCallback<Object> getExecutionCallbackMock() {
-        return mock(ExecutionCallback.class);
+    private static BiConsumer<Object, Throwable> getExecutionCallbackMock() {
+        return mock(BiConsumer.class);
     }
 }

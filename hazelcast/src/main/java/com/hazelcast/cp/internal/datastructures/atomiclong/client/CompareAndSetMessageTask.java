@@ -18,8 +18,7 @@ package com.hazelcast.cp.internal.datastructures.atomiclong.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPAtomicLongCompareAndSetCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.atomiclong.RaftAtomicLongService;
 import com.hazelcast.cp.internal.datastructures.atomiclong.operation.CompareAndSetOp;
@@ -33,8 +32,7 @@ import java.security.Permission;
 /**
  * Client message task for {@link CompareAndSetOp}
  */
-public class CompareAndSetMessageTask extends AbstractMessageTask<CPAtomicLongCompareAndSetCodec.RequestParameters>
-        implements ExecutionCallback<Boolean> {
+public class CompareAndSetMessageTask extends AbstractCPMessageTask<CPAtomicLongCompareAndSetCodec.RequestParameters> {
 
     public CompareAndSetMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -45,7 +43,7 @@ public class CompareAndSetMessageTask extends AbstractMessageTask<CPAtomicLongCo
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .<Boolean>invoke(parameters.groupId, new CompareAndSetOp(parameters.name, parameters.expected, parameters.updated))
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -81,15 +79,5 @@ public class CompareAndSetMessageTask extends AbstractMessageTask<CPAtomicLongCo
     @Override
     protected ClientMessage encodeResponse(Object response) {
         return CPAtomicLongCompareAndSetCodec.encodeResponse((Boolean) response);
-    }
-
-    @Override
-    public void onResponse(Boolean response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

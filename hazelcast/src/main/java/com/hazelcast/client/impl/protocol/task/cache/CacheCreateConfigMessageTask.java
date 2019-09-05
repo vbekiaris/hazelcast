@@ -23,14 +23,14 @@ import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CacheCreateConfigCodec;
 import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
 import com.hazelcast.config.CacheConfig;
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.merge.SplitBrainMergePolicyProvider;
 
 import java.security.Permission;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.internal.config.ConfigValidator.checkCacheConfig;
 import static com.hazelcast.internal.config.MergePolicyValidator.checkMergePolicySupportsInMemoryFormat;
@@ -42,7 +42,7 @@ import static com.hazelcast.internal.config.MergePolicyValidator.checkMergePolic
  */
 public class CacheCreateConfigMessageTask
         extends AbstractMessageTask<CacheCreateConfigCodec.RequestParameters>
-        implements ExecutionCallback {
+        implements BiConsumer<Object, Throwable> {
 
     public CacheCreateConfigMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -61,8 +61,9 @@ public class CacheCreateConfigMessageTask
             checkMergePolicySupportsInMemoryFormat(cacheConfig.getName(), mergePolicy, cacheConfig.getInMemoryFormat(),
                     true, logger);
 
-            ICompletableFuture future = cacheService.createCacheConfigOnAllMembersAsync(PreJoinCacheConfig.of(cacheConfig));
-            future.andThen(this);
+            InternalCompletableFuture future =
+                    cacheService.createCacheConfigOnAllMembersAsync(PreJoinCacheConfig.of(cacheConfig));
+            future.whenCompleteAsync(this);
         } else {
             sendResponse(null);
         }
@@ -105,12 +106,11 @@ public class CacheCreateConfigMessageTask
     }
 
     @Override
-    public void onResponse(Object response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
+    public void accept(Object response, Throwable throwable) {
+        if (throwable == null) {
+            sendResponse(response);
+        } else {
+            handleProcessingFailure(throwable);
+        }
     }
 }

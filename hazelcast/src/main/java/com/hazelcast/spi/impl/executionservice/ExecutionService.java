@@ -16,8 +16,8 @@
 
 package com.hazelcast.spi.impl.executionservice;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.map.MapLoader;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.util.executor.ExecutorType;
 import com.hazelcast.util.executor.ManagedExecutorService;
 
@@ -148,7 +148,7 @@ public interface ExecutionService {
 
     TaskScheduler getTaskScheduler(String name);
 
-    <V> ICompletableFuture<V> asCompletableFuture(Future<V> future);
+    <V> InternalCompletableFuture<V> asCompletableFuture(Future<V> future);
 
     ExecutorService getDurable(String name);
 

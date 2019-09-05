@@ -18,8 +18,7 @@ package com.hazelcast.cp.internal.datastructures.semaphore.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPSemaphoreAvailablePermitsCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.semaphore.RaftSemaphoreService;
 import com.hazelcast.cp.internal.datastructures.semaphore.operation.AvailablePermitsOp;
@@ -35,8 +34,7 @@ import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
 /**
  * Client message task for {@link AvailablePermitsOp}
  */
-public class AvailablePermitsMessageTask extends AbstractMessageTask<CPSemaphoreAvailablePermitsCodec.RequestParameters>
-        implements ExecutionCallback<Integer> {
+public class AvailablePermitsMessageTask extends AbstractCPMessageTask<CPSemaphoreAvailablePermitsCodec.RequestParameters> {
 
     public AvailablePermitsMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -47,7 +45,7 @@ public class AvailablePermitsMessageTask extends AbstractMessageTask<CPSemaphore
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .<Integer>query(parameters.groupId, new AvailablePermitsOp(parameters.name), LINEARIZABLE)
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -83,15 +81,5 @@ public class AvailablePermitsMessageTask extends AbstractMessageTask<CPSemaphore
     @Override
     public Object[] getParameters() {
         return new Object[0];
-    }
-
-    @Override
-    public void onResponse(Integer response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

@@ -193,7 +193,7 @@ public class ClientHeartbeatTest extends ClientTestSupport {
         expectedException.expect(TargetDisconnectedException.class);
         expectedException.expectMessage(containsString("Heartbeat"));
         try {
-            map.putAsync(keyOwnedByInstance2, randomString()).get();
+            map.putAsync(keyOwnedByInstance2, randomString()).toCompletableFuture().get();
         } catch (ExecutionException e) {
             //unwrap exception
             throw e.getCause();

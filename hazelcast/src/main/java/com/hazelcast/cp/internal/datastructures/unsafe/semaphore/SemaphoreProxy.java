@@ -16,6 +16,7 @@
 
 package com.hazelcast.cp.internal.datastructures.unsafe.semaphore;
 
+import com.hazelcast.cp.ISemaphore;
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.AcquireOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.AvailableOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.DrainOperation;
@@ -23,11 +24,10 @@ import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.Incr
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.InitOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.ReduceOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.semaphore.operations.ReleaseOperation;
-import com.hazelcast.cp.ISemaphore;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +58,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new InitOperation(name, permits)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Boolean> future = invokeOnPartition(operation);
+        InvocationFuture<Boolean> future = invokeOnPartition(operation);
         return future.joinInternal();
     }
 
@@ -74,7 +74,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
         try {
             Operation operation = new AcquireOperation(name, permits, -1)
                     .setPartitionId(partitionId);
-            InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+            InvocationFuture<Object> future = invokeOnPartition(operation);
             future.get();
         } catch (Throwable t) {
             throw rethrowAllowInterrupted(t);
@@ -85,7 +85,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
     public int availablePermits() {
         Operation operation = new AvailableOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
+        InvocationFuture<Integer> future = invokeOnPartition(operation);
         return future.joinInternal();
     }
 
@@ -93,7 +93,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
     public int drainPermits() {
         Operation operation = new DrainOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> future = invokeOnPartition(operation);
+        InvocationFuture<Integer> future = invokeOnPartition(operation);
         return future.joinInternal();
     }
 
@@ -103,7 +103,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new ReduceOperation(name, reduction)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+        InvocationFuture<Object> future = invokeOnPartition(operation);
         future.joinInternal();
     }
 
@@ -113,7 +113,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new IncreaseOperation(name, increase)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Object> future = invokeOnPartition(operation);
+        InvocationFuture<Object> future = invokeOnPartition(operation);
         future.joinInternal();
     }
 
@@ -128,7 +128,7 @@ public class SemaphoreProxy extends AbstractDistributedObject<SemaphoreService> 
 
         Operation operation = new ReleaseOperation(name, permits)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture future = invokeOnPartition(operation);
+        InvocationFuture future = invokeOnPartition(operation);
         future.joinInternal();
     }
 

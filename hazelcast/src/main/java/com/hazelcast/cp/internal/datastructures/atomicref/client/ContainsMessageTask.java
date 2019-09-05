@@ -18,8 +18,7 @@ package com.hazelcast.cp.internal.datastructures.atomicref.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPAtomicRefContainsCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.atomicref.RaftAtomicRefService;
 import com.hazelcast.cp.internal.datastructures.atomicref.operation.ContainsOp;
@@ -35,8 +34,7 @@ import static com.hazelcast.cp.internal.raft.QueryPolicy.LINEARIZABLE;
 /**
  * Client message task for {@link ContainsOp}
  */
-public class ContainsMessageTask extends AbstractMessageTask<CPAtomicRefContainsCodec.RequestParameters>
-        implements ExecutionCallback<Boolean> {
+public class ContainsMessageTask extends AbstractCPMessageTask<CPAtomicRefContainsCodec.RequestParameters> {
 
     public ContainsMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -47,7 +45,7 @@ public class ContainsMessageTask extends AbstractMessageTask<CPAtomicRefContains
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .<Boolean>query(parameters.groupId, new ContainsOp(parameters.name, parameters.value), LINEARIZABLE)
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -84,16 +82,5 @@ public class ContainsMessageTask extends AbstractMessageTask<CPAtomicRefContains
     @Override
     public Object[] getParameters() {
         return new Object[]{parameters.value};
-    }
-
-
-    @Override
-    public void onResponse(Boolean response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

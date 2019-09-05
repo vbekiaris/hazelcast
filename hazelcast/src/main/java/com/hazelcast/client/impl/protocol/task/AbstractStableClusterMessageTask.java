@@ -17,17 +17,18 @@
 package com.hazelcast.client.impl.protocol.task;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.nio.Connection;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static com.hazelcast.internal.util.InvocationUtil.invokeOnStableClusterSerial;
 
-public abstract class AbstractStableClusterMessageTask<P> extends AbstractMessageTask<P> implements ExecutionCallback {
+public abstract class AbstractStableClusterMessageTask<P> extends AbstractMessageTask<P>
+        implements BiConsumer<Object, Throwable> {
 
     private static final int RETRY_COUNT = 100;
 
@@ -37,8 +38,9 @@ public abstract class AbstractStableClusterMessageTask<P> extends AbstractMessag
 
     @Override
     protected void processMessage() throws Throwable {
-        ICompletableFuture<Object> future = invokeOnStableClusterSerial(nodeEngine, createOperationSupplier(), RETRY_COUNT);
-        future.andThen(this);
+        InternalCompletableFuture<Object> future =
+                invokeOnStableClusterSerial(nodeEngine, createOperationSupplier(), RETRY_COUNT);
+        future.whenCompleteAsync(this);
     }
 
     abstract Supplier<Operation> createOperationSupplier();
@@ -46,13 +48,11 @@ public abstract class AbstractStableClusterMessageTask<P> extends AbstractMessag
     protected abstract Object resolve(Object response);
 
     @Override
-    public final void onResponse(Object response) {
-        sendResponse(resolve(response));
+    public void accept(Object response, Throwable throwable) {
+        if (throwable == null) {
+            sendResponse(resolve(response));
+        } else {
+            handleProcessingFailure(throwable);
+        }
     }
-
-    @Override
-    public final void onFailure(Throwable t) {
-        handleProcessingFailure(t);
-    }
-
 }

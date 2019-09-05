@@ -16,19 +16,18 @@
 
 package com.hazelcast.spi.impl.operationservice.impl;
 
+import com.hazelcast.collection.IQueue;
+import com.hazelcast.config.Config;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.InternalLockNamespace;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.IsLockedOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.LockOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.lock.operations.UnlockOperation;
-import com.hazelcast.config.Config;
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.ILock;
-import com.hazelcast.collection.IQueue;
-import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
-import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
@@ -48,6 +47,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.spi.properties.GroupProperty.OPERATION_CALL_TIMEOUT_MILLIS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -55,6 +55,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -136,8 +137,8 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
                 .invoke();
 
         // then we register our callback
-        final ExecutionCallback<Object> callback = getExecutionCallbackMock();
-        future.andThen(callback);
+        final BiConsumer<Object, Throwable> callback = getExecutionCallbackMock();
+        future.whenCompleteAsync(callback);
 
         // and we eventually expect to fail with an OperationTimeoutException
         assertFailsEventuallyWithOperationTimeoutException(callback);
@@ -217,15 +218,10 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
                 .setPartitionId(partitionId);
         final InternalCompletableFuture<Object> future = opService.invokeOnPartition(op);
 
-        final ExecutionCallback<Object> callback = getExecutionCallbackMock();
-        future.andThen(callback);
+        final BiConsumer<Object, Throwable> callback = getExecutionCallbackMock();
+        future.whenCompleteAsync(callback);
 
-        assertTrueEventually(new AssertTask() {
-            @Override
-            public void run() throws Exception {
-                verify(callback).onResponse(Boolean.FALSE);
-            }
-        });
+        assertTrueEventually(() -> verify(callback).accept(Boolean.FALSE, null));
     }
 
     /**
@@ -266,15 +262,12 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
         assertEquals(Boolean.TRUE, result);
     }
 
-    private void assertFailsEventuallyWithOperationTimeoutException(final ExecutionCallback callback) {
-        assertTrueEventually(new AssertTask() {
-            @Override
-            public void run() throws Exception {
-                ArgumentCaptor<Throwable> argument = ArgumentCaptor.forClass(Throwable.class);
-                verify(callback).onFailure(argument.capture());
+    private void assertFailsEventuallyWithOperationTimeoutException(final BiConsumer callback) {
+        assertTrueEventually(() -> {
+            ArgumentCaptor<Throwable> argument = ArgumentCaptor.forClass(Throwable.class);
+            verify(callback).accept(isNull(), argument.capture());
 
-                assertInstanceOf(OperationTimeoutException.class, argument.getValue());
-            }
+            assertInstanceOf(OperationTimeoutException.class, argument.getValue());
         });
     }
 
@@ -381,18 +374,14 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
         int listenerCount = 10;
         final CountDownLatch listenersCompleteLatch = new CountDownLatch(listenerCount);
         for (int k = 0; k < 10; k++) {
-            future.andThen(new ExecutionCallback<Object>() {
-                @Override
-                public void onResponse(Object response) {
+            future.whenCompleteAsync((response, t) -> {
+                if (t == null) {
                     if (Boolean.TRUE.equals(response)) {
                         listenersCompleteLatch.countDown();
                     } else {
                         System.out.println(response);
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+                } else {
                     t.printStackTrace();
                 }
             });
@@ -530,8 +519,8 @@ public class Invocation_BlockingTest extends HazelcastTestSupport {
     }
 
     @SuppressWarnings("unchecked")
-    private static ExecutionCallback<Object> getExecutionCallbackMock() {
-        return mock(ExecutionCallback.class);
+    private static BiConsumer<Object, Throwable> getExecutionCallbackMock() {
+        return mock(BiConsumer.class);
     }
 
     private abstract class OpThread extends Thread {

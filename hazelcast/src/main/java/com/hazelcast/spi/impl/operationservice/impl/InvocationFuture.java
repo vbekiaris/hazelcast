@@ -133,7 +133,6 @@ public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
             }
         }
 
-        // todo cleanup this part
         Throwable cause = (value instanceof ExceptionalResult)
                 ? ((ExceptionalResult) value).getCause()
                 : null;
@@ -141,15 +140,8 @@ public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         if (invocation.shouldFailOnIndeterminateOperationState()
                 && (value instanceof IndeterminateOperationState
                     || cause instanceof IndeterminateOperationState)) {
-            value = new IndeterminateOperationStateException("indeterminate operation state",
-                    cause == null ? (Throwable) value : cause);
-        }
-
-        if (value instanceof Throwable || value instanceof ExceptionalResult) {
-            Throwable throwable = (value instanceof Throwable) ? ((Throwable) value) : ((ExceptionalResult) value).getCause();
-            // todo async stack trace rewriting
-//            ExceptionUtil.fixAsyncStackTrace(throwable, Thread.currentThread().getStackTrace());
-            return new ExceptionalResult(throwable);
+            value = wrapThrowable(new IndeterminateOperationStateException("indeterminate operation state",
+                    cause == null ? (Throwable) value : cause));
         }
 
         return value;

@@ -78,13 +78,13 @@ public class CardinalityEstimatorQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void estimateAsync_quorum() throws Exception {
-        estimator(0).estimateAsync().get();
+        estimator(0).estimateAsync().toCompletableFuture().get();
     }
 
     @Test
     public void estimateAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        estimator(3).estimateAsync().get();
+        estimator(3).estimateAsync().toCompletableFuture().get();
     }
 
     protected CardinalityEstimator estimator(int index) {

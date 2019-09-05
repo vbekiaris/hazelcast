@@ -24,8 +24,6 @@ import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastJsonValue;
-import java.util.function.BiFunction;
-
 import com.hazelcast.internal.json.Json;
 import com.hazelcast.map.listener.EntryExpiredListener;
 import com.hazelcast.query.PagingPredicate;
@@ -71,6 +69,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -921,12 +920,11 @@ public class BasicMapTest extends HazelcastTestSupport {
     @Test
     public void testGetPutRemoveAsync() {
         IMap<Integer, Object> map = getInstance().getMap("testGetPutRemoveAsync");
-        Future<Object> future = map.putAsync(1, 1);
         try {
-            assertNull(future.get());
-            assertEquals(1, map.putAsync(1, 2).get());
-            assertEquals(2, map.getAsync(1).get());
-            assertEquals(2, map.removeAsync(1).get());
+            assertNull(map.putAsync(1, 1).toCompletableFuture().get());
+            assertEquals(1, map.putAsync(1, 2).toCompletableFuture().get());
+            assertEquals(2, map.getAsync(1).toCompletableFuture().get());
+            assertEquals(2, map.removeAsync(1).toCompletableFuture().get());
             assertEquals(0, map.size());
         } catch (InterruptedException e) {
             e.printStackTrace();

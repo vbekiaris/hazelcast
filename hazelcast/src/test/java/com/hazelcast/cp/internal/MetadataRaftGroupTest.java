@@ -16,10 +16,9 @@
 
 package com.hazelcast.cp.internal;
 
+import com.hazelcast.cluster.Member;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.cluster.Member;
 import com.hazelcast.cp.CPGroup;
 import com.hazelcast.cp.CPGroup.CPGroupStatus;
 import com.hazelcast.cp.CPGroupId;
@@ -33,8 +32,9 @@ import com.hazelcast.cp.internal.raftop.metadata.TriggerDestroyRaftGroupOp;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.instance.impl.NodeState;
 import com.hazelcast.nio.Address;
-import com.hazelcast.test.annotation.ParallelJVMTest;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.test.HazelcastParallelClassRunner;
+import com.hazelcast.test.annotation.ParallelJVMTest;
 import com.hazelcast.test.annotation.QuickTest;
 import com.hazelcast.util.ExceptionUtil;
 import org.junit.Test;
@@ -472,8 +472,8 @@ public class MetadataRaftGroupTest extends HazelcastRaftTestSupport {
         }
         assertEquals(otherRaftGroupSize, endpoints.size());
 
-        ICompletableFuture<CPGroupId> f = raftService.getInvocationManager()
-                                                     .invoke(getMetadataGroupId(leaderInstance),
+        InternalCompletableFuture<CPGroupId> f = raftService.getInvocationManager()
+                                                            .invoke(getMetadataGroupId(leaderInstance),
                                                              new CreateRaftGroupOp("test", endpoints));
 
         CPGroupId groupId = f.get();
@@ -537,19 +537,19 @@ public class MetadataRaftGroupTest extends HazelcastRaftTestSupport {
         factory.getInstance(endpoint.getAddress()).shutdown();
 
         CPGroupId metadataGroupId = getMetadataGroupId(aliveInstance);
-        ICompletableFuture<List<CPMemberInfo>> f1 = invocationService.query(metadataGroupId, new GetActiveCPMembersOp(),
+        InternalCompletableFuture<List<CPMemberInfo>> f1 = invocationService.query(metadataGroupId, new GetActiveCPMembersOp(),
                 LINEARIZABLE);
 
         List<CPMemberInfo> activeEndpoints = f1.get();
         assertThat(activeEndpoints, not(hasItem(endpoint)));
 
-        ICompletableFuture<CPGroupInfo> f2 = invocationService.query(metadataGroupId, new GetRaftGroupOp(metadataGroupId),
+        InternalCompletableFuture<CPGroupInfo> f2 = invocationService.query(metadataGroupId, new GetRaftGroupOp(metadataGroupId),
                 LINEARIZABLE);
 
-        ICompletableFuture<CPGroupInfo> f3 = invocationService.query(metadataGroupId, new GetRaftGroupOp(groupId1),
+        InternalCompletableFuture<CPGroupInfo> f3 = invocationService.query(metadataGroupId, new GetRaftGroupOp(groupId1),
                 LINEARIZABLE);
 
-        ICompletableFuture<CPGroupInfo> f4 = invocationService.query(metadataGroupId, new GetRaftGroupOp(groupId2),
+        InternalCompletableFuture<CPGroupInfo> f4 = invocationService.query(metadataGroupId, new GetRaftGroupOp(groupId2),
                 LINEARIZABLE);
 
         CPGroupInfo metadataGroup = f2.get();
@@ -693,9 +693,11 @@ public class MetadataRaftGroupTest extends HazelcastRaftTestSupport {
     private CPMemberInfo findCommonEndpoint(HazelcastInstance instance, CPGroupId groupId1, CPGroupId groupId2)
             throws ExecutionException, InterruptedException {
         RaftInvocationManager invocationService = getRaftInvocationManager(instance);
-        ICompletableFuture<CPGroupInfo> f1 = invocationService.query(getMetadataGroupId(instance), new GetRaftGroupOp(groupId1),
+        InternalCompletableFuture<CPGroupInfo> f1 = invocationService.query(getMetadataGroupId(instance),
+                new GetRaftGroupOp(groupId1),
                 LINEARIZABLE);
-        ICompletableFuture<CPGroupInfo> f2 = invocationService.query(getMetadataGroupId(instance), new GetRaftGroupOp(groupId2),
+        InternalCompletableFuture<CPGroupInfo> f2 = invocationService.query(getMetadataGroupId(instance),
+                new GetRaftGroupOp(groupId2),
                 LINEARIZABLE);
         CPGroupInfo group1 = f1.get();
         CPGroupInfo group2 = f2.get();

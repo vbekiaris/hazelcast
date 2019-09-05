@@ -42,6 +42,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.fail;
 
@@ -100,7 +102,7 @@ public class ExecutorServiceTestSupport extends HazelcastTestSupport {
         }
     }
 
-    public static class CountingDownExecutionCallback<T> implements ExecutionCallback<T> {
+    public static class CountingDownExecutionCallback<T> implements BiConsumer<T, Throwable>, ExecutionCallback<T> {
 
         private final AtomicReference<Object> result = new AtomicReference<Object>();
         private final CountDownLatch latch;
@@ -125,9 +127,19 @@ public class ExecutorServiceTestSupport extends HazelcastTestSupport {
         @Override
         public void onFailure(Throwable t) {
             if (!result.compareAndSet(null, t)) {
-                System.out.println("Failure received after result is set. Failure: " + t + " Result: " + result.get());
+                System.out.println("Failure received after result is set. Failure: "
+                        + t + " Result: " + result.get());
             }
             latch.countDown();
+        }
+
+        @Override
+        public void accept(T response, Throwable throwable) {
+            if (throwable == null) {
+                onResponse(response);
+            } else {
+                onFailure(throwable);
+            }
         }
 
         public CountDownLatch getLatch() {
@@ -288,7 +300,7 @@ public class ExecutorServiceTestSupport extends HazelcastTestSupport {
     }
 
     @SuppressWarnings("unused")
-    public static class NullResponseCountingCallback<T> implements ExecutionCallback<T> {
+    public static class NullResponseCountingCallback<T> implements Consumer<T>, ExecutionCallback<T> {
 
         private final AtomicInteger nullResponseCount = new AtomicInteger(0);
 
@@ -296,6 +308,11 @@ public class ExecutorServiceTestSupport extends HazelcastTestSupport {
 
         public NullResponseCountingCallback(int count) {
             this.responseLatch = new CountDownLatch(count);
+        }
+
+        @Override
+        public void accept(T t) {
+            onResponse(t);
         }
 
         @Override
@@ -354,13 +371,19 @@ public class ExecutorServiceTestSupport extends HazelcastTestSupport {
         }
     }
 
-    public static class BooleanSuccessResponseCountingCallback implements ExecutionCallback<Boolean> {
+    public static class BooleanSuccessResponseCountingCallback
+            implements Consumer<Boolean>, ExecutionCallback<Boolean> {
 
         private final AtomicInteger successResponseCount = new AtomicInteger(0);
         private final CountDownLatch responseLatch;
 
         public BooleanSuccessResponseCountingCallback(int count) {
             this.responseLatch = new CountDownLatch(count);
+        }
+
+        @Override
+        public void accept(Boolean response) {
+            onResponse(response);
         }
 
         @Override

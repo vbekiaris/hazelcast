@@ -21,13 +21,11 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.map.IMap;
 import com.hazelcast.core.ManagedContext;
 import com.hazelcast.internal.journal.EventJournalInitialSubscriberState;
 import com.hazelcast.internal.journal.EventJournalReader;
-import com.hazelcast.internal.util.SimpleCompletedFuture;
 import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.map.IMap;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.QueryCache;
 import com.hazelcast.map.impl.MapService;
@@ -57,7 +55,6 @@ import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.util.CollectionUtil;
 import com.hazelcast.util.IterationType;
-import com.hazelcast.util.executor.DelegatingFuture;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,6 +66,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -76,6 +74,8 @@ import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
 import static com.hazelcast.map.impl.query.QueryResultUtils.transformToSet;
 import static com.hazelcast.map.impl.querycache.subscriber.QueryCacheRequest.newQueryCacheRequest;
 import static com.hazelcast.map.impl.recordstore.RecordStore.DEFAULT_MAX_IDLE;
+import static com.hazelcast.spi.impl.InternalCompletableFuture.deserializingFuture;
+import static com.hazelcast.spi.impl.InternalCompletableFuture.newCompletedFuture;
 import static com.hazelcast.util.ExceptionUtil.rethrow;
 import static com.hazelcast.util.MapUtil.createHashMap;
 import static com.hazelcast.util.Preconditions.checkNoNullInside;
@@ -330,10 +330,10 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
     }
 
     @Override
-    public ICompletableFuture<V> getAsync(@Nonnull K key) {
+    public InternalCompletableFuture<V> getAsync(@Nonnull K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
 
-        return new DelegatingFuture<>(getAsyncInternal(key), serializationService);
+        return deserializingFuture(serializationService, getAsyncInternal(key));
     }
 
     @Override
@@ -345,25 +345,25 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value) {
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value) {
         return putAsync(key, value, -1, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
                                           long ttl, @Nonnull TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
         checkNotNull(timeunit, NULL_TIMEUNIT_IS_NOT_ALLOWED);
 
         Data valueData = toData(value);
-        return new DelegatingFuture<>(
-                putAsyncInternal(key, valueData, ttl, timeunit, DEFAULT_MAX_IDLE, TimeUnit.MILLISECONDS),
-                serializationService);
+        return deserializingFuture(
+                serializationService,
+                putAsyncInternal(key, valueData, ttl, timeunit, DEFAULT_MAX_IDLE, TimeUnit.MILLISECONDS));
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
                                           long ttl, @Nonnull TimeUnit ttlUnit,
                                           long maxIdle, @Nonnull TimeUnit maxIdleUnit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
@@ -372,30 +372,30 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
         checkNotNull(ttlUnit, NULL_MAX_IDLE_UNIT_IS_NOT_ALLOWED);
 
         Data valueData = toData(value);
-        return new DelegatingFuture<>(
-                putAsyncInternal(key, valueData, ttl, ttlUnit, maxIdle, maxIdleUnit),
-                serializationService);
+        return deserializingFuture(
+                serializationService,
+                putAsyncInternal(key, valueData, ttl, ttlUnit, maxIdle, maxIdleUnit));
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value) {
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value) {
         return setAsync(key, value, -1, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
         checkNotNull(timeunit, NULL_TIMEUNIT_IS_NOT_ALLOWED);
 
         Data valueData = toData(value);
-        return new DelegatingFuture<>(
-                setAsyncInternal(key, valueData, ttl, timeunit, DEFAULT_MAX_IDLE, TimeUnit.MILLISECONDS),
-                serializationService);
+        return deserializingFuture(
+                serializationService,
+                setAsyncInternal(key, valueData, ttl, timeunit, DEFAULT_MAX_IDLE, TimeUnit.MILLISECONDS));
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key,
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key,
                                              @Nonnull V value,
                                              long ttl, @Nonnull TimeUnit ttlUnit,
                                              long maxIdle, @Nonnull TimeUnit maxIdleUnit) {
@@ -405,16 +405,16 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
         checkNotNull(ttlUnit, NULL_MAX_IDLE_UNIT_IS_NOT_ALLOWED);
 
         Data valueData = toData(value);
-        return new DelegatingFuture<>(
-                setAsyncInternal(key, valueData, ttl, ttlUnit, maxIdle, maxIdleUnit),
-                serializationService);
+        return deserializingFuture(
+                serializationService,
+                setAsyncInternal(key, valueData, ttl, ttlUnit, maxIdle, maxIdleUnit));
     }
 
     @Override
-    public ICompletableFuture<V> removeAsync(@Nonnull K key) {
+    public InternalCompletableFuture<V> removeAsync(@Nonnull K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
 
-        return new DelegatingFuture<>(removeAsyncInternal(key), serializationService);
+        return deserializingFuture(serializationService, removeAsyncInternal(key));
     }
 
     @Override
@@ -793,11 +793,11 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
     /**
      * Async version of {@link #executeOnKeys}.
      */
-    public <R> ICompletableFuture<Map<K, R>> submitToKeys(@Nonnull Set<K> keys,
+    public <R> InternalCompletableFuture<Map<K, R>> submitToKeys(@Nonnull Set<K> keys,
                                                           @Nonnull EntryProcessor<K, V, R> entryProcessor) {
         checkNotNull(keys, NULL_KEYS_ARE_NOT_ALLOWED);
         if (keys.isEmpty()) {
-            return new SimpleCompletedFuture<>(Collections.emptyMap());
+            return newCompletedFuture(Collections.emptyMap());
         }
         handleHazelcastInstanceAwareParams(entryProcessor);
 
@@ -816,13 +816,13 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
     }
 
     @Override
-    public <R> ICompletableFuture<R> submitToKey(@Nonnull K key,
+    public <R> InternalCompletableFuture<R> submitToKey(@Nonnull K key,
                                                  @Nonnull EntryProcessor<K, V, R> entryProcessor) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         handleHazelcastInstanceAwareParams(entryProcessor);
 
         InternalCompletableFuture future = executeOnKeyInternal(key, entryProcessor, null);
-        return new DelegatingFuture(future, serializationService);
+        return deserializingFuture(serializationService, future);
     }
 
     @Override
@@ -971,7 +971,7 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
     }
 
     @Override
-    public ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
+    public CompletionStage<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
         final MapEventJournalSubscribeOperation op = new MapEventJournalSubscribeOperation(name);
         op.setPartitionId(partitionId);
         return operationService.invokeOnPartition(op);
@@ -988,7 +988,7 @@ public class MapProxyImpl<K, V> extends MapProxySupport<K, V> implements EventJo
      * the overhead of cloning.
      */
     @Override
-    public <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    public <T> CompletionStage<ReadResultSet<T>> readFromEventJournal(
             long startSequence,
             int minSize,
             int maxSize,

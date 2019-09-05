@@ -24,19 +24,19 @@ import com.hazelcast.cache.impl.journal.CacheEventJournalReadOperation;
 import com.hazelcast.cache.impl.journal.CacheEventJournalSubscribeOperation;
 import com.hazelcast.cache.journal.EventJournalCacheEvent;
 import com.hazelcast.config.CacheConfig;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.internal.journal.EventJournalInitialSubscriberState;
 import com.hazelcast.internal.journal.EventJournalReader;
 import com.hazelcast.map.impl.MapEntries;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.ringbuffer.ReadResultSet;
-import com.hazelcast.spi.impl.eventservice.EventFilter;
-import com.hazelcast.spi.impl.eventservice.EventRegistration;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
+import com.hazelcast.spi.impl.eventservice.EventFilter;
+import com.hazelcast.spi.impl.eventservice.EventRegistration;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationFactory;
 import com.hazelcast.spi.impl.operationservice.OperationService;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 import com.hazelcast.util.collection.PartitionIdSet;
 
 import javax.cache.CacheException;
@@ -54,6 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -84,7 +85,7 @@ import static java.util.Collections.emptyMap;
  * @param <K> the type of key.
  * @param <V> the type of value.
  */
-@SuppressWarnings({"checkstyle:methodcount"})
+@SuppressWarnings({"checkstyle:methodcount", "checkstyle:classfanoutcomplexity"})
 public class CacheProxy<K, V> extends CacheProxySupport<K, V>
         implements EventJournalReader<EventJournalCacheEvent<K, V>> {
 
@@ -110,7 +111,7 @@ public class CacheProxy<K, V> extends CacheProxySupport<K, V>
         Operation operation = operationProvider.createContainsKeyOperation(dataKey);
         OperationService operationService = getNodeEngine().getOperationService();
         int partitionId = getPartitionId(dataKey);
-        InternalCompletableFuture<Boolean> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
+        InvocationFuture<Boolean> future = operationService.invokeOnPartition(getServiceName(), operation, partitionId);
         return future.joinInternal();
     }
 
@@ -344,14 +345,14 @@ public class CacheProxy<K, V> extends CacheProxySupport<K, V>
     }
 
     @Override
-    public ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
+    public CompletionStage<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
         final CacheEventJournalSubscribeOperation op = new CacheEventJournalSubscribeOperation(nameWithPrefix);
         op.setPartitionId(partitionId);
         return getNodeEngine().getOperationService().invokeOnPartition(op);
     }
 
     @Override
-    public <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    public <T> CompletionStage<ReadResultSet<T>> readFromEventJournal(
             long startSequence,
             int minSize,
             int maxSize,
@@ -410,12 +411,12 @@ public class CacheProxy<K, V> extends CacheProxySupport<K, V>
     }
 
     @Override
-    public ICompletableFuture<V> getAndPutAsync(K key, V value) {
+    public InternalCompletableFuture<V> getAndPutAsync(K key, V value) {
         return getAndPutAsync(key, value, null);
     }
 
     @Override
-    public ICompletableFuture<V> getAndPutAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public InternalCompletableFuture<V> getAndPutAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         return putAsyncInternal(key, value, expiryPolicy, true, false);
     }
 
@@ -430,37 +431,37 @@ public class CacheProxy<K, V> extends CacheProxySupport<K, V>
     }
 
     @Override
-    public ICompletableFuture<V> getAndRemoveAsync(K key) {
+    public InternalCompletableFuture<V> getAndRemoveAsync(K key) {
         return removeAsyncInternal(key, null, false, true, false);
     }
 
     @Override
-    public ICompletableFuture<Boolean> replaceAsync(K key, V value) {
+    public InternalCompletableFuture<Boolean> replaceAsync(K key, V value) {
         return replaceAsyncInternal(key, null, value, null, false, false, false);
     }
 
     @Override
-    public ICompletableFuture<Boolean> replaceAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public InternalCompletableFuture<Boolean> replaceAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         return replaceAsyncInternal(key, null, value, expiryPolicy, false, false, false);
     }
 
     @Override
-    public ICompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue) {
+    public InternalCompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue) {
         return replaceAsyncInternal(key, oldValue, newValue, null, true, false, false);
     }
 
     @Override
-    public ICompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy) {
+    public InternalCompletableFuture<Boolean> replaceAsync(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy) {
         return replaceAsyncInternal(key, oldValue, newValue, expiryPolicy, true, false, false);
     }
 
     @Override
-    public ICompletableFuture<V> getAndReplaceAsync(K key, V value) {
+    public InternalCompletableFuture<V> getAndReplaceAsync(K key, V value) {
         return replaceAsyncInternal(key, null, value, null, false, true, false);
     }
 
     @Override
-    public ICompletableFuture<V> getAndReplaceAsync(K key, V value, ExpiryPolicy expiryPolicy) {
+    public InternalCompletableFuture<V> getAndReplaceAsync(K key, V value, ExpiryPolicy expiryPolicy) {
         return replaceAsyncInternal(key, null, value, expiryPolicy, false, true, false);
     }
 

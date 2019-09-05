@@ -18,8 +18,7 @@ package com.hazelcast.cp.internal.datastructures.atomiclong.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPAtomicLongGetAndSetCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.atomiclong.RaftAtomicLongService;
 import com.hazelcast.cp.internal.datastructures.atomiclong.operation.GetAndSetOp;
@@ -33,8 +32,7 @@ import java.security.Permission;
 /**
  * Client message task for {@link GetAndSetOp}
  */
-public class GetAndSetMessageTask extends AbstractMessageTask<CPAtomicLongGetAndSetCodec.RequestParameters>
-        implements ExecutionCallback<Long> {
+public class GetAndSetMessageTask extends AbstractCPMessageTask<CPAtomicLongGetAndSetCodec.RequestParameters> {
 
     public GetAndSetMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -45,7 +43,7 @@ public class GetAndSetMessageTask extends AbstractMessageTask<CPAtomicLongGetAnd
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .<Long>invoke(parameters.groupId, new GetAndSetOp(parameters.name, parameters.newValue))
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -81,15 +79,5 @@ public class GetAndSetMessageTask extends AbstractMessageTask<CPAtomicLongGetAnd
     @Override
     public Object[] getParameters() {
         return new Object[]{parameters.newValue};
-    }
-
-    @Override
-    public void onResponse(Long response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

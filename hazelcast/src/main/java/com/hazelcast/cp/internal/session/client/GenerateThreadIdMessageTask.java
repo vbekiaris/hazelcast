@@ -18,9 +18,8 @@ package com.hazelcast.cp.internal.session.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPSessionGenerateThreadIdCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.cp.internal.RaftService;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.datastructures.semaphore.RaftSemaphoreService;
 import com.hazelcast.cp.internal.session.operation.GenerateThreadIdOp;
 import com.hazelcast.instance.impl.Node;
@@ -31,8 +30,7 @@ import java.security.Permission;
 /**
  * Client message task for {@link GenerateThreadIdOp}
  */
-public class GenerateThreadIdMessageTask extends AbstractMessageTask<CPSessionGenerateThreadIdCodec.RequestParameters>
-        implements ExecutionCallback<Long> {
+public class GenerateThreadIdMessageTask extends AbstractCPMessageTask<CPSessionGenerateThreadIdCodec.RequestParameters> {
 
     public GenerateThreadIdMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -43,7 +41,7 @@ public class GenerateThreadIdMessageTask extends AbstractMessageTask<CPSessionGe
         RaftService raftService = nodeEngine.getService(RaftService.SERVICE_NAME);
         raftService.getInvocationManager()
                    .<Long>invoke(parameters.groupId, new GenerateThreadIdOp())
-                   .andThen(this);
+                   .whenCompleteAsync(this);
     }
 
     @Override
@@ -54,16 +52,6 @@ public class GenerateThreadIdMessageTask extends AbstractMessageTask<CPSessionGe
     @Override
     protected ClientMessage encodeResponse(Object response) {
         return CPSessionGenerateThreadIdCodec.encodeResponse((Long) response);
-    }
-
-    @Override
-    public void onResponse(Long response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 
     @Override

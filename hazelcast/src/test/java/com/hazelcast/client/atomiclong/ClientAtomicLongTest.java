@@ -18,11 +18,9 @@ package com.hazelcast.client.atomiclong;
 
 import com.hazelcast.client.UndefinedErrorCodeException;
 import com.hazelcast.client.test.TestHazelcastFactory;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.cp.IAtomicLong;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
+import com.hazelcast.cp.IAtomicLong;
 import com.hazelcast.test.ExpectedRuntimeException;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
@@ -34,8 +32,10 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -86,22 +86,22 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
 
     @Test
     public void testAsync() throws Exception {
-        ICompletableFuture<Long> future = l.getAndAddAsync(10);
+        Future<Long> future = l.getAndAddAsync(10).toCompletableFuture();
         assertEquals(0, future.get().longValue());
 
-        ICompletableFuture<Boolean> booleanFuture = l.compareAndSetAsync(10, 42);
+        Future<Boolean> booleanFuture = l.compareAndSetAsync(10, 42).toCompletableFuture();
         assertTrue(booleanFuture.get());
 
-        future = l.getAsync();
+        future = l.getAsync().toCompletableFuture();
         assertEquals(42, future.get().longValue());
 
-        future = l.incrementAndGetAsync();
+        future = l.incrementAndGetAsync().toCompletableFuture();
         assertEquals(43, future.get().longValue());
 
-        future = l.addAndGetAsync(-13);
+        future = l.addAndGetAsync(-13).toCompletableFuture();
         assertEquals(30, future.get().longValue());
 
-        future = l.alterAndGetAsync(new AddOneFunction());
+        future = l.alterAndGetAsync(new AddOneFunction()).toCompletableFuture();
         assertEquals(31, future.get().longValue());
 
     }
@@ -125,21 +125,21 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
     public void applyAsync()
             throws ExecutionException, InterruptedException {
         IAtomicLong ref = client.getAtomicLong("apply");
-        ICompletableFuture<Long> future = ref.applyAsync(new AddOneFunction());
+        Future<Long> future = ref.applyAsync(new AddOneFunction()).toCompletableFuture();
         assertEquals(new Long(1), future.get());
         assertEquals(0, ref.get());
     }
 
+    // todo fix!!!
     @Test
     public void applyBooleanAsync() throws ExecutionException, InterruptedException {
         final CountDownLatch cdl = new CountDownLatch(1);
         final IAtomicLong ref = client.getAtomicLong("apply");
-        ICompletableFuture<Void> incAndGetFuture = ref.setAsync(1);
+        CompletionStage<Void> incAndGetFuture = ref.setAsync(1).toCompletableFuture();
         final AtomicBoolean failed = new AtomicBoolean(true);
-        incAndGetFuture.andThen(new ExecutionCallback<Void>() {
-            @Override
-            public void onResponse(Void response) {
-                ICompletableFuture<Boolean> future = ref.applyAsync(new FilterOnesFunction());
+        incAndGetFuture.whenCompleteAsync((response, t) -> {
+            if (t == null) {
+                Future<Boolean> future = ref.applyAsync(new FilterOnesFunction()).toCompletableFuture();
                 try {
                     assertEquals(Boolean.TRUE, future.get());
                     failed.set(false);
@@ -149,14 +149,11 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
                 } catch (ExecutionException e) {
                     e.printStackTrace();
                 }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
+            } else {
                 t.printStackTrace();
             }
         });
-        if (cdl.await(15, TimeUnit.SECONDS)) {
+        if (cdl.await(60, TimeUnit.SECONDS)) {
             assertEquals(1, ref.get());
             assertFalse(failed.get());
         } else {
@@ -183,7 +180,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
         IAtomicLong ref = client.getAtomicLong("applyAsync_whenException");
         ref.set(1);
         try {
-            ICompletableFuture<Long> future = ref.applyAsync(new FailingFunction());
+            Future<Long> future = ref.applyAsync(new FailingFunction()).toCompletableFuture();
             future.get();
         } catch (InterruptedException e) {
             fail();
@@ -224,7 +221,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
         ref.set(10);
 
         try {
-            ICompletableFuture<Void> future = ref.alterAsync(new FailingFunction());
+            Future<Void> future = ref.alterAsync(new FailingFunction()).toCompletableFuture();
             future.get();
         } catch (InterruptedException e) {
             fail();
@@ -253,7 +250,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
         IAtomicLong ref = client.getAtomicLong("alterAsync");
 
         ref.set(10);
-        ICompletableFuture<Void> future = ref.alterAsync(new AddOneFunction());
+        Future<Void> future = ref.alterAsync(new AddOneFunction()).toCompletableFuture();
         future.get();
         assertEquals(11, ref.get());
 
@@ -287,7 +284,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
         ref.set(10);
 
         try {
-            ICompletableFuture<Long> future = ref.alterAndGetAsync(new FailingFunction());
+            Future<Long> future = ref.alterAndGetAsync(new FailingFunction()).toCompletableFuture();
             future.get();
         } catch (InterruptedException e) {
             fail();
@@ -313,9 +310,9 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
     public void alterAndGetAsync() throws ExecutionException, InterruptedException {
         IAtomicLong ref = client.getAtomicLong("alterAndGetAsync");
 
-        ICompletableFuture<Void> future = ref.setAsync(10);
+        Future<Void> future = ref.setAsync(10).toCompletableFuture();
         future.get();
-        assertEquals(11, ref.alterAndGetAsync(new AddOneFunction()).get().longValue());
+        assertEquals(11, ref.alterAndGetAsync(new AddOneFunction()).toCompletableFuture().get().longValue());
         assertEquals(11, ref.get());
     }
 
@@ -347,7 +344,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
         ref.set(10);
 
         try {
-            ICompletableFuture<Long> future = ref.getAndAlterAsync(new FailingFunction());
+            Future<Long> future = ref.getAndAlterAsync(new FailingFunction()).toCompletableFuture();
             future.get();
             fail();
         } catch (InterruptedException e) {
@@ -376,7 +373,7 @@ public class ClientAtomicLongTest extends HazelcastTestSupport {
 
         ref.set(10);
 
-        ICompletableFuture<Long> future = ref.getAndAlterAsync(new AddOneFunction());
+        Future<Long> future = ref.getAndAlterAsync(new AddOneFunction()).toCompletableFuture();
         assertEquals(10, future.get().longValue());
         assertEquals(11, ref.get());
     }

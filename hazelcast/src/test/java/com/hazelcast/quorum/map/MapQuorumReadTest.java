@@ -82,13 +82,13 @@ public class MapQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void getAsync_successful_whenQuorumSize_met() throws Exception {
-        map(0).getAsync("foo").get();
+        map(0).getAsync("foo").toCompletableFuture().get();
     }
 
     @Test
     public void getAsync_failing_whenQuorumSize_notMet() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        map(3).getAsync("foo").get();
+        map(3).getAsync("foo").toCompletableFuture().get();
     }
 
     @Test

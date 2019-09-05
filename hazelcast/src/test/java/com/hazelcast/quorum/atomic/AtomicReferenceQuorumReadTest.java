@@ -79,13 +79,13 @@ public class AtomicReferenceQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void getAsync_quorum() throws Exception {
-        aref(0).getAsync().get();
+        aref(0).getAsync().toCompletableFuture().get();
     }
 
     @Test
     public void getAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).getAsync().get();
+        aref(3).getAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -100,13 +100,13 @@ public class AtomicReferenceQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void isNullAsync_quorum() throws Exception {
-        aref(0).isNullAsync().get();
+        aref(0).isNullAsync().toCompletableFuture().get();
     }
 
     @Test
     public void isNullAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).isNullAsync().get();
+        aref(3).isNullAsync().toCompletableFuture().get();
     }
 
     @Test
@@ -121,13 +121,13 @@ public class AtomicReferenceQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void containsAsync_quorum() throws Exception {
-        aref(0).containsAsync(object()).get();
+        aref(0).containsAsync(object()).toCompletableFuture().get();
     }
 
     @Test
     public void containsAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        aref(3).containsAsync(object()).get();
+        aref(3).containsAsync(object()).toCompletableFuture().get();
     }
 
     private IAtomicReference<QuorumTestClass> aref(int index) {

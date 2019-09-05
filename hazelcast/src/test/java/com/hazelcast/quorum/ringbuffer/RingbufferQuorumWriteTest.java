@@ -81,24 +81,24 @@ public class RingbufferQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void addAllAsync_quorum() throws Exception {
-        ring(0).addAllAsync(asList("123"), OverflowPolicy.OVERWRITE).get();
+        ring(0).addAllAsync(asList("123"), OverflowPolicy.OVERWRITE).toCompletableFuture().get();
     }
 
     @Test
     public void addAllAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        ring(3).addAllAsync(asList("123"), OverflowPolicy.OVERWRITE).get();
+        ring(3).addAllAsync(asList("123"), OverflowPolicy.OVERWRITE).toCompletableFuture().get();
     }
 
     @Test
     public void addAsync_quorum() throws Exception {
-        ring(0).addAsync("123", OverflowPolicy.OVERWRITE).get();
+        ring(0).addAsync("123", OverflowPolicy.OVERWRITE).toCompletableFuture().get();
     }
 
     @Test
     public void addAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        ring(3).addAsync("123", OverflowPolicy.OVERWRITE).get();
+        ring(3).addAsync("123", OverflowPolicy.OVERWRITE).toCompletableFuture().get();
     }
 
     protected Ringbuffer ring(int index) {

@@ -19,13 +19,13 @@ package com.hazelcast.ringbuffer;
 import com.hazelcast.collection.BaseQueue;
 import com.hazelcast.collection.IQueue;
 import com.hazelcast.core.DistributedObject;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IFunction;
 import com.hazelcast.topic.ITopic;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.concurrent.CompletionStage;
 
 /**
  * A Ringbuffer is a data structure where the content is stored in a ring-like
@@ -222,7 +222,7 @@ public interface Ringbuffer<E> extends DistributedObject {
      * @return the sequenceId of the added item, or -1 if the add failed.
      * @throws NullPointerException if item or overflowPolicy is null.
      */
-    ICompletableFuture<Long> addAsync(@Nonnull E item, @Nonnull OverflowPolicy overflowPolicy);
+    CompletionStage<Long> addAsync(@Nonnull E item, @Nonnull OverflowPolicy overflowPolicy);
 
     /**
      * Reads one item from the Ringbuffer.
@@ -314,7 +314,7 @@ public interface Ringbuffer<E> extends DistributedObject {
      *                                  batch is null or if overflowPolicy is null
      * @throws IllegalArgumentException if collection is empty
      */
-    ICompletableFuture<Long> addAllAsync(@Nonnull Collection<? extends E> collection,
+    CompletionStage<Long> addAllAsync(@Nonnull Collection<? extends E> collection,
                                          @Nonnull OverflowPolicy overflowPolicy);
 
     /**
@@ -356,6 +356,6 @@ public interface Ringbuffer<E> extends DistributedObject {
      *                                  or if maxCount larger than the capacity of the ringbuffer
      *                                  or if maxCount larger than 1000 (to prevent overload)
      */
-    ICompletableFuture<ReadResultSet<E>> readManyAsync(long startSequence, int minCount, int maxCount,
+    CompletionStage<ReadResultSet<E>> readManyAsync(long startSequence, int minCount, int maxCount,
                                                        @Nullable IFunction<E, Boolean> filter);
 }

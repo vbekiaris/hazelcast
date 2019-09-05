@@ -16,11 +16,11 @@
 
 package com.hazelcast.crdt.pncounter;
 
+import com.hazelcast.cluster.Member;
 import com.hazelcast.cluster.impl.VectorClock;
 import com.hazelcast.cluster.memberselector.MemberSelectors;
 import com.hazelcast.core.ConsistencyLostException;
 import com.hazelcast.core.HazelcastException;
-import com.hazelcast.cluster.Member;
 import com.hazelcast.crdt.pncounter.operations.AddOperation;
 import com.hazelcast.crdt.pncounter.operations.CRDTTimestampedLong;
 import com.hazelcast.crdt.pncounter.operations.GetOperation;
@@ -30,10 +30,10 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
 import com.hazelcast.partition.NoDataMemberInClusterException;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
-import com.hazelcast.spi.impl.operationservice.InvocationBuilder;
 import com.hazelcast.spi.impl.NodeEngine;
+import com.hazelcast.spi.impl.operationservice.InvocationBuilder;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -191,7 +191,7 @@ public class PNCounterProxy extends AbstractDistributedObject<PNCounterService> 
             if (operationTryCount > 0) {
                 builder.setTryCount(operationTryCount);
             }
-            final InternalCompletableFuture<CRDTTimestampedLong> future = builder.invoke();
+            final InvocationFuture<CRDTTimestampedLong> future = builder.invoke();
             final CRDTTimestampedLong result = future.joinInternal();
             updateObservedReplicaTimestamps(result.getVectorClock());
             return result.getValue();

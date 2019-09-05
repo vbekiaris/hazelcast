@@ -16,16 +16,16 @@
 
 package com.hazelcast.cp.internal.datastructures.unsafe.countdownlatch;
 
+import com.hazelcast.cp.ICountDownLatch;
 import com.hazelcast.cp.internal.datastructures.unsafe.countdownlatch.operations.AwaitOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.countdownlatch.operations.CountDownOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.countdownlatch.operations.GetCountOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.countdownlatch.operations.SetCountOperation;
-import com.hazelcast.cp.ICountDownLatch;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -70,7 +70,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
     public void countDown() {
         Operation op = new CountDownOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture f = invokeOnPartition(op);
+        InvocationFuture f = invokeOnPartition(op);
         f.joinInternal();
     }
 
@@ -78,7 +78,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
     public int getCount() {
         Operation op = new GetCountOperation(name)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Integer> f = invokeOnPartition(op);
+        InvocationFuture<Integer> f = invokeOnPartition(op);
         return f.joinInternal();
     }
 
@@ -88,7 +88,7 @@ public class CountDownLatchProxy extends AbstractDistributedObject<CountDownLatc
 
         Operation op = new SetCountOperation(name, count)
                 .setPartitionId(partitionId);
-        InternalCompletableFuture<Boolean> f = invokeOnPartition(op);
+        InvocationFuture<Boolean> f = invokeOnPartition(op);
         return f.joinInternal();
     }
 

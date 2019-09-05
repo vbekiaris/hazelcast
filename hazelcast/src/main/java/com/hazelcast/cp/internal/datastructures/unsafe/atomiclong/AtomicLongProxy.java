@@ -16,6 +16,8 @@
 
 package com.hazelcast.cp.internal.datastructures.unsafe.atomiclong;
 
+import com.hazelcast.core.IFunction;
+import com.hazelcast.cp.IAtomicLong;
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.AddAndGetOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.AlterAndGetOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.AlterOperation;
@@ -26,12 +28,11 @@ import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.Get
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.GetAndSetOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.GetOperation;
 import com.hazelcast.cp.internal.datastructures.unsafe.atomiclong.operations.SetOperation;
-import com.hazelcast.core.IFunction;
-import com.hazelcast.cp.IAtomicLong;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 
 import static com.hazelcast.util.Preconditions.isNotNull;
 
@@ -66,7 +67,7 @@ public class AtomicLongProxy extends AbstractDistributedObject<AtomicLongService
     }
 
     @Override
-    public InternalCompletableFuture<Long> addAndGetAsync(long delta) {
+    public InvocationFuture<Long> addAndGetAsync(long delta) {
         Operation operation = new AddAndGetOperation(name, delta).setPartitionId(partitionId);
         return invokeOnPartition(operation);
     }
@@ -77,7 +78,7 @@ public class AtomicLongProxy extends AbstractDistributedObject<AtomicLongService
     }
 
     @Override
-    public InternalCompletableFuture<Boolean> compareAndSetAsync(long expect, long update) {
+    public InvocationFuture<Boolean> compareAndSetAsync(long expect, long update) {
         Operation operation = new CompareAndSetOperation(name, expect, update)
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);
@@ -89,7 +90,7 @@ public class AtomicLongProxy extends AbstractDistributedObject<AtomicLongService
     }
 
     @Override
-    public InternalCompletableFuture<Void> setAsync(long newValue) {
+    public InvocationFuture<Void> setAsync(long newValue) {
         Operation operation = new SetOperation(name, newValue)
                 .setPartitionId(partitionId);
         return invokeOnPartition(operation);

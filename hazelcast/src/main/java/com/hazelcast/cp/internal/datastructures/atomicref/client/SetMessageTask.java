@@ -18,8 +18,7 @@ package com.hazelcast.cp.internal.datastructures.atomicref.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPAtomicRefSetCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.RaftService;
 import com.hazelcast.cp.internal.datastructures.atomicref.RaftAtomicRefService;
 import com.hazelcast.cp.internal.datastructures.atomicref.operation.SetOp;
@@ -33,8 +32,7 @@ import java.security.Permission;
 /**
  * Client message task for {@link SetOp}
  */
-public class SetMessageTask extends AbstractMessageTask<CPAtomicRefSetCodec.RequestParameters>
-        implements ExecutionCallback<Object> {
+public class SetMessageTask extends AbstractCPMessageTask<CPAtomicRefSetCodec.RequestParameters> {
 
     public SetMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -45,7 +43,7 @@ public class SetMessageTask extends AbstractMessageTask<CPAtomicRefSetCodec.Requ
         RaftService service = nodeEngine.getService(RaftService.SERVICE_NAME);
         service.getInvocationManager()
                .invoke(parameters.groupId, new SetOp(parameters.name, parameters.newValue, parameters.returnOldValue))
-               .andThen(this);
+               .whenCompleteAsync(this);
     }
 
     @Override
@@ -81,15 +79,5 @@ public class SetMessageTask extends AbstractMessageTask<CPAtomicRefSetCodec.Requ
     @Override
     public Object[] getParameters() {
         return new Object[]{parameters.newValue};
-    }
-
-    @Override
-    public void onResponse(Object response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

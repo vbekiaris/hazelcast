@@ -80,12 +80,12 @@ public class CacheQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void getAsync_quorum() throws Exception {
-        cache(0).getAsync(1).get();
+        cache(0).getAsync(1).toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void getAsync_noQuorum() throws Exception {
-        cache(3).getAsync(1).get();
+        cache(3).getAsync(1).toCompletableFuture().get();
     }
 
     @Test

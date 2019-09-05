@@ -26,21 +26,20 @@ import com.hazelcast.cluster.Member;
 import com.hazelcast.config.CacheConfig;
 import com.hazelcast.config.CachePartitionLostListenerConfig;
 import com.hazelcast.config.ListenerConfig;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ManagedContext;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.impl.AbstractDistributedObject;
+import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.eventservice.EventFilter;
 import com.hazelcast.spi.impl.executionservice.ExecutionService;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
-import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationFactory;
 import com.hazelcast.spi.impl.operationservice.OperationService;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 import com.hazelcast.spi.partition.IPartitionService;
-import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.FutureUtil;
 import com.hazelcast.util.collection.PartitionIdSet;
@@ -264,15 +263,9 @@ abstract class CacheProxySupport<K, V>
             final CompletableFutureTask<Object> future = (CompletableFutureTask<Object>) executionService
                     .submit("loadAll-" + nameWithPrefix, loadAllTask);
             loadAllTasks.add(future);
-            future.andThen(new ExecutionCallback<Object>() {
-                @Override
-                public void onResponse(Object response) {
-                    loadAllTasks.remove(future);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    loadAllTasks.remove(future);
+            future.whenCompleteAsync((response, t) -> {
+                loadAllTasks.remove(future);
+                if (t != null) {
                     logger.warning("Problem in loadAll task", t);
                 }
             });
@@ -289,12 +282,12 @@ abstract class CacheProxySupport<K, V>
         managedContext.initialize(obj);
     }
 
-    protected <T> InternalCompletableFuture<T> invoke(Operation op, Data keyData, boolean completionOperation) {
+    protected <T> InvocationFuture<T> invoke(Operation op, Data keyData, boolean completionOperation) {
         int partitionId = getPartitionId(keyData);
         return invoke(op, partitionId, completionOperation);
     }
 
-    protected <T> InternalCompletableFuture<T> removeAsyncInternal(K key, V oldValue, boolean hasOldValue,
+    protected <T> InvocationFuture<T> removeAsyncInternal(K key, V oldValue, boolean hasOldValue,
                                                          boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         if (hasOldValue) {
@@ -315,7 +308,7 @@ abstract class CacheProxySupport<K, V>
         return invoke(operation, keyData, withCompletionEvent);
     }
 
-   protected  <T> InternalCompletableFuture<T> replaceAsyncInternal(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy,
+   protected  <T> InvocationFuture<T> replaceAsyncInternal(K key, V oldValue, V newValue, ExpiryPolicy expiryPolicy,
                                                           boolean hasOldValue, boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         if (hasOldValue) {
@@ -338,7 +331,7 @@ abstract class CacheProxySupport<K, V>
         return invoke(operation, keyData, withCompletionEvent);
     }
 
-   protected <T> InternalCompletableFuture<T> putAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
+   protected <T> InvocationFuture<T> putAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
                                                       boolean isGet, boolean withCompletionEvent) {
         ensureOpen();
         validateNotNull(key, value);
@@ -349,7 +342,7 @@ abstract class CacheProxySupport<K, V>
         return invoke(op, keyData, withCompletionEvent);
     }
 
-    protected InternalCompletableFuture<Boolean> putIfAbsentAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
+    protected InvocationFuture<Boolean> putIfAbsentAsyncInternal(K key, V value, ExpiryPolicy expiryPolicy,
                                                                 boolean withCompletionEvent) {
         ensureOpen();
         validateNotNull(key, value);
@@ -431,7 +424,7 @@ abstract class CacheProxySupport<K, V>
         try {
             OperationService operationService = getNodeEngine().getOperationService();
             int partitionId = getPartitionId(keyData);
-            InternalCompletableFuture<T> future = operationService.invokeOnPartition(getServiceName(), op, partitionId);
+            InvocationFuture<T> future = operationService.invokeOnPartition(getServiceName(), op, partitionId);
             T safely = future.joinInternal();
             listenerCompleter.waitCompletionLatch(completionId);
             return safely;
@@ -610,7 +603,7 @@ abstract class CacheProxySupport<K, V>
         listenerCompleter.clearListeners();
     }
 
-    private <T> InternalCompletableFuture<T> invoke(Operation op, int partitionId, boolean completionOperation) {
+    private <T> InvocationFuture<T> invoke(Operation op, int partitionId, boolean completionOperation) {
         Integer completionId = null;
         if (completionOperation) {
             completionId = listenerCompleter.registerCompletionLatch(1);
@@ -619,8 +612,8 @@ abstract class CacheProxySupport<K, V>
             }
         }
         try {
-            InternalCompletableFuture<T> future = getNodeEngine().getOperationService()
-                                                                 .invokeOnPartition(getServiceName(), op, partitionId);
+            InvocationFuture<T> future = getNodeEngine().getOperationService()
+                                                        .invokeOnPartition(getServiceName(), op, partitionId);
             if (completionOperation) {
                 listenerCompleter.waitCompletionLatch(completionId);
             }

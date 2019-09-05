@@ -18,10 +18,9 @@ package com.hazelcast.cp.internal.session.client;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.CPSessionCreateSessionCodec;
-import com.hazelcast.client.impl.protocol.task.AbstractMessageTask;
-import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.cp.internal.RaftOp;
 import com.hazelcast.cp.internal.RaftService;
+import com.hazelcast.cp.internal.client.AbstractCPMessageTask;
 import com.hazelcast.cp.internal.session.SessionResponse;
 import com.hazelcast.cp.internal.session.operation.CreateSessionOp;
 import com.hazelcast.instance.impl.Node;
@@ -34,8 +33,7 @@ import static com.hazelcast.cp.session.CPSession.CPSessionOwnerType.CLIENT;
 /**
  * Client message task for {@link CreateSessionOp}
  */
-public class CreateSessionMessageTask extends AbstractMessageTask<CPSessionCreateSessionCodec.RequestParameters>
-        implements ExecutionCallback<SessionResponse> {
+public class CreateSessionMessageTask extends AbstractCPMessageTask<CPSessionCreateSessionCodec.RequestParameters> {
 
     public CreateSessionMessageTask(ClientMessage clientMessage, Node node, Connection connection) {
         super(clientMessage, node, connection);
@@ -47,7 +45,7 @@ public class CreateSessionMessageTask extends AbstractMessageTask<CPSessionCreat
         RaftOp op = new CreateSessionOp(connection.getEndPoint(), parameters.endpointName, CLIENT, System.currentTimeMillis());
         service.getInvocationManager()
                 .<SessionResponse>invoke(parameters.groupId, op)
-                .andThen(this);
+                .whenCompleteAsync(this);
     }
 
     @Override
@@ -85,15 +83,5 @@ public class CreateSessionMessageTask extends AbstractMessageTask<CPSessionCreat
     @Override
     public Object[] getParameters() {
         return new Object[0];
-    }
-
-    @Override
-    public void onResponse(SessionResponse response) {
-        sendResponse(response);
-    }
-
-    @Override
-    public void onFailure(Throwable t) {
-        handleProcessingFailure(t);
     }
 }

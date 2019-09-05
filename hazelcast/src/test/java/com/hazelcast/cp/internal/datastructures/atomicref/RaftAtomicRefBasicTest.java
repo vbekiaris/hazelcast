@@ -93,15 +93,15 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
 
     @Test
     public void test_compareAndSetAsync() throws ExecutionException, InterruptedException {
-        assertTrue(atomicRef.compareAndSetAsync(null, "str1").get());
-        assertEquals("str1", atomicRef.getAsync().get());
-        assertFalse(atomicRef.compareAndSetAsync(null, "str1").get());
-        assertTrue(atomicRef.compareAndSetAsync("str1", "str2").get());
-        assertEquals("str2", atomicRef.getAsync().get());
-        assertFalse(atomicRef.compareAndSetAsync("str1", "str2").get());
-        assertTrue(atomicRef.compareAndSetAsync("str2", null).get());
-        assertNull(atomicRef.getAsync().get());
-        assertFalse(atomicRef.compareAndSetAsync("str2", null).get());
+        assertTrue(atomicRef.compareAndSetAsync(null, "str1").toCompletableFuture().get());
+        assertEquals("str1", atomicRef.getAsync().toCompletableFuture().get());
+        assertFalse(atomicRef.compareAndSetAsync(null, "str1").toCompletableFuture().get());
+        assertTrue(atomicRef.compareAndSetAsync("str1", "str2").toCompletableFuture().get());
+        assertEquals("str2", atomicRef.getAsync().toCompletableFuture().get());
+        assertFalse(atomicRef.compareAndSetAsync("str1", "str2").toCompletableFuture().get());
+        assertTrue(atomicRef.compareAndSetAsync("str2", null).toCompletableFuture().get());
+        assertNull(atomicRef.getAsync().toCompletableFuture().get());
+        assertFalse(atomicRef.compareAndSetAsync("str2", null).toCompletableFuture().get());
     }
 
     @Test
@@ -114,21 +114,21 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
 
     @Test
     public void test_setAsync() throws ExecutionException, InterruptedException {
-        atomicRef.setAsync("str1").get();
+        atomicRef.setAsync("str1").toCompletableFuture().get();
         assertEquals("str1", atomicRef.get());
-        assertEquals("str1", atomicRef.getAndSetAsync("str2").get());
+        assertEquals("str1", atomicRef.getAndSetAsync("str2").toCompletableFuture().get());
         assertEquals("str2", atomicRef.get());
     }
 
     @Test
     public void test_isNull() throws ExecutionException, InterruptedException {
         assertTrue(atomicRef.isNull());
-        assertTrue(atomicRef.isNullAsync().get());
+        assertTrue(atomicRef.isNullAsync().toCompletableFuture().get());
 
         atomicRef.set("str1");
 
         assertFalse(atomicRef.isNull());
-        assertFalse(atomicRef.isNullAsync().get());
+        assertFalse(atomicRef.isNullAsync().toCompletableFuture().get());
     }
 
     @Test
@@ -142,7 +142,7 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
     @Test
     public void test_clearAsync() throws ExecutionException, InterruptedException {
         atomicRef.set("str1");
-        atomicRef.clearAsync().get();
+        atomicRef.clearAsync().toCompletableFuture().get();
 
         assertTrue(atomicRef.isNull());
     }
@@ -150,16 +150,16 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
     @Test
     public void test_contains() throws ExecutionException, InterruptedException {
         assertTrue(atomicRef.contains(null));
-        assertTrue(atomicRef.containsAsync(null).get());
+        assertTrue(atomicRef.containsAsync(null).toCompletableFuture().get());
         assertFalse(atomicRef.contains("str1"));
-        assertFalse(atomicRef.containsAsync("str1").get());
+        assertFalse(atomicRef.containsAsync("str1").toCompletableFuture().get());
 
         atomicRef.set("str1");
 
         assertFalse(atomicRef.contains(null));
-        assertFalse(atomicRef.containsAsync(null).get());
+        assertFalse(atomicRef.containsAsync(null).toCompletableFuture().get());
         assertTrue(atomicRef.contains("str1"));
-        assertTrue(atomicRef.containsAsync("str1").get());
+        assertTrue(atomicRef.containsAsync("str1").toCompletableFuture().get());
     }
 
     @Test
@@ -183,15 +183,15 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
     public void test_alterAsync() throws ExecutionException, InterruptedException {
         atomicRef.set("str1");
 
-        atomicRef.alterAsync(new AppendStringFunction("str2")).get();
+        atomicRef.alterAsync(new AppendStringFunction("str2")).toCompletableFuture().get();
 
         String val = atomicRef.get();
         assertEquals("str1 str2", val);
 
-        val = atomicRef.alterAndGetAsync(new AppendStringFunction("str3")).get();
+        val = atomicRef.alterAndGetAsync(new AppendStringFunction("str3")).toCompletableFuture().get();
         assertEquals("str1 str2 str3", val);
 
-        val = atomicRef.getAndAlterAsync(new AppendStringFunction("str4")).get();
+        val = atomicRef.getAndAlterAsync(new AppendStringFunction("str4")).toCompletableFuture().get();
         assertEquals("str1 str2 str3", val);
         assertEquals("str1 str2 str3 str4", atomicRef.get());
     }
@@ -204,7 +204,7 @@ public class RaftAtomicRefBasicTest extends HazelcastRaftTestSupport {
         assertEquals("str1 str2", val);
         assertEquals("str1", atomicRef.get());
 
-        val = atomicRef.applyAsync(new AppendStringFunction("str2")).get();
+        val = atomicRef.applyAsync(new AppendStringFunction("str2")).toCompletableFuture().get();
         assertEquals("str1 str2", val);
         assertEquals("str1", atomicRef.get());
     }

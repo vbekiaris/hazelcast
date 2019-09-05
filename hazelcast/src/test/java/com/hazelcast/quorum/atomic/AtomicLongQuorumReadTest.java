@@ -78,13 +78,13 @@ public class AtomicLongQuorumReadTest extends AbstractQuorumTest {
 
     @Test
     public void getAsync_quorum() throws Exception {
-        along(0).getAsync().get();
+        along(0).getAsync().toCompletableFuture().get();
     }
 
     @Test
     public void getAsync_noQuorum() throws Exception {
         expectedException.expectCause(isA(QuorumException.class));
-        along(3).getAsync().get();
+        along(3).getAsync().toCompletableFuture().get();
     }
 
     private IAtomicLong along(int index) {

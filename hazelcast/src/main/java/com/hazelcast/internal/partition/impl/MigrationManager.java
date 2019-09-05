@@ -17,11 +17,9 @@
 package com.hazelcast.internal.partition.impl;
 
 import com.hazelcast.cluster.ClusterState;
-import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.cluster.Member;
+import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.MemberLeftException;
-import com.hazelcast.partition.MigrationEvent;
 import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.internal.cluster.impl.ClusterServiceImpl;
@@ -45,12 +43,13 @@ import com.hazelcast.internal.partition.operation.PublishCompletedMigrationsOper
 import com.hazelcast.internal.partition.operation.ShutdownResponseOperation;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Address;
-import com.hazelcast.spi.impl.executionservice.ExecutionService;
+import com.hazelcast.partition.MigrationEvent;
+import com.hazelcast.spi.exception.TargetNotMemberException;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
+import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
-import com.hazelcast.spi.exception.TargetNotMemberException;
-import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.operationservice.impl.OperationServiceImpl;
 import com.hazelcast.spi.partition.IPartitionLostEvent;
 import com.hazelcast.spi.partition.MigrationEndpoint;
@@ -637,9 +636,8 @@ public class MigrationManager {
             InternalCompletableFuture<Boolean> f
                     = operationService.invokeOnTarget(SERVICE_NAME, operation, member.getAddress());
 
-            f.andThen(new ExecutionCallback<Boolean>() {
-                @Override
-                public void onResponse(Boolean response) {
+            f.whenCompleteAsync((response, t) -> {
+                if (t == null) {
                     if (!Boolean.TRUE.equals(response)) {
                         logger.fine(member + " rejected completed migrations with response " + response);
                         partitionService.sendPartitionRuntimeState(member.getAddress());
@@ -650,10 +648,7 @@ public class MigrationManager {
                         logger.fine("Evicting " + migrations.size() + " completed migrations.");
                         evictCompletedMigrations(migrations);
                     }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
+                } else {
                     logger.fine("Failure while publishing completed migrations to " + member, t);
                     partitionService.sendPartitionRuntimeState(member.getAddress());
                 }

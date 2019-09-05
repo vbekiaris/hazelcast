@@ -63,7 +63,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
     private static final int INITIAL_BACKOFF_MS = 100;
 
     private final ILogger logger;
-    private final ConcurrentMap<String, MessageRunner<E>> runnersMap = new ConcurrentHashMap<String, MessageRunner<E>>();
+    private final ConcurrentMap<String, MessageRunner<E>> runnersMap = new ConcurrentHashMap<>();
     private final Ringbuffer<ReliableTopicMessage> ringbuffer;
     private final SerializationService serializationService;
     private final ClientReliableTopicConfig config;
@@ -101,7 +101,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
                     addOrOverwrite(message);
                     break;
                 case DISCARD_NEWEST:
-                    ringbuffer.addAsync(message, OverflowPolicy.FAIL).get();
+                    ringbuffer.addAsync(message, OverflowPolicy.FAIL).toCompletableFuture().get();
                     break;
                 case BLOCK:
                     addWithBackoff(message);
@@ -115,12 +115,12 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
         }
     }
 
-    private Long addOrOverwrite(ReliableTopicMessage message) throws Exception {
-        return (Long) ringbuffer.addAsync(message, OverflowPolicy.OVERWRITE).get();
+    private void addOrOverwrite(ReliableTopicMessage message) throws Exception {
+        ringbuffer.addAsync(message, OverflowPolicy.OVERWRITE).toCompletableFuture().get();
     }
 
     private void addOrFail(ReliableTopicMessage message) throws Exception {
-        long sequenceId = (Long) ringbuffer.addAsync(message, OverflowPolicy.FAIL).get();
+        long sequenceId = ringbuffer.addAsync(message, OverflowPolicy.FAIL).toCompletableFuture().get();
         if (sequenceId == -1) {
             throw new TopicOverloadException("Failed to publish message: " + message + " on topic:" + name);
         }
@@ -129,7 +129,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
     private void addWithBackoff(ReliableTopicMessage message) throws Exception {
         long timeoutMs = INITIAL_BACKOFF_MS;
         for (; ; ) {
-            long result = (Long) ringbuffer.addAsync(message, OverflowPolicy.FAIL).get();
+            long result = ringbuffer.addAsync(message, OverflowPolicy.FAIL).toCompletableFuture().get();
             if (result != -1) {
                 break;
             }
@@ -150,7 +150,7 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
         String id = UuidUtil.newUnsecureUuidString();
         ReliableMessageListener<E> reliableMessageListener = toReliableMessageListener(listener);
 
-        MessageRunner<E> runner = new ClientReliableMessageRunner<E>(id, reliableMessageListener,
+        MessageRunner<E> runner = new ClientReliableMessageRunner<>(id, reliableMessageListener,
                 ringbuffer, name, config.getReadBatchSize(),
                 serializationService, executor, runnersMap, logger);
         runnersMap.put(id, runner);
@@ -171,9 +171,9 @@ public class ClientReliableTopicProxy<E> extends ClientProxy implements ITopic<E
 
     private ReliableMessageListener<E> toReliableMessageListener(MessageListener<E> listener) {
         if (listener instanceof ReliableMessageListener) {
-            return (ReliableMessageListener) listener;
+            return (ReliableMessageListener<E>) listener;
         } else {
-            return new ReliableMessageListenerAdapter<E>(listener);
+            return new ReliableMessageListenerAdapter<>(listener);
         }
     }
 

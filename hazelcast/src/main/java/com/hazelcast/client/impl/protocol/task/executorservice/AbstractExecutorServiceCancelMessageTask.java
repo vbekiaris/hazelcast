@@ -23,8 +23,8 @@ import com.hazelcast.executor.impl.DistributedExecutorService;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Connection;
-import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.operationservice.InvocationBuilder;
+import com.hazelcast.spi.impl.operationservice.impl.InvocationFuture;
 
 import java.net.UnknownHostException;
 import java.security.Permission;
@@ -46,7 +46,7 @@ public abstract class AbstractExecutorServiceCancelMessageTask<P> extends Abstra
     protected Object call() throws Exception {
         InvocationBuilder builder = createInvocationBuilder();
         builder.setTryCount(CANCEL_TRY_COUNT).setTryPauseMillis(CANCEL_TRY_PAUSE_MILLIS);
-        InternalCompletableFuture future = builder.invoke();
+        InvocationFuture future = builder.invoke();
         boolean result = false;
         try {
             result = (Boolean) future.get();

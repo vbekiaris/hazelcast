@@ -184,32 +184,32 @@ public class CacheQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void getAndPutAsync_quorum() throws Exception {
-        cache(0).getAndPutAsync(1, "").get();
+        cache(0).getAndPutAsync(1, "").toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void getAndPutAsync_noQuorum() throws Exception {
-        cache(3).getAndPutAsync(1, "").get();
+        cache(3).getAndPutAsync(1, "").toCompletableFuture().get();
     }
 
     @Test
     public void getAndRemoveAsync_quorum() throws Exception {
-        cache(0).getAndRemoveAsync(1).get();
+        cache(0).getAndRemoveAsync(1).toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void getAndRemoveAsync_noQuorum() throws Exception {
-        cache(3).getAndRemoveAsync(1).get();
+        cache(3).getAndRemoveAsync(1).toCompletableFuture().get();
     }
 
     @Test
     public void getAndReplaceAsync_quorum() throws Exception {
-        cache(0).getAndReplaceAsync(1, "").get();
+        cache(0).getAndReplaceAsync(1, "").toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void getAndReplaceAsync_noQuorum() throws Exception {
-        cache(3).getAndReplaceAsync(1, "").get();
+        cache(3).getAndReplaceAsync(1, "").toCompletableFuture().get();
     }
 
     @Test
@@ -239,42 +239,42 @@ public class CacheQuorumWriteTest extends AbstractQuorumTest {
 
     @Test
     public void putAsync_quorum() throws Exception {
-        cache(0).putAsync(1, "").get();
+        cache(0).putAsync(1, "").toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void putAsync_noQuorum() throws Exception {
-        cache(3).putAsync(1, "").get();
+        cache(3).putAsync(1, "").toCompletableFuture().get();
     }
 
     @Test
     public void putIfAbsentAsync_quorum() throws Exception {
-        cache(0).putIfAbsentAsync(1, "").get();
+        cache(0).putIfAbsentAsync(1, "").toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void putIfAbsentAsync_noQuorum() throws Exception {
-        cache(3).putIfAbsentAsync(1, "").get();
+        cache(3).putIfAbsentAsync(1, "").toCompletableFuture().get();
     }
 
     @Test
     public void removeAsync_quorum() throws Exception {
-        cache(0).removeAsync(1).get();
+        cache(0).removeAsync(1).toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void removeAsync_noQuorum() throws Exception {
-        cache(3).removeAsync(1).get();
+        cache(3).removeAsync(1).toCompletableFuture().get();
     }
 
     @Test
     public void replaceAsync_quorum() throws Exception {
-        cache(0).replaceAsync(1, "").get();
+        cache(0).replaceAsync(1, "").toCompletableFuture().get();
     }
 
     @Test(expected = ExecutionException.class)
     public void replaceAsync_noQuorum() throws Exception {
-        cache(3).replaceAsync(1, "").get();
+        cache(3).replaceAsync(1, "").toCompletableFuture().get();
     }
 
     @Test

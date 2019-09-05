@@ -16,8 +16,8 @@
 
 package com.hazelcast.cp.internal.raft.impl;
 
-import com.hazelcast.config.cp.RaftAlgorithmConfig;
 import com.hazelcast.cluster.Endpoint;
+import com.hazelcast.config.cp.RaftAlgorithmConfig;
 import com.hazelcast.cp.exception.CPGroupDestroyedException;
 import com.hazelcast.cp.exception.CannotReplicateException;
 import com.hazelcast.cp.internal.raft.command.DestroyRaftGroupCmd;
@@ -75,7 +75,7 @@ public class DestroyRaftGroupTest extends HazelcastTestSupport {
         leader.replicate(new DestroyRaftGroupCmd());
 
         try {
-            leader.replicate(new ApplyRaftRunnable("val")).get();
+            leader.replicate(new ApplyRaftRunnable("val")).joinInternal();
             fail();
         } catch (CannotReplicateException ignored) {
         }
@@ -117,14 +117,14 @@ public class DestroyRaftGroupTest extends HazelcastTestSupport {
         });
 
         try {
-            leader.replicate(new ApplyRaftRunnable("val")).get();
+            leader.replicate(new ApplyRaftRunnable("val")).joinInternal();
             fail();
         } catch (CPGroupDestroyedException ignored) {
 
         }
 
         try {
-            follower.replicate(new ApplyRaftRunnable("val")).get();
+            follower.replicate(new ApplyRaftRunnable("val")).joinInternal();
             fail();
         } catch (CPGroupDestroyedException ignored) {
         }

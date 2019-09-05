@@ -17,6 +17,7 @@
 package com.hazelcast.client.impl.proxy;
 
 import com.hazelcast.aggregation.Aggregator;
+import com.hazelcast.client.impl.ClientDelegatingFuture;
 import com.hazelcast.client.impl.clientside.ClientLockReferenceIdGenerator;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.protocol.codec.MapAddEntryListenerCodec;
@@ -87,8 +88,6 @@ import com.hazelcast.client.impl.protocol.codec.MapValuesCodec;
 import com.hazelcast.client.impl.protocol.codec.MapValuesWithPagingPredicateCodec;
 import com.hazelcast.client.impl.protocol.codec.MapValuesWithPredicateCodec;
 import com.hazelcast.client.impl.querycache.ClientQueryCacheContext;
-import com.hazelcast.client.map.impl.ClientMapPartitionIterator;
-import com.hazelcast.client.map.impl.ClientMapQueryPartitionIterator;
 import com.hazelcast.client.impl.spi.ClientContext;
 import com.hazelcast.client.impl.spi.ClientPartitionService;
 import com.hazelcast.client.impl.spi.ClientProxy;
@@ -96,24 +95,24 @@ import com.hazelcast.client.impl.spi.EventHandler;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import com.hazelcast.client.impl.spi.impl.ClientInvocationFuture;
 import com.hazelcast.client.impl.spi.impl.ListenerMessageCodec;
-import com.hazelcast.client.impl.ClientDelegatingFuture;
+import com.hazelcast.client.map.impl.ClientMapPartitionIterator;
+import com.hazelcast.client.map.impl.ClientMapQueryPartitionIterator;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.EntryEventType;
 import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
-import com.hazelcast.map.IMap;
-import com.hazelcast.map.IMapEvent;
-import com.hazelcast.map.MapEvent;
 import com.hazelcast.core.ReadOnly;
 import com.hazelcast.internal.journal.EventJournalInitialSubscriberState;
 import com.hazelcast.internal.journal.EventJournalReader;
 import com.hazelcast.internal.serialization.InternalSerializationService;
-import com.hazelcast.internal.util.SimpleCompletedFuture;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.util.collection.ImmutableInflatableSet;
 import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.map.IMap;
+import com.hazelcast.map.IMapEvent;
+import com.hazelcast.map.MapEvent;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.MapPartitionLostEvent;
 import com.hazelcast.map.QueryCache;
@@ -137,8 +136,8 @@ import com.hazelcast.query.PartitionPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.ringbuffer.ReadResultSet;
 import com.hazelcast.ringbuffer.impl.client.PortableReadResultSet;
+import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.UnmodifiableLazyList;
-import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.util.CollectionUtil;
 import com.hazelcast.util.IterationType;
 
@@ -338,7 +337,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> getAsync(@Nonnull K key) {
+    public InternalCompletableFuture<V> getAsync(@Nonnull K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
 
         return new ClientDelegatingFuture<>(getAsyncInternal(key),
@@ -362,7 +361,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value) {
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
 
@@ -370,7 +369,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
         checkNotNull(timeunit, NULL_TIMEUNIT_IS_NOT_ALLOWED);
@@ -379,7 +378,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
+    public InternalCompletableFuture<V> putAsync(@Nonnull K key, @Nonnull V value,
                                           long ttl, @Nonnull TimeUnit ttlUnit,
                                           long maxIdle, @Nonnull TimeUnit maxIdleUnit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
@@ -390,7 +389,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
         return putAsyncInternal(ttl, ttlUnit, maxIdle, maxIdleUnit, key, value);
     }
 
-    protected ICompletableFuture<V> putAsyncInternal(long ttl, TimeUnit timeunit, Long maxIdle, TimeUnit maxIdleUnit,
+    protected InternalCompletableFuture<V> putAsyncInternal(long ttl, TimeUnit timeunit, Long maxIdle, TimeUnit maxIdleUnit,
                                                      Object key, Object value) {
         try {
             Data keyData = toData(key);
@@ -412,12 +411,12 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value) {
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value) {
         return setAsync(key, value, -1, MILLISECONDS);
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value, long ttl, @Nonnull TimeUnit timeunit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         checkNotNull(value, NULL_VALUE_IS_NOT_ALLOWED);
         checkNotNull(timeunit, NULL_TIMEUNIT_IS_NOT_ALLOWED);
@@ -426,7 +425,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value,
+    public InternalCompletableFuture<Void> setAsync(@Nonnull K key, @Nonnull V value,
                                              long ttl, @Nonnull TimeUnit ttlUnit,
                                              long maxIdle, @Nonnull TimeUnit maxIdleUnit) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
@@ -437,7 +436,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
         return setAsyncInternal(ttl, ttlUnit, maxIdle, maxIdleUnit, key, value);
     }
 
-    protected ICompletableFuture<Void> setAsyncInternal(long ttl, TimeUnit timeunit, Long maxIdle, TimeUnit maxIdleUnit,
+    protected InternalCompletableFuture<Void> setAsyncInternal(long ttl, TimeUnit timeunit, Long maxIdle, TimeUnit maxIdleUnit,
                                                         Object key, Object value) {
         try {
             Data keyData = toData(key);
@@ -459,12 +458,12 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<V> removeAsync(@Nonnull K key) {
+    public InternalCompletableFuture<V> removeAsync(@Nonnull K key) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         return removeAsyncInternal(key);
     }
 
-    protected ICompletableFuture<V> removeAsyncInternal(Object key) {
+    protected InternalCompletableFuture<V> removeAsyncInternal(Object key) {
         try {
             Data keyData = toData(key);
             ClientMessage request = MapRemoveCodec.encodeRequest(name, keyData, getThreadId());
@@ -1490,21 +1489,27 @@ public class ClientMapProxy<K, V> extends ClientProxy
             ClientMessage request = MapSubmitToKeyCodec.encodeRequest(name, toData(entryProcessor), keyData, getThreadId());
             ClientInvocationFuture future = invokeOnKeyOwner(request, keyData);
             SerializationService ss = getSerializationService();
-            new ClientDelegatingFuture(future, ss, message -> MapSubmitToKeyCodec.decodeResponse(message).response)
-                    .andThen(callback);
+            new ClientDelegatingFuture<R>(future, ss, message -> MapSubmitToKeyCodec.decodeResponse(message).response)
+                    .whenCompleteAsync((response, throwable) -> {
+                        if (throwable == null) {
+                            callback.onResponse(response);
+                        } else {
+                            callback.onFailure(throwable);
+                        }
+                    });
         } catch (Exception e) {
             throw rethrow(e);
         }
     }
 
     @Override
-    public <R> ICompletableFuture<R> submitToKey(@Nonnull K key,
+    public <R> InternalCompletableFuture<R> submitToKey(@Nonnull K key,
                                                  @Nonnull EntryProcessor<K, V, R> entryProcessor) {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         return submitToKeyInternal(key, entryProcessor);
     }
 
-    public <R> ICompletableFuture<R> submitToKeyInternal(Object key,
+    public <R> InternalCompletableFuture<R> submitToKeyInternal(Object key,
                                                          EntryProcessor<K, V, R> entryProcessor) {
         try {
             Data keyData = toData(key);
@@ -1667,11 +1672,11 @@ public class ClientMapProxy<K, V> extends ClientProxy
     /**
      * Async version of {@link #executeOnKeys}.
      */
-    public <R> ICompletableFuture<Map<K, R>> submitToKeys(@Nonnull Set<K> keys,
+    public <R> InternalCompletableFuture<Map<K, R>> submitToKeys(@Nonnull Set<K> keys,
                                                           @Nonnull EntryProcessor<K, V, R> entryProcessor) {
         checkNotNull(keys, NULL_KEY_IS_NOT_ALLOWED);
         if (keys.isEmpty()) {
-            return new SimpleCompletedFuture<>(Collections.emptyMap());
+            return InternalCompletableFuture.newCompletedFuture(Collections.emptyMap());
         }
 
         Collection<Data> dataCollection = objectToDataCollection(keys, getSerializationService());
@@ -1821,7 +1826,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public ICompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
+    public InternalCompletableFuture<EventJournalInitialSubscriberState> subscribeToEventJournal(int partitionId) {
         final ClientMessage request = MapEventJournalSubscribeCodec.encodeRequest(name);
         final ClientInvocationFuture fut = new ClientInvocation(getClient(), request, getName(), partitionId).invoke();
         return new ClientDelegatingFuture<>(fut, getSerializationService(), message -> {
@@ -1831,7 +1836,7 @@ public class ClientMapProxy<K, V> extends ClientProxy
     }
 
     @Override
-    public <T> ICompletableFuture<ReadResultSet<T>> readFromEventJournal(
+    public <T> InternalCompletableFuture<ReadResultSet<T>> readFromEventJournal(
             long startSequence,
             int minSize,
             int maxSize,
