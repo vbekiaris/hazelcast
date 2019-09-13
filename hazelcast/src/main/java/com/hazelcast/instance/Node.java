@@ -743,6 +743,9 @@ public class Node {
         public void run() {
             try {
                 if (isRunning()) {
+                    logger.info("Producing heap dump");
+                    String filename = System.getProperty("hz.heap.dump.filename", "heap-dump.hprof");
+                    HeapDumper.dumpHeap(filename, true);
                     logger.info("Running shutdown hook... Current state: " + state);
                     switch (policy) {
                         case TERMINATE:
