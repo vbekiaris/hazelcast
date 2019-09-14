@@ -18,8 +18,8 @@ package com.hazelcast.cp.internal.datastructures.unsafe.atomicreference;
 
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.cp.IAtomicReference;
 import com.hazelcast.core.IFunction;
+import com.hazelcast.cp.IAtomicReference;
 import com.hazelcast.test.HazelcastTestSupport;
 import org.junit.After;
 import org.junit.Before;
@@ -66,6 +66,15 @@ public abstract class AtomicReferenceAbstractTest extends HazelcastTestSupport {
         assertNull(ref.getAndSet("foo"));
         assertEquals("foo", ref.getAndSet("bar"));
         assertEquals("bar", ref.getAndSet("bar"));
+    }
+
+    @Test
+    public void setThenGet_whenValueIsThrowable() {
+        IAtomicReference<Exception> exceptionallyValueRef = newInstance();
+        Exception exceptionalValue = new IllegalStateException("Can be used as atomic reference");
+        exceptionallyValueRef.set(exceptionalValue);
+        assertInstanceOf(IllegalStateException.class, exceptionallyValueRef.get());
+        assertEquals(exceptionalValue.getMessage(), exceptionallyValueRef.get().getMessage());
     }
 
     @Test
