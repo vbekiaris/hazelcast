@@ -19,13 +19,14 @@ package com.hazelcast.spi.impl.operationservice.impl;
 import com.hazelcast.core.IndeterminateOperationState;
 import com.hazelcast.core.IndeterminateOperationStateException;
 import com.hazelcast.core.OperationTimeoutException;
+import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Packet;
 import com.hazelcast.nio.serialization.Data;
-import com.hazelcast.spi.impl.AbstractInvocationFuture;
+import com.hazelcast.spi.impl.DeserializingCompletableFuture;
 import com.hazelcast.spi.impl.InternalCompletableFuture;
 import com.hazelcast.spi.impl.operationservice.impl.responses.NormalResponse;
 
-import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -46,83 +47,94 @@ import static com.hazelcast.util.StringUtil.timeToString;
  *
  * @param <E>
  */
-public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
+public final class InvocationFuture<E> extends DeserializingCompletableFuture<E> {
 
     final Invocation invocation;
     volatile boolean interrupted;
-    private final boolean deserialize;
+    private final ILogger logger;
 
     InvocationFuture(Invocation invocation, boolean deserialize) {
-        super(invocation.context.logger);
+        super(invocation.context.serializationService, DEFAULT_ASYNC_EXECUTOR, deserialize);
+        this.logger = invocation.context.logger;
         this.invocation = invocation;
-        this.deserialize = deserialize;
     }
 
     @Override
-    protected void onInterruptDetected() {
-        interrupted = true;
+    public E get() throws InterruptedException, ExecutionException {
+        try {
+            final Object value = super.get();
+            return returnOrThrowWithGetConventions(value);
+        } catch (ExecutionException exception) {
+            throw decorateExceptionalCompletionForGet(exception);
+        }
     }
 
     @Override
-    public boolean isCompletedExceptionally() {
-        return (state instanceof ExceptionalResult
-            || state == CALL_TIMEOUT
-            || state == HEARTBEAT_TIMEOUT
-            || state == INTERRUPTED);
+    public E get(long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        try {
+            final Object value = super.get(timeout, unit);
+            return returnOrThrowWithGetConventions(value);
+        } catch (ExecutionException exception) {
+            throw decorateExceptionalCompletionForGet(exception);
+        }
     }
 
     @Override
+    public E getNow(E valueIfAbsent) {
+        try {
+            final Object value = super.getNow(valueIfAbsent);
+            return returnOrThrowWithJoinConventions(value);
+        } catch (CompletionException exception) {
+            throw decorateExceptionalCompletionForJoin(exception);
+        }
+    }
+
+    @Override
+    public E join() {
+        try {
+            final Object value = super.join();
+            return returnOrThrowWithJoinConventions(value);
+        } catch (CompletionException exception) {
+            throw decorateExceptionalCompletionForJoin(exception);
+        }
+    }
+
+    @Override
+    public E joinInternal() {
+        try {
+            final Object value = super.joinInternal();
+            return returnOrThrowWithJoinConventions(value);
+        } catch (CompletionException exception) {
+            throw decorateExceptionalCompletionForJoin(exception);
+        }
+    }
+
     protected String invocationToString() {
         return invocation.toString();
     }
 
-    @Override
     protected TimeoutException newTimeoutException(long timeout, TimeUnit unit) {
         return new TimeoutException(String.format("%s failed to complete within %d %s. %s",
                 invocation.op.getClass().getSimpleName(), timeout, unit, invocation));
     }
 
-    @Override
-    protected E resolveAndThrowIfException(Object unresolved) throws ExecutionException, InterruptedException {
-        Object value = resolve(unresolved);
-        return returnOrThrowWithGetConventions(value);
-    }
-
     // public for tests
-    public static <T> T returnOrThrowWithGetConventions(Object resolved) throws ExecutionException, InterruptedException {
-        if (!(resolved instanceof ExceptionalResult)) {
-            return (T) resolved;
-        } else {
-            Throwable cause = ((ExceptionalResult) resolved).getCause();
-            if (cause instanceof CancellationException) {
-                throw (CancellationException) cause;
-            } else if (cause instanceof ExecutionException) {
-                throw (ExecutionException) cause;
-            } else if (cause instanceof InterruptedException) {
-                throw (InterruptedException) cause;
-            } else if (cause instanceof Error) {
-                throw (Error) cause;
-            } else {
-                throw new ExecutionException(cause);
-            }
-        }
-    }
-
     @SuppressWarnings({"checkstyle:npathcomplexity", "checkstyle:cyclomaticcomplexity"})
-    @Override
-    protected Object resolve(Object unresolved) {
+    public <T> T returnOrThrowWithGetConventions(Object unresolved) throws ExecutionException, InterruptedException {
         if (unresolved == null) {
             return null;
         } else if (unresolved == INTERRUPTED) {
-            return new ExceptionalResult(
-                    new InterruptedException(invocation.op.getClass().getSimpleName() + " was interrupted. " + invocation));
+            throw new InterruptedException(invocation.op.getClass().getSimpleName() + " was interrupted. " + invocation);
         } else if (unresolved == CALL_TIMEOUT) {
-            return new ExceptionalResult(newOperationTimeoutException(false));
+            throw new ExecutionException(newOperationTimeoutException(false));
         } else if (unresolved == HEARTBEAT_TIMEOUT) {
-            return new ExceptionalResult(newOperationTimeoutException(true));
+            throw new ExecutionException(newOperationTimeoutException(true));
         } else if (unresolved.getClass() == Packet.class) {
             NormalResponse response = invocation.context.serializationService.toObject(unresolved);
             unresolved = response.getValue();
+        } else if (unresolved.getClass() == NormalResponse.class) {
+            unresolved = ((NormalResponse) unresolved).getValue();
         }
 
         Object value = unresolved;
@@ -133,18 +145,57 @@ public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
             }
         }
 
-        Throwable cause = (value instanceof ExceptionalResult)
-                ? ((ExceptionalResult) value).getCause()
-                : null;
-
-        if (invocation.shouldFailOnIndeterminateOperationState()
-                && (value instanceof IndeterminateOperationState
-                    || cause instanceof IndeterminateOperationState)) {
-            value = wrapThrowable(new IndeterminateOperationStateException("indeterminate operation state",
-                    cause == null ? (Throwable) value : cause));
+        return (T) value;
+    }
+    @SuppressWarnings({"checkstyle:npathcomplexity", "checkstyle:cyclomaticcomplexity"})
+    public <T> T returnOrThrowWithJoinConventions(Object unresolved) {
+        if (unresolved == null) {
+            return null;
+        } else if (unresolved == INTERRUPTED) {
+            throw new CompletionException(
+                    new InterruptedException(invocation.op.getClass().getSimpleName() + " was interrupted. " + invocation));
+        } else if (unresolved == CALL_TIMEOUT) {
+            throw new CompletionException(newOperationTimeoutException(false));
+        } else if (unresolved == HEARTBEAT_TIMEOUT) {
+            throw new CompletionException(newOperationTimeoutException(true));
+        } else if (unresolved.getClass() == Packet.class) {
+            // probably we won't hit this case, because Packet will be already
+            // deserialized by superclass -> next block will be followed
+            NormalResponse response = invocation.context.serializationService.toObject(unresolved);
+            unresolved = response.getValue();
+        } else if (unresolved.getClass() == NormalResponse.class) {
+            unresolved = ((NormalResponse) unresolved).getValue();
         }
 
-        return value;
+        Object value = unresolved;
+        if (deserialize && value instanceof Data) {
+            value = invocation.context.serializationService.toObject(value);
+            if (value == null) {
+                return null;
+            }
+        }
+
+        return (T) value;
+    }
+
+    private ExecutionException decorateExceptionalCompletionForGet(ExecutionException exception) {
+        if (invocation.shouldFailOnIndeterminateOperationState()
+                && (exception.getCause() instanceof IndeterminateOperationState)) {
+            return new ExecutionException(
+                    new IndeterminateOperationStateException("indeterminate operation state", exception));
+        } else {
+            return exception;
+        }
+    }
+
+    private CompletionException decorateExceptionalCompletionForJoin(CompletionException exception) {
+        if (invocation.shouldFailOnIndeterminateOperationState()
+                && (exception.getCause() instanceof IndeterminateOperationState)) {
+            return new CompletionException(
+                    new IndeterminateOperationStateException("indeterminate operation state", exception));
+        } else {
+            return exception;
+        }
     }
 
     private OperationTimeoutException newOperationTimeoutException(boolean heartbeatTimeout) {
@@ -188,4 +239,18 @@ public final class InvocationFuture<E> extends AbstractInvocationFuture<E> {
         }
     }
 
+    @Override
+    protected <T> T decorateValue(Object value) {
+        Object unresolved = super.decorateValue(value);
+        if (unresolved instanceof Packet) {
+            NormalResponse response = invocation.context.serializationService.toObject(unresolved);
+            unresolved = response.getValue();
+        } else if (unresolved instanceof NormalResponse) {
+            unresolved = ((NormalResponse) unresolved).getValue();
+        }
+        if (deserialize && unresolved instanceof Data) {
+            unresolved = serializationService.toObject(unresolved);
+        }
+        return (T) unresolved;
+    }
 }

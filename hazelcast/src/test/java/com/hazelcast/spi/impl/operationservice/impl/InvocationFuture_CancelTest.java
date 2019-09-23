@@ -67,15 +67,15 @@ public class InvocationFuture_CancelTest extends HazelcastTestSupport {
     }
 
     @Test
-    public void whenCancelled_thenCantCancelAgain() {
+    public void whenCancelled_thenRemainsCancelled() {
         // Given
         InternalCompletableFuture future = invoke();
 
         // When
-        future.cancel(true);
+        assertTrue(future.cancel(true));
 
         // Then
-        assertFalse(future.cancel(true));
+        assertTrue(future.cancel(true));
     }
 
     @Test

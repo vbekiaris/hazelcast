@@ -746,14 +746,14 @@ public abstract class Invocation<T> implements OperationResponseHandler {
     }
 
     private void completeExceptionally(ExceptionalResult result) {
-        future.completeExceptionallyInternal(result);
+        future.completeExceptionally(result.getCause());
         if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
             context.asyncExecutor.execute(taskDoneCallback);
         }
     }
 
     private void completeExceptionally(Throwable t) {
-        future.completeExceptionallyInternal(t);
+        future.completeExceptionally(t);
         if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
             context.asyncExecutor.execute(taskDoneCallback);
         }

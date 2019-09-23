@@ -105,7 +105,7 @@ public class BasicMapTest extends HazelcastTestSupport {
     }
 
     protected Config getConfig() {
-        Config cfg = super.getConfig();
+        Config cfg = smallInstanceConfig();
         MapConfig mapConfig = new MapConfig("mapWithTTL*");
         mapConfig.setTimeToLiveSeconds(1);
         cfg.addMapConfig(mapConfig);

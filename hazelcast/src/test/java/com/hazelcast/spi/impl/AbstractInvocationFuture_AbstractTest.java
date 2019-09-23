@@ -27,8 +27,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.hazelcast.spi.impl.operationservice.impl.InvocationFuture.returnOrThrowWithGetConventions;
-
 public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTestSupport {
 
     protected ILogger logger;
@@ -69,7 +67,7 @@ public abstract class AbstractInvocationFuture_AbstractTest extends HazelcastTes
         @Override
         protected Object resolveAndThrowIfException(Object state) throws ExecutionException, InterruptedException {
             Object value = resolve(state);
-            return returnOrThrowWithGetConventions(value);
+            return value;
         }
 
         @Override

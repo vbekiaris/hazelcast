@@ -44,7 +44,7 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
 
     // Default executor for async callbacks: ForkJoinPool.commonPool() or a thread-per-task executor when
     // the common pool does not support parallelism
-    private static final Executor DEFAULT_ASYNC_EXECUTOR;
+    public static final Executor DEFAULT_ASYNC_EXECUTOR;
 
     static {
         Executor asyncExecutor;
@@ -56,9 +56,10 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
         DEFAULT_ASYNC_EXECUTOR = asyncExecutor;
     }
 
-    private final InternalSerializationService serializationService;
+    protected final boolean deserialize;
+    protected final InternalSerializationService serializationService;
+
     private final Executor defaultAsyncExecutor;
-    private final boolean deserialize;
 
     public DeserializingCompletableFuture() {
         this(null, DEFAULT_ASYNC_EXECUTOR, false);
@@ -331,6 +332,10 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
         return (V) object;
     }
 
+    protected <T> T decorateValue(Object value) {
+        return deserialize ? serializationService.toObject(value) : (T) value;
+    }
+
     class DeserializingFunction<E, R> implements Function<E, R> {
         private final Function<E, R> delegate;
 
@@ -343,7 +348,7 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
 
         @Override
         public R apply(E e) {
-            return delegate.apply(deserialize ? serializationService.toObject(e) : e);
+            return delegate.apply(decorateValue(e));
         }
     }
 
@@ -359,7 +364,7 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
 
         @Override
         public void accept(E e) {
-            delegate.accept(deserialize ? serializationService.toObject(e) : e);
+            delegate.accept(decorateValue(e));
         }
     }
 
@@ -375,8 +380,7 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
 
         @Override
         public R apply(T t, U u) {
-            return delegate.apply(deserialize ? serializationService.toObject(t) : t,
-                    deserialize ? serializationService.toObject(u) : u);
+            return delegate.apply(decorateValue(t), decorateValue(u));
         }
     }
 
@@ -392,8 +396,7 @@ public class DeserializingCompletableFuture<V> extends InternalCompletableFuture
 
         @Override
         public void accept(T t, U u) {
-            delegate.accept(deserialize ? serializationService.toObject(t) : t,
-                    deserialize ? serializationService.toObject(u) : u);
+            delegate.accept(decorateValue(t), decorateValue(u));
         }
     }
 }
