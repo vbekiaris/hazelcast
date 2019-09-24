@@ -366,7 +366,7 @@ public final class ExecutionServiceImpl implements ExecutionService {
     }
 
     private <V> InternalCompletableFuture<V> registerCompletableFuture(Future<V> future) {
-        CompletableFutureEntry<V> entry = new CompletableFutureEntry<V>(future, nodeEngine);
+        CompletableFutureEntry<V> entry = new CompletableFutureEntry<V>(future);
         completableFutureTask.registerCompletableFutureEntry(entry);
         return entry.completableFuture;
     }
