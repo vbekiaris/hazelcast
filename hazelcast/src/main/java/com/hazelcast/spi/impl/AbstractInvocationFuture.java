@@ -25,6 +25,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -155,9 +156,18 @@ public abstract class AbstractInvocationFuture<V> implements InternalCompletable
         }
 
         boolean interrupted = false;
+        int spins = -1;
+
         try {
             for (; ; ) {
-                park();
+                if (spins < 0)
+                    spins = 256;
+                else if (spins > 0) {
+                    if (ThreadLocalRandom.current().nextInt() >= 0)
+                        --spins;
+                } else {
+                    park();
+                }
                 if (isDone()) {
                     return resolveAndThrowIfException(state);
                 } else if (Thread.interrupted()) {
