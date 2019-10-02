@@ -17,8 +17,8 @@
 package com.hazelcast.spi.impl.operationservice.impl;
 
 import com.hazelcast.config.Config;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.IAtomicLong;
-import com.hazelcast.instance.impl.HazelcastInstanceProxy;
 import com.hazelcast.internal.longregister.LongRegisterService;
 import com.hazelcast.test.HazelcastTestSupport;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -48,7 +48,7 @@ public class CompletableFutureBenchmark
     private static final int WARMUP_ITERATIONS_COUNT = 10;
     private static final int MEASUREMENT_ITERATIONS_COUNT = 100;
 
-    private HazelcastInstanceProxy hz;
+    private HazelcastInstance hz;
     private IAtomicLong atomicLong;
 
     @Setup
@@ -58,7 +58,7 @@ public class CompletableFutureBenchmark
         // disable network
         config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
 
-        hz = (HazelcastInstanceProxy) createHazelcastInstance(config);
+        hz = createHazelcastInstance(config);
 
         atomicLong = hz.getDistributedObject(LongRegisterService.SERVICE_NAME, "test");
 
@@ -72,7 +72,7 @@ public class CompletableFutureBenchmark
     @Benchmark
     public long atomic_long_ops() {
         long d = 0;
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 1_000; i++) {
             d = atomicLong.getAndIncrement();
         }
         return d;
@@ -82,11 +82,10 @@ public class CompletableFutureBenchmark
         Options opt = new OptionsBuilder()
                 .include(CompletableFutureBenchmark.class.getSimpleName())
                 .warmupIterations(WARMUP_ITERATIONS_COUNT)
-                .warmupTime(TimeValue.milliseconds(2))
                 .measurementIterations(MEASUREMENT_ITERATIONS_COUNT)
-                .measurementTime(TimeValue.milliseconds(2))
                 .addProfiler(GCProfiler.class)
-                .output("/Users/vb/tmp/complfut")
+                .output("/Users/vb/tmp/complfut-no-lambdas")
+                .threads(6)
                 .forks(1)
                 .build();
 
