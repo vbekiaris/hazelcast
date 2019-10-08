@@ -42,6 +42,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.hazelcast.spi.impl.operationexecutor.OperationRunner.runDirect;
 import static com.hazelcast.spi.impl.operationservice.OperationResponseHandlerFactory.createEmptyResponseHandler;
@@ -190,7 +191,7 @@ public final class Backup extends Operation implements BackupOperation, AllowedD
             //prevent backup acking to caller if caller is client, instead fire event
             EventService eventService = getNodeEngine().getEventService();
             String serviceName = ClientBackupService.SERVICE_NAME;
-            eventService.publishEvent(serviceName, serviceName, clientCorrelationId, -1);
+            eventService.publishEvent(serviceName, serviceName, clientCorrelationId, ThreadLocalRandom.current().nextInt());
         } else if (nodeEngine.getThisAddress().equals(originalCaller)) {
             operationService.getBackupHandler().notifyBackupComplete(callId);
         } else {
