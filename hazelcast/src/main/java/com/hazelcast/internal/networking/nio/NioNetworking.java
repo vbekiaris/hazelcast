@@ -23,7 +23,6 @@ import com.hazelcast.internal.metrics.MetricTaggerSupplier;
 import com.hazelcast.internal.metrics.MetricsExtractor;
 import com.hazelcast.internal.metrics.MetricsRegistry;
 import com.hazelcast.internal.metrics.Probe;
-import com.hazelcast.internal.metrics.ProbeLevel;
 import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelCloseListener;
 import com.hazelcast.internal.networking.ChannelErrorHandler;
@@ -44,6 +43,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,12 +52,12 @@ import java.util.logging.Level;
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT;
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_NOW_STRING;
 import static com.hazelcast.internal.nio.IOUtil.closeResource;
-import static com.hazelcast.internal.util.HashUtil.hashToIndex;
+import static com.hazelcast.internal.util.ExceptionUtil.rethrow;
 import static com.hazelcast.internal.util.ThreadUtil.createThreadPoolName;
 import static com.hazelcast.internal.util.concurrent.BackoffIdleStrategy.createBackoffIdleStrategy;
+import static java.lang.FiberScope.Option.CANCEL_AT_CLOSE;
 import static java.util.Collections.newSetFromMap;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.logging.Level.FINE;
 
 /**
@@ -108,9 +108,11 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
     private final ConcurrencyDetection concurrencyDetection;
     private final boolean writeThroughEnabled;
     private volatile IOBalancer ioBalancer;
-    private volatile NioThread[] inputThreads;
-    private volatile NioThread[] outputThreads;
+    private final FiberScope ioFiberScope;
+    private final ExecutorService fiberScopeManager;
     private volatile ScheduledFuture publishFuture;
+
+    private final AtomicInteger ioTaskExecutorCounter = new AtomicInteger();
 
     // Currently this is a coarse grained aggregation of the bytes/send received.
     // In the future you probably want to split this up in member and client and potentially
@@ -139,16 +141,22 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
         this.concurrencyDetection = ctx.concurrencyDetection;
         this.writeThroughEnabled = ctx.writeThroughEnabled;
         this.selectionKeyWakeupEnabled = ctx.selectionKeyWakeupEnabled;
+        this.fiberScopeManager = Executors.newSingleThreadExecutor();
+        try {
+            this.ioFiberScope = fiberScopeManager.submit(() -> FiberScope.open(CANCEL_AT_CLOSE)).get();
+        } catch (Exception e) {
+            throw rethrow(e);
+        }
     }
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "used only for testing")
     public NioThread[] getInputThreads() {
-        return inputThreads;
+        return null;
     }
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "used only for testing")
     public NioThread[] getOutputThreads() {
-        return outputThreads;
+        return null;
     }
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "used only for testing")
@@ -175,7 +183,7 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
 
         logger.log(selectorMode != SELECT ? Level.INFO : FINE, "IO threads selector mode is " + selectorMode);
 
-        publishFuture = metricsRegistry.scheduleAtFixedRate(new PublishAllTask(), 1, SECONDS, ProbeLevel.INFO);
+//        publishFuture = metricsRegistry.scheduleAtFixedRate(new PublishAllTask(), 1, SECONDS, ProbeLevel.INFO);
 
         this.closeListenerExecutor = newSingleThreadExecutor(r -> {
             Thread t = new Thread(r);
@@ -183,44 +191,38 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
             return t;
         });
 
-        NioThread[] inThreads = new NioThread[inputThreadCount];
-        for (int i = 0; i < inThreads.length; i++) {
-            NioThread thread = new NioThread(
-                    createThreadPoolName(threadNamePrefix, "IO") + "in-" + i,
-                    loggingService.getLogger(NioThread.class),
-                    errorHandler,
-                    selectorMode,
-                    idleStrategy);
-            thread.id = i;
-            thread.setSelectorWorkaroundTest(selectorWorkaroundTest);
-            inThreads[i] = thread;
-            thread.start();
-        }
-        this.inputThreads = inThreads;
-
-        NioThread[] outThreads = new NioThread[outputThreadCount];
-        for (int i = 0; i < outThreads.length; i++) {
-            NioThread thread = new NioThread(
-                    createThreadPoolName(threadNamePrefix, "IO") + "out-" + i,
-                    loggingService.getLogger(NioThread.class),
-                    errorHandler,
-                    selectorMode,
-                    idleStrategy);
-            thread.id = i;
-            thread.setSelectorWorkaroundTest(selectorWorkaroundTest);
-            outThreads[i] = thread;
-            thread.start();
-        }
-        this.outputThreads = outThreads;
-
         startIOBalancer();
 
         metricsRegistry.registerDynamicMetricsProvider(this);
     }
 
     private void startIOBalancer() {
-        ioBalancer = new IOBalancer(inputThreads, outputThreads, threadNamePrefix, balancerIntervalSeconds, loggingService);
-        ioBalancer.start();
+        ioBalancer = new IOBalancer(null, null, threadNamePrefix, balancerIntervalSeconds, loggingService);
+    }
+
+    private NioThread startNioTaskExecutor(String prefix, int i) {
+        NioThread thread = new NioThread(
+                createThreadPoolName(threadNamePrefix, "IO") + prefix + i,
+                loggingService.getLogger(NioThread.class),
+                errorHandler,
+                selectorMode,
+                idleStrategy);
+        thread.id = i;
+        thread.setSelectorWorkaroundTest(selectorWorkaroundTest);
+        fiberScopeManager.execute(() -> ioFiberScope.schedule(thread));
+        return thread;
+    }
+
+    private BlockingIORunnable startBlockingIOThread(NioPipeline pipeline, String prefix, int i) {
+        BlockingIORunnable thread = new BlockingIORunnable(
+                createThreadPoolName(threadNamePrefix, "IO") + prefix + i,
+                loggingService.getLogger(NioThread.class),
+                pipeline,
+                errorHandler);
+        thread.id = i;
+        thread.setSelectorWorkaroundTest(selectorWorkaroundTest);
+        fiberScopeManager.execute(() -> ioFiberScope.schedule(thread));
+        return thread;
     }
 
     @Override
@@ -245,18 +247,25 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
             publishFuture.cancel(false);
             publishFuture = null;
         }
-        ioBalancer.stop();
+//        ioBalancer.stop();
 
-        if (logger.isFinestEnabled()) {
-            logger.finest("Shutting down IO Threads... Total: " + (inputThreads.length + outputThreads.length));
-        }
+//        if (logger.isFinestEnabled()) {
+//            logger.finest("Shutting down IO Threads... Total: " + (inputThreads.length + outputThreads.length));
+//        }
 
-        shutdown(inputThreads);
-        inputThreads = null;
-        shutdown(outputThreads);
-        outputThreads = null;
+//        shutdown(inputThreads);
+//        inputThreads = null;
+//        shutdown(outputThreads);
+//        outputThreads = null;
         closeListenerExecutor.shutdown();
         closeListenerExecutor = null;
+
+        try {
+            fiberScopeManager.submit(() -> ioFiberScope.close()).get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw rethrow(e);
+        }
     }
 
     private void shutdown(NioThread[] threads) {
@@ -293,36 +302,31 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
     }
 
     private NioOutboundPipeline newOutboundPipeline(NioChannel channel) {
-        int index = hashToIndex(nextOutputThreadIndex.getAndIncrement(), outputThreadCount);
-        NioThread[] threads = outputThreads;
-        if (threads == null) {
-            throw new IllegalStateException("NioNetworking is shutdown!");
-        }
-
-        return new NioOutboundPipeline(
-                channel,
-                threads[index],
+        int id = ioTaskExecutorCounter.getAndIncrement();
+        NioOutboundPipeline pipeline = new NioOutboundPipeline(
+                channel, ioFiberScope,
+                id,
                 errorHandler,
                 loggingService.getLogger(NioOutboundPipeline.class),
                 ioBalancer,
                 concurrencyDetection,
                 writeThroughEnabled,
                 selectionKeyWakeupEnabled);
+        startBlockingIOThread(pipeline, "out-", id);
+        return pipeline;
     }
 
     private NioInboundPipeline newInboundPipeline(NioChannel channel) {
-        int index = hashToIndex(nextInputThreadIndex.getAndIncrement(), inputThreadCount);
-        NioThread[] threads = inputThreads;
-        if (threads == null) {
-            throw new IllegalStateException("NioNetworking is shutdown!");
-        }
-
-        return new NioInboundPipeline(
+        int id = ioTaskExecutorCounter.getAndIncrement();
+        NioInboundPipeline pipeline = new NioInboundPipeline(
                 channel,
-                threads[index],
+                ioFiberScope,
+                id,
                 errorHandler,
                 loggingService.getLogger(NioInboundPipeline.class),
                 ioBalancer);
+        startBlockingIOThread(pipeline, "in-", id);
+        return pipeline;
     }
 
     @Override
@@ -339,17 +343,17 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
             extractor.extractMetrics(taggerOut, channel.outboundPipeline());
         }
 
-        for (NioThread nioThread : inputThreads) {
-            MetricTagger tagger = taggerSupplier.getMetricTagger("tcp.inputThread")
-                                                .withIdTag("thread", nioThread.getName());
-            extractor.extractMetrics(tagger, nioThread);
-        }
-
-        for (NioThread nioThread : outputThreads) {
-            MetricTagger tagger = taggerSupplier.getMetricTagger("tcp.outputThread")
-                                                .withIdTag("thread", nioThread.getName());
-            extractor.extractMetrics(tagger, nioThread);
-        }
+//        for (NioThread nioThread : inputThreads) {
+//            MetricTagger tagger = taggerSupplier.getMetricTagger("tcp.inputThread")
+//                                                .withIdTag("thread", nioThread.getName());
+//            extractor.extractMetrics(tagger, nioThread);
+//        }
+//
+//        for (NioThread nioThread : outputThreads) {
+//            MetricTagger tagger = taggerSupplier.getMetricTagger("tcp.outputThread")
+//                                                .withIdTag("thread", nioThread.getName());
+//            extractor.extractMetrics(tagger, nioThread);
+//        }
 
         IOBalancer ioBalancer = this.ioBalancer;
         if (ioBalancer != null) {
@@ -388,10 +392,10 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
                 }
             }
 
-            bytesSend = bytesTransceived(outputThreads);
-            bytesReceived = bytesTransceived(inputThreads);
-            packetsSend = packetsTransceived(outputThreads);
-            packetsReceived = packetsTransceived(inputThreads);
+//            bytesSend = bytesTransceived(outputThreads);
+//            bytesReceived = bytesTransceived(inputThreads);
+//            packetsSend = packetsTransceived(outputThreads);
+//            packetsReceived = packetsTransceived(inputThreads);
         }
 
         private long bytesTransceived(NioThread[] threads) {
@@ -510,6 +514,17 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
         public Context balancerIntervalSeconds(int balancerIntervalSeconds) {
             this.balancerIntervalSeconds = balancerIntervalSeconds;
             return this;
+        }
+    }
+
+    private class FiberManager extends Thread {
+        private volatile boolean done;
+
+        @Override
+        public void run() {
+            while (!done) {
+
+            }
         }
     }
 }

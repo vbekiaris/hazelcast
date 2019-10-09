@@ -22,27 +22,19 @@ import com.hazelcast.internal.networking.ChannelErrorHandler;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
-import com.hazelcast.internal.util.concurrent.IdleStrategy;
 
+import java.io.EOFException;
 import java.io.IOException;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.util.Iterator;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.INFO;
-import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_NOW;
-import static com.hazelcast.internal.networking.nio.SelectorOptimizer.newSelector;
 import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
-import static com.hazelcast.internal.util.EmptyStatement.ignore;
 import static java.lang.Math.max;
 import static java.lang.System.currentTimeMillis;
 
-public class NioThread extends Thread implements OperationHostileThread {
+public class BlockingIORunnable implements Runnable, OperationHostileThread {
 
     // WARNING: This value has significant effect on idle CPU usage!
     private static final int SELECT_WAIT_TIME_MILLIS
@@ -86,13 +78,7 @@ public class NioThread extends Thread implements OperationHostileThread {
 
     private final ILogger logger;
 
-    private Selector selector;
-
     private final ChannelErrorHandler errorHandler;
-
-    private final SelectorMode selectMode;
-
-    private final IdleStrategy idleStrategy;
 
     // last time select unblocked with some keys selected
     private volatile long lastSelectTimeMs;
@@ -102,33 +88,18 @@ public class NioThread extends Thread implements OperationHostileThread {
     // set to true while testing
     private boolean selectorWorkaroundTest;
 
-    public NioThread(String threadName,
-                     ILogger logger,
-                     ChannelErrorHandler errorHandler) {
-        this(threadName, logger, errorHandler, SelectorMode.SELECT, null);
-    }
+    private final String threadName;
 
-    public NioThread(String threadName,
-                     ILogger logger,
-                     ChannelErrorHandler errorHandler,
-                     SelectorMode selectMode,
-                     IdleStrategy idleStrategy) {
-        this(threadName, logger, errorHandler, selectMode, newSelector(logger), idleStrategy);
-    }
+    private final NioPipeline pipeline;
 
-    public NioThread(String threadName,
-                     ILogger logger,
-                     ChannelErrorHandler errorHandler,
-                     SelectorMode selectMode,
-                     Selector selector,
-                     IdleStrategy idleStrategy) {
-        super(threadName);
+    public BlockingIORunnable(String threadName,
+                              ILogger logger,
+                              NioPipeline pipeline,
+                              ChannelErrorHandler errorHandler) {
+        this.threadName = threadName;
         this.logger = logger;
-        this.selectMode = selectMode;
+        this.pipeline = pipeline;
         this.errorHandler = errorHandler;
-        this.selector = selector;
-        this.selectorWorkaroundTest = false;
-        this.idleStrategy = idleStrategy;
     }
 
     void setSelectorWorkaroundTest(boolean selectorWorkaroundTest) {
@@ -157,15 +128,6 @@ public class NioThread extends Thread implements OperationHostileThread {
 
     public long completedTaskCount() {
         return completedTaskCount.get();
-    }
-
-    /**
-     * Gets the Selector
-     *
-     * @return the Selector
-     */
-    public Selector getSelector() {
-        return selector;
     }
 
     /**
@@ -206,9 +168,6 @@ public class NioThread extends Thread implements OperationHostileThread {
      */
     public void addTaskAndWakeup(Runnable task) {
         taskQueue.add(task);
-        if (selectMode != SELECT_NOW) {
-            selector.wakeup();
-        }
     }
 
     @Override
@@ -224,36 +183,25 @@ public class NioThread extends Thread implements OperationHostileThread {
         try {
             for (; ; ) {
                 try {
-                    switch (selectMode) {
-                        case SELECT_WITH_FIX:
-                            selectLoopWithFix();
-                            break;
-                        case SELECT_NOW:
-                            selectNowLoop();
-                            break;
-                        case SELECT:
-                            selectLoop();
-                            break;
-                        default:
-                            throw new IllegalArgumentException("Selector.select mode not set, use -Dhazelcast.io.selectorMode="
-                                    + "{select|selectnow|selectwithfix} to explicitly specify select mode or leave empty for "
-                                    + "default select mode.");
+                    while (!stop) {
+                        processTaskQueue();
+                        pipeline.process();
                     }
                     // break the for loop; we are done
                     break;
+                } catch (EOFException e) {
+                    shutdown();
                 } catch (IOException nonFatalException) {
                     selectorIOExceptionCount.inc();
-                    logger.warning(getName() + " " + nonFatalException.toString(), nonFatalException);
+                    logger.warning(threadName + " " + nonFatalException.toString(), nonFatalException);
                     coolDown();
                 }
             }
         } catch (Throwable e) {
             errorHandler.onError(null, e);
-        } finally {
-            closeSelector();
         }
 
-        logger.finest(getName() + " finished");
+        logger.finest(threadName + " finished");
     }
 
     /**
@@ -267,67 +215,7 @@ public class NioThread extends Thread implements OperationHostileThread {
             Thread.sleep(SELECT_FAILURE_PAUSE_MILLIS);
         } catch (InterruptedException i) {
             // if the thread is interrupted, we just restore the interrupt flag and let one of the loops deal with it
-            interrupt();
-        }
-    }
-
-    private void selectLoop() throws IOException {
-        while (!stop) {
-            processTaskQueue();
-
-            int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
-            if (selectedKeys > 0) {
-                processSelectionKeys();
-            }
-        }
-    }
-
-    private void selectLoopWithFix() throws IOException {
-        int idleCount = 0;
-        while (!stop) {
-            processTaskQueue();
-
-            long before = currentTimeMillis();
-            int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
-            if (selectedKeys > 0) {
-                idleCount = 0;
-                processSelectionKeys();
-            } else if (!taskQueue.isEmpty()) {
-                idleCount = 0;
-            } else {
-                // no keys were selected, not interrupted by wakeup therefore we hit an issue with JDK/network stack
-                long selectTimeTaken = currentTimeMillis() - before;
-                idleCount = selectTimeTaken < SELECT_WAIT_TIME_MILLIS ? idleCount + 1 : 0;
-
-                if (selectorBugDetected(idleCount)) {
-                    rebuildSelector();
-                    idleCount = 0;
-                }
-            }
-        }
-    }
-
-    private boolean selectorBugDetected(int idleCount) {
-        return idleCount > SELECT_IDLE_COUNT_THRESHOLD
-                || (selectorWorkaroundTest && RANDOM.nextInt(TEST_SELECTOR_BUG_PROBABILITY) == 1);
-    }
-
-    private void selectNowLoop() throws IOException {
-        long idleRound = 0;
-        while (!stop) {
-            boolean tasksProcessed = processTaskQueue();
-
-            int selectedKeys = selector.selectNow();
-
-            if (selectedKeys > 0) {
-                processSelectionKeys();
-                idleRound = 0;
-            } else if (tasksProcessed) {
-                idleRound = 0;
-            } else if (idleStrategy != null) {
-                idleRound++;
-                idleStrategy.idle(idleRound);
-            }
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -345,83 +233,15 @@ public class NioThread extends Thread implements OperationHostileThread {
         return tasksProcessed;
     }
 
-    private void processSelectionKeys() {
-        lastSelectTimeMs = currentTimeMillis();
-        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-        while (it.hasNext()) {
-            SelectionKey sk = it.next();
-            it.remove();
-            processSelectionKey(sk);
-        }
-    }
-
-    private void processSelectionKey(SelectionKey sk) {
-        NioPipeline pipeline = (NioPipeline) sk.attachment();
-        try {
-            if (!sk.isValid()) {
-                // if the selectionKey isn't valid, we throw this exception to feedback the situation into the pipeline.onFailure
-                throw new CancelledKeyException();
-            }
-
-            // we don't need to check for sk.isReadable/sk.isWritable since the pipeline has only registered
-            // for events it can handle.
-            eventCount.inc();
-            pipeline.process();
-        } catch (Throwable t) {
-             pipeline.onError(t);
-        }
-    }
-
-    private void closeSelector() {
-        if (logger.isFinestEnabled()) {
-            logger.finest("Closing selector for:" + getName());
-        }
-
-        try {
-            selector.close();
-        } catch (Exception e) {
-            logger.finest("Failed to close selector", e);
-        }
-    }
-
     public void shutdown() {
+        pipeline.started = false;
         stop = true;
         taskQueue.clear();
-        interrupt();
-    }
-
-    // this method is always invoked in this thread
-    // after we have blocked for selector.select in #runSelectLoopWithSelectorFix
-    private void rebuildSelector() {
-        selectorRebuildCount.inc();
-        Selector newSelector = newSelector(logger);
-        Selector oldSelector = this.selector;
-
-        // reset each pipeline's selectionKey, cancel the old keys
-        for (SelectionKey key : oldSelector.keys()) {
-            NioPipeline pipeline = (NioPipeline) key.attachment();
-
-            try {
-                int ops = key.interestOps();
-                pipeline.initSelectionKey(newSelector, ops);
-            } catch (ClosedChannelException e) {
-                logger.info("Channel was closed while trying to register with new selector.");
-            } catch (CancelledKeyException e) {
-                // a CancelledKeyException may be thrown in key.interestOps
-                // in this case, since the key is already cancelled, just do nothing
-                ignore(e);
-            }
-            key.cancel();
-        }
-
-        // close the old selector and substitute with new one
-        closeSelector();
-        this.selector = newSelector;
-        logger.warning("Recreated Selector because of possible java/network stack bug.");
+        Thread.currentThread().interrupt();
     }
 
     @Override
     public String toString() {
-        return getName();
+        return threadName;
     }
 }

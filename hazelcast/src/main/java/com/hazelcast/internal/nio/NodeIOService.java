@@ -259,6 +259,7 @@ public class NodeIOService implements IOService {
     public void onFailedConnection(final Address address) {
         ClusterService clusterService = node.clusterService;
         if (!clusterService.isJoined()) {
+            System.err.println("Connection failed to " + address);
             node.getJoiner().blacklist(address, false);
         } else {
             if (clusterService.getMember(address) != null) {

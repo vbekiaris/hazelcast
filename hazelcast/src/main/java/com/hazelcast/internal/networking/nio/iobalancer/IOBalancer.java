@@ -22,11 +22,11 @@ import com.hazelcast.internal.networking.nio.NioInboundPipeline;
 import com.hazelcast.internal.networking.nio.NioOutboundPipeline;
 import com.hazelcast.internal.networking.nio.NioThread;
 import com.hazelcast.internal.nio.ConnectionListener;
+import com.hazelcast.internal.nio.EndpointManager;
 import com.hazelcast.internal.util.counters.MwCounter;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.LoggingService;
-import com.hazelcast.internal.nio.EndpointManager;
 import com.hazelcast.spi.properties.GroupProperty;
 
 import java.util.concurrent.BlockingQueue;
@@ -93,10 +93,10 @@ public class IOBalancer {
         this.strategy = createMigrationStrategy();
         this.hzName = hzName;
 
-        this.inLoadTracker = new LoadTracker(inputThreads, logger);
-        this.outLoadTracker = new LoadTracker(outputThreads, logger);
+        this.inLoadTracker = null;
+        this.outLoadTracker = null;
 
-        this.enabled = isEnabled(inputThreads, outputThreads);
+        this.enabled = false;
     }
 
     // just for testing

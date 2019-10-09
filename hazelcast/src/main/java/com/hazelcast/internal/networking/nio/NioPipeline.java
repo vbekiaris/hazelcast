@@ -68,6 +68,7 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     @Probe
     private final SwCounter completedMigrations = newSwCounter();
     private volatile NioThread newOwner;
+    volatile boolean started;
 
     NioPipeline(NioChannel channel,
                 NioThread owner,
@@ -79,6 +80,22 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         this.socketChannel = channel.socketChannel();
         this.owner = owner;
         this.ownerId = owner.id;
+        this.logger = logger;
+        this.initialOps = initialOps;
+        this.ioBalancer = ioBalancer;
+        this.errorHandler = errorHandler;
+    }
+
+    NioPipeline(NioChannel channel,
+                FiberScope fiberScope,
+                int ownerId,
+                ChannelErrorHandler errorHandler,
+                int initialOps,
+                ILogger logger,
+                IOBalancer ioBalancer) {
+        this.channel = channel;
+        this.socketChannel = channel.socketChannel();
+        this.ownerId = ownerId;
         this.logger = logger;
         this.initialOps = initialOps;
         this.ioBalancer = ioBalancer;
@@ -115,14 +132,15 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     }
 
     void start() {
-        owner.addTaskAndWakeup(() -> {
-            try {
-                initSelectionKey();
-                process();
-            } catch (Throwable t) {
-                onError(t);
-            }
-        });
+        started = true;
+//        owner.addTaskAndWakeup(() -> {
+//            try {
+//                initSelectionKey();
+//                process();
+//            } catch (Throwable t) {
+//                onError(t);
+//            }
+//        });
     }
 
     final void initSelectionKey() throws ClosedChannelException {
@@ -345,28 +363,28 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
 
         @Override
         public void run() {
-            try {
-                assert owner == null;
-                owner = newOwner;
-                ownerId = newOwner.id;
-
-                // we don't need to wakeup since the io thread will see the delayed tasks.
-                restoreTasks(owner, delayedTaskStack.getAndSet(null), false);
-
-                completedMigrations.inc();
-                ioBalancer.signalMigrationComplete();
-
-                if (!socketChannel.isOpen()) {
-                    return;
-                }
-
-                initSelectionKey();
-
-                // and now we set the newOwner to null since we are finished with the migration
-                NioPipeline.this.newOwner = null;
-            } catch (Throwable t) {
-                onError(t);
-            }
+//            try {
+//                assert owner == null;
+//                owner = newOwner;
+//                ownerId = newOwner.id;
+//
+//                // we don't need to wakeup since the io thread will see the delayed tasks.
+//                restoreTasks(owner, delayedTaskStack.getAndSet(null), false);
+//
+//                completedMigrations.inc();
+//                ioBalancer.signalMigrationComplete();
+//
+//                if (!socketChannel.isOpen()) {
+//                    return;
+//                }
+//
+//                initSelectionKey();
+//
+//                // and now we set the newOwner to null since we are finished with the migration
+//                NioPipeline.this.newOwner = null;
+//            } catch (Throwable t) {
+//                onError(t);
+//            }
         }
     }
 

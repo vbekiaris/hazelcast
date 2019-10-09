@@ -134,6 +134,21 @@ public final class NioOutboundPipeline
         this.selectionKeyWakeupEnabled = selectionKeyWakeupEnabled;
     }
 
+    NioOutboundPipeline(NioChannel channel,
+                        FiberScope fiberScope,
+                        int ownerId,
+                        ChannelErrorHandler errorHandler,
+                        ILogger logger,
+                        IOBalancer balancer,
+                        ConcurrencyDetection concurrencyDetection,
+                        boolean writeThroughEnabled,
+                        boolean selectionKeyWakeupEnabled) {
+        super(channel, fiberScope, ownerId, errorHandler, OP_WRITE, logger, balancer);
+        this.concurrencyDetection = concurrencyDetection;
+        this.writeThroughEnabled = writeThroughEnabled;
+        this.selectionKeyWakeupEnabled = selectionKeyWakeupEnabled;
+    }
+
     @Override
     public long load() {
         switch (loadType) {
@@ -277,6 +292,10 @@ public final class NioOutboundPipeline
     @Override
     @SuppressWarnings("unchecked")
     public void process() throws Exception {
+        if (!started) {
+            Thread.yield();
+            return;
+        }
         processCount.inc();
 
         OutboundHandler[] localHandlers = handlers;
@@ -309,19 +328,19 @@ public final class NioOutboundPipeline
             pipelineStatus = DIRTY;
         }
 
-        switch (pipelineStatus) {
-            case CLEAN:
-                postProcessClean();
-                break;
-            case DIRTY:
-                postProcessDirty();
-                break;
-            case BLOCKED:
-                postProcessBlocked();
-                break;
-            default:
-                throw new IllegalStateException();
-        }
+//        switch (pipelineStatus) {
+//            case CLEAN:
+//                postProcessClean();
+//                break;
+//            case DIRTY:
+//                postProcessDirty();
+//                break;
+//            case BLOCKED:
+//                postProcessBlocked();
+//                break;
+//            default:
+//                throw new IllegalStateException();
+//        }
     }
 
     private void postProcessBlocked() throws IOException {

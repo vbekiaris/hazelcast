@@ -16,8 +16,10 @@
 
 package com.hazelcast.core.server;
 
+import com.hazelcast.config.Config;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.map.IMap;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -43,8 +45,21 @@ public final class StartServer {
      * @param args none
      */
     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
-        HazelcastInstance hz = Hazelcast.newHazelcastInstance();
+        Config config = new Config();
+        config.getNetworkConfig().getJoin()
+              .getMulticastConfig().setEnabled(false);
+        config.getNetworkConfig().getJoin()
+              .getTcpIpConfig().addMember("127.0.0.1").setEnabled(true);
+        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
         printMemberPort(hz);
+
+        if (hz.getCluster().getLocalMember().getAddress().getPort() == 5702) {
+            IMap<Integer, String> map = hz.getMap("test");
+            for (int i = 0; i < 100; i++) {
+                map.put(i, "" + i);
+                System.out.println("map.get(" + i + "): " + map.get(i));
+            }
+        }
     }
 
     private static void printMemberPort(HazelcastInstance hz) throws FileNotFoundException, UnsupportedEncodingException {

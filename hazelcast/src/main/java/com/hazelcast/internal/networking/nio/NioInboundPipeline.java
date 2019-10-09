@@ -32,10 +32,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 import java.util.Arrays;
 
-import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static com.hazelcast.internal.util.Preconditions.checkNotNull;
 import static com.hazelcast.internal.util.collection.ArrayUtils.append;
 import static com.hazelcast.internal.util.collection.ArrayUtils.replaceFirst;
+import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.nio.channels.SelectionKey.OP_READ;
@@ -65,11 +65,12 @@ public final class NioInboundPipeline extends NioPipeline implements InboundPipe
     private volatile long processCountLastPublish;
 
     NioInboundPipeline(NioChannel channel,
-                       NioThread owner,
+                       FiberScope fiberScope,
+                       int ownerId,
                        ChannelErrorHandler errorHandler,
                        ILogger logger,
                        IOBalancer balancer) {
-        super(channel, owner, errorHandler, OP_READ, logger, balancer);
+        super(channel, fiberScope, ownerId, errorHandler, OP_READ, logger, balancer);
     }
 
     public long normalFramesRead() {
@@ -105,6 +106,10 @@ public final class NioInboundPipeline extends NioPipeline implements InboundPipe
 
     @Override
     void process() throws Exception {
+        if (!started) {
+            Thread.yield();
+            return;
+        }
         processCount.inc();
         // we are going to set the timestamp even if the channel is going to fail reading. In that case
         // the connection is going to be closed anyway.
@@ -174,10 +179,10 @@ public final class NioInboundPipeline extends NioPipeline implements InboundPipe
         }
         // since this is executed by the owner, the owner field can't change while
         // this method is executed.
-        owner.bytesTransceived += bytesRead.get() - bytesReadLastPublish;
-        owner.framesTransceived += normalFramesRead.get() - normalFramesReadLastPublish;
-        owner.priorityFramesTransceived += priorityFramesRead.get() - priorityFramesReadLastPublish;
-        owner.processCount += processCount.get() - processCountLastPublish;
+//        owner.bytesTransceived += bytesRead.get() - bytesReadLastPublish;
+//        owner.framesTransceived += normalFramesRead.get() - normalFramesReadLastPublish;
+//        owner.priorityFramesTransceived += priorityFramesRead.get() - priorityFramesReadLastPublish;
+//        owner.processCount += processCount.get() - processCountLastPublish;
 
         bytesReadLastPublish = bytesRead.get();
         normalFramesReadLastPublish = normalFramesRead.get();

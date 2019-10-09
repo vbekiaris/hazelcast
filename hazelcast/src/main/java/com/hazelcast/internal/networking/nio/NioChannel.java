@@ -107,6 +107,8 @@ public final class NioChannel extends AbstractChannel {
     @Override
     protected void close0() {
         outboundPipeline.drainWriteQueues();
+        outboundPipeline.started = false;
+        inboundPipeline.started = false;
 
         // the socket is immediately closed.
         try {
