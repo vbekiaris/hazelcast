@@ -83,12 +83,12 @@ public class SetService extends CollectionService {
     }
 
     @Override
-    public DistributedObject createDistributedObject(String objectId) {
+    public DistributedObject createDistributedObject(String objectId, boolean local) {
         return new SetProxyImpl(objectId, nodeEngine, this);
     }
 
     @Override
-    public void destroyDistributedObject(String name) {
+    public void destroyDistributedObject(String name, boolean local) {
         super.destroyDistributedObject(name);
         splitBrainProtectionConfigCache.remove(name);
     }
