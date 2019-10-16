@@ -60,6 +60,7 @@ final class BindHandler {
     public void process(Packet packet) {
         Object bind = ioService.getSerializationService().toObject(packet);
         TcpIpConnection connection = (TcpIpConnection) packet.getConn();
+        logger.info("Processing bind " + bind);
         if (connection.setBinding()) {
             if (bind instanceof ExtendedBindMessage) {
                 // incoming connection from a member >= 3.12
