@@ -24,6 +24,7 @@ import com.hazelcast.internal.networking.OutboundFrame;
 import com.hazelcast.internal.networking.OutboundHandler;
 import com.hazelcast.internal.networking.OutboundPipeline;
 import com.hazelcast.internal.networking.nio.iobalancer.IOBalancer;
+import com.hazelcast.internal.nio.Packet;
 import com.hazelcast.internal.util.ConcurrencyDetection;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
@@ -185,6 +186,8 @@ public final class NioOutboundPipeline
     }
 
     public void write(OutboundFrame frame) {
+        boolean debug = (frame instanceof Packet) && (((Packet) frame).getPacketType() == Packet.Type.EXTENDED_BIND || (
+                ((Packet) frame).getPacketType() == Packet.Type.BIND));
         if (frame.isUrgent()) {
             priorityWriteQueue.offer(frame);
         } else {
@@ -200,7 +203,9 @@ public final class NioOutboundPipeline
                     // try again
                     continue;
                 }
-
+                if (debug) {
+                    logger.info("Was unscheduled, will executePipeline() now");
+                }
                 executePipeline();
                 return;
             } else if (state == State.SCHEDULED || state == State.RESCHEDULE) {
@@ -221,6 +226,7 @@ public final class NioOutboundPipeline
     // executes the pipeline. Either on the calling thread or on th owning NIO thread.
     private void executePipeline() {
          if (writeThroughEnabled && !concurrencyDetection.isDetected()) {
+             logger.info("write-through");
             // we are allowed to do a write through, so lets process the request on the calling thread
             try {
                 process();
@@ -229,9 +235,11 @@ public final class NioOutboundPipeline
             }
         } else {
             if (selectionKeyWakeupEnabled) {
+                logger.info("waking up " + selectionKey + " selector for write");
                 registerOp(OP_WRITE);
                 selectionKey.selector().wakeup();
             } else {
+                logger.info("owner wake up");
                 owner.addTaskAndWakeup(this);
             }
         }

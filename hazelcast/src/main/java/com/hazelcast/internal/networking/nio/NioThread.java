@@ -420,6 +420,7 @@ public class NioThread extends Thread implements OperationHostileThread {
             if (key.readyOps() != 0) {
                 oldKeysReadyCount++;
             }
+            logger.info("Cancelling key " + key);
             key.cancel();
         }
 
