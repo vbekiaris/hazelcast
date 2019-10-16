@@ -51,6 +51,7 @@ import java.util.logging.Level;
 
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT;
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_NOW_STRING;
+import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_WITH_FIX;
 import static com.hazelcast.internal.nio.IOUtil.closeResource;
 import static com.hazelcast.internal.util.HashUtil.hashToIndex;
 import static com.hazelcast.internal.util.ThreadUtil.createThreadPoolName;
@@ -138,7 +139,10 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
         this.idleStrategy = ctx.idleStrategy;
         this.concurrencyDetection = ctx.concurrencyDetection;
         this.writeThroughEnabled = ctx.writeThroughEnabled;
-        this.selectionKeyWakeupEnabled = ctx.selectionKeyWakeupEnabled;
+        // when selector mode is SELECT_WITH_FIX there can be a race between
+        // selector being closed & replaced by a new one and selector being
+        // woken up from another thread that may result in unsent packets
+        this.selectionKeyWakeupEnabled = ctx.selectionKeyWakeupEnabled && selectorMode != SELECT_WITH_FIX;
     }
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "used only for testing")
