@@ -19,10 +19,10 @@ package com.hazelcast.internal.networking.nio;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.metrics.ProbeLevel;
 import com.hazelcast.internal.networking.ChannelErrorHandler;
+import com.hazelcast.internal.util.concurrent.IdleStrategy;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
-import com.hazelcast.internal.util.concurrent.IdleStrategy;
 
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
@@ -37,8 +37,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static com.hazelcast.internal.metrics.ProbeLevel.INFO;
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_NOW;
 import static com.hazelcast.internal.networking.nio.SelectorOptimizer.newSelector;
-import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static com.hazelcast.internal.util.EmptyStatement.ignore;
+import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static java.lang.Math.max;
 import static java.lang.System.currentTimeMillis;
 
@@ -287,16 +287,21 @@ public class NioThread extends Thread implements OperationHostileThread {
             processTaskQueue();
 
             long before = currentTimeMillis();
+            logger.fine("Before select");
             int selectedKeys = selector.select(SELECT_WAIT_TIME_MILLIS);
             if (selectedKeys > 0) {
+                logger.fine("Selector.select done with " + selectedKeys + " selected keys");
                 idleCount = 0;
                 processSelectionKeys();
             } else if (!taskQueue.isEmpty()) {
+                logger.fine("Selector.select done without selected keys but taskQueue has " +taskQueue.peek());
                 idleCount = 0;
             } else {
                 // no keys were selected, not interrupted by wakeup therefore we hit an issue with JDK/network stack
                 long selectTimeTaken = currentTimeMillis() - before;
                 idleCount = selectTimeTaken < SELECT_WAIT_TIME_MILLIS ? idleCount + 1 : 0;
+
+                logger.fine("idleCount is " + idleCount);
 
                 if (selectorBugDetected(idleCount)) {
                     rebuildSelector();
@@ -337,6 +342,7 @@ public class NioThread extends Thread implements OperationHostileThread {
             if (task == null) {
                 break;
             }
+            logger.fine("Processing task " + task);
             task.run();
             completedTaskCount.inc();
             tasksProcessed = true;
