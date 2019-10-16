@@ -71,6 +71,7 @@ public class MockIOService implements IOService {
     private final HazelcastProperties properties;
     public volatile Consumer<Packet> packetConsumer;
     private final ILogger logger;
+    private final String instanceName;
 
     public MockIOService(int port) throws Exception {
         loggingService = new LoggingServiceImpl("somegroup", "log4j2", BuildInfoProvider.getBuildInfo());
@@ -89,6 +90,27 @@ public class MockIOService implements IOService {
         props.put(IO_INPUT_THREAD_COUNT.getName(), "1");
         props.put(IO_OUTPUT_THREAD_COUNT.getName(), "1");
         this.properties = new HazelcastProperties(props);
+        this.instanceName = "hz";
+    }
+
+    public MockIOService(int port, String instanceName) throws Exception {
+        loggingService = new LoggingServiceImpl("somegroup", "log4j2", BuildInfoProvider.getBuildInfo());
+        logger = loggingService.getLogger(MockIOService.class);
+        serverSocketChannel = ServerSocketChannel.open();
+        ServerSocket serverSocket = serverSocketChannel.socket();
+        serverSocket.setReuseAddress(true);
+        serverSocket.setSoTimeout(1000);
+        serverSocket.bind(new InetSocketAddress("0.0.0.0", port));
+        thisAddress = new Address("127.0.0.1", port);
+        this.serializationService = new DefaultSerializationServiceBuilder()
+                .addDataSerializableFactory(TestDataFactory.FACTORY_ID, new TestDataFactory())
+                .build();
+
+        Properties props = new Properties();
+        props.put(IO_INPUT_THREAD_COUNT.getName(), "1");
+        props.put(IO_OUTPUT_THREAD_COUNT.getName(), "1");
+        this.properties = new HazelcastProperties(props);
+        this.instanceName = instanceName;
     }
 
     @Override
@@ -98,7 +120,7 @@ public class MockIOService implements IOService {
 
     @Override
     public String getHazelcastName() {
-        return "hz";
+        return instanceName;
     }
 
     @Override

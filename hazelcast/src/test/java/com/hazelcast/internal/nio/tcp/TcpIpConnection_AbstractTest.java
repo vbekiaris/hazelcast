@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.nio.tcp;
 
+import com.hazelcast.cluster.Address;
 import com.hazelcast.instance.BuildInfoProvider;
 import com.hazelcast.internal.metrics.MetricsRegistry;
 import com.hazelcast.internal.metrics.impl.MetricsRegistryImpl;
@@ -26,7 +27,6 @@ import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.internal.serialization.impl.DefaultSerializationServiceBuilder;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.impl.LoggingServiceImpl;
-import com.hazelcast.cluster.Address;
 import com.hazelcast.test.HazelcastTestSupport;
 import org.junit.After;
 import org.junit.Before;
@@ -76,17 +76,17 @@ public abstract class TcpIpConnection_AbstractTest extends HazelcastTestSupport 
         logger = loggingService.getLogger(TcpIpConnection_AbstractTest.class);
 
         metricsRegistryA = newMetricsRegistry();
-        networkingServiceA = newNetworkingService(metricsRegistryA);
+        networkingServiceA = newNetworkingService(metricsRegistryA, "hz-A");
         ioServiceA = (MockIOService) networkingServiceA.getIoService();
         addressA = ioServiceA.getThisAddress();
 
         metricsRegistryB = newMetricsRegistry();
-        networkingServiceB = newNetworkingService(metricsRegistryB);
+        networkingServiceB = newNetworkingService(metricsRegistryB, "hz-B");
         ioServiceB = (MockIOService) networkingServiceB.getIoService();
         addressB = ioServiceB.getThisAddress();
 
         metricsRegistryC = newMetricsRegistry();
-        networkingServiceC = newNetworkingService(metricsRegistryC);
+        networkingServiceC = newNetworkingService(metricsRegistryC, "hz-C");
         ioServiceC = (MockIOService) networkingServiceC.getIoService();
         addressC = ioServiceC.getThisAddress();
 
@@ -121,6 +121,31 @@ public abstract class TcpIpConnection_AbstractTest extends HazelcastTestSupport 
         while (ioService == null) {
             try {
                 ioService = new MockIOService(portNumber++);
+            } catch (IOException e) {
+                if (portNumber >= PORT_NUMBER_UPPER_LIMIT) {
+                    throw e;
+                }
+            }
+        }
+
+        ServerSocketRegistry registry = new ServerSocketRegistry(singletonMap(MEMBER, ioService.serverSocketChannel), true);
+
+        final MockIOService finalIoService = ioService;
+        TcpIpNetworkingService tcpIpNetworkingService = new TcpIpNetworkingService(null,
+                ioService,
+                registry,
+                ioService.loggingService,
+                metricsRegistry,
+                networkingFactory.create(ioService, metricsRegistry),
+                qualifier -> new UnifiedChannelInitializer(finalIoService));
+        return tcpIpNetworkingService;
+    }
+
+    protected TcpIpNetworkingService newNetworkingService(MetricsRegistry metricsRegistry, String instanceName) throws Exception {
+        MockIOService ioService = null;
+        while (ioService == null) {
+            try {
+                ioService = new MockIOService(portNumber++, instanceName);
             } catch (IOException e) {
                 if (portNumber >= PORT_NUMBER_UPPER_LIMIT) {
                     throw e;
