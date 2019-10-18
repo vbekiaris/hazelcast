@@ -651,7 +651,7 @@ public abstract class Invocation<T> extends BaseInvocation implements OperationR
 
     @Override
     protected void completeExceptionally(Throwable t) {
-        future.completeExceptionallyInternal(t);
+        future.completeExceptionally(t);
         if (context.invocationRegistry.deregister(this) && taskDoneCallback != null) {
             context.asyncExecutor.execute(taskDoneCallback);
         }
