@@ -220,22 +220,7 @@ public final class NioOutboundPipeline
     }
 
     @Override
-    public void replaceSelectionKey(Selector newSelector) {
-        boolean fix = false;
-        if (fix) {
-            for (; ; ) {
-                State state = scheduled.get();
-                if (state == State.SCHEDULED || state == State.RESCHEDULE) {
-                    continue;
-                } else if (state == State.BLOCKED) {
-                    break;
-                } else if (state == State.UNSCHEDULED) {
-                    scheduled.compareAndSet(State.UNSCHEDULED, State.BLOCKED);
-                } else {
-                    throw new IllegalStateException("Unexpected state:" + state);
-                }
-            }
-        }
+    public synchronized void replaceSelectionKey(Selector newSelector) {
         super.replaceSelectionKey(newSelector);
     }
 
@@ -297,7 +282,7 @@ public final class NioOutboundPipeline
     // is never called concurrently!
     @Override
     @SuppressWarnings("unchecked")
-    public void process() throws Exception {
+    public synchronized void process() throws Exception {
         processCount.inc();
 
         OutboundHandler[] localHandlers = handlers;
