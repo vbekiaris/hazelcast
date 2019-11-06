@@ -393,24 +393,13 @@ public class NioThread extends Thread implements OperationHostileThread {
     // after we have blocked for selector.select in #runSelectLoopWithSelectorFix
     private void rebuildSelector() {
         selectorRebuildCount.inc();
-        Selector newSelector = newSelector(logger);
-        Selector oldSelector = this.selector;
+        final Selector newSelector = newSelector(logger);
+        final Selector oldSelector = this.selector;
 
         // reset each pipeline's selectionKey, cancel the old keys
         for (SelectionKey key : oldSelector.keys()) {
             NioPipeline pipeline = (NioPipeline) key.attachment();
-
-            try {
-                int ops = key.interestOps();
-                pipeline.initSelectionKey(newSelector, ops);
-            } catch (ClosedChannelException e) {
-                logger.info("Channel was closed while trying to register with new selector.");
-            } catch (CancelledKeyException e) {
-                // a CancelledKeyException may be thrown in key.interestOps
-                // in this case, since the key is already cancelled, just do nothing
-                ignore(e);
-            }
-            key.cancel();
+            pipeline.replaceSelectionKey(newSelector);
         }
 
         // close the old selector and substitute with new one

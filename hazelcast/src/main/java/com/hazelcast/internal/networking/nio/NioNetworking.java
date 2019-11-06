@@ -142,7 +142,7 @@ public final class NioNetworking implements Networking, DynamicMetricsProvider {
         // when selector mode is SELECT_WITH_FIX there can be a race between
         // selector being closed & replaced by a new one and selector being
         // woken up from another thread that may result in unsent packets
-        this.selectionKeyWakeupEnabled = ctx.selectionKeyWakeupEnabled && selectorMode != SELECT_WITH_FIX;
+        this.selectionKeyWakeupEnabled = ctx.selectionKeyWakeupEnabled;
     }
 
     @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "used only for testing")

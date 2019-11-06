@@ -24,6 +24,7 @@ import com.hazelcast.internal.networking.nio.iobalancer.IOBalancer;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 
+import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -31,6 +32,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.DEBUG;
+import static com.hazelcast.internal.util.EmptyStatement.ignore;
 import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static java.lang.Thread.currentThread;
 
@@ -269,6 +271,25 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         }
 
         errorHandler.onError(channel, error);
+    }
+
+    // cannot be executed concurrently
+    public void replaceSelectionKey(Selector newSelector) {
+        final SelectionKey oldSelectionKey = selectionKey;
+        if (oldSelectionKey == null) {
+            return;
+        }
+        try {
+            int ops = oldSelectionKey.interestOps();
+            initSelectionKey(newSelector, ops);
+        } catch (ClosedChannelException e) {
+            logger.info("Channel was closed while trying to register with new selector.");
+        } catch (CancelledKeyException e) {
+            // a CancelledKeyException may be thrown in key.interestOps
+            // in this case, since the key is already cancelled, just do nothing
+            ignore(e);
+        }
+        oldSelectionKey.cancel();
     }
 
     /**

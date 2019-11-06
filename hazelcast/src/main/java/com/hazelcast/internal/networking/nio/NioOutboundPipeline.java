@@ -30,6 +30,7 @@ import com.hazelcast.logging.ILogger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Selector;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -218,7 +219,27 @@ public final class NioOutboundPipeline
         }
     }
 
-    // executes the pipeline. Either on the calling thread or on th owning NIO thread.
+    @Override
+    public void replaceSelectionKey(Selector newSelector) {
+        boolean fix = false;
+        if (fix) {
+            for (; ; ) {
+                State state = scheduled.get();
+                if (state == State.SCHEDULED || state == State.RESCHEDULE) {
+                    continue;
+                } else if (state == State.BLOCKED) {
+                    break;
+                } else if (state == State.UNSCHEDULED) {
+                    scheduled.compareAndSet(State.UNSCHEDULED, State.BLOCKED);
+                } else {
+                    throw new IllegalStateException("Unexpected state:" + state);
+                }
+            }
+        }
+        super.replaceSelectionKey(newSelector);
+    }
+
+    // executes the pipeline. Either on the calling thread or on the owning NIO thread.
     private void executePipeline() {
          if (writeThroughEnabled && !concurrencyDetection.isDetected()) {
             // we are allowed to do a write through, so lets process the request on the calling thread
