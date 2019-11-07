@@ -30,6 +30,7 @@ import com.hazelcast.logging.ILogger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Arrays;
 import java.util.Queue;
@@ -219,11 +220,6 @@ public final class NioOutboundPipeline
         }
     }
 
-    @Override
-    public synchronized void replaceSelectionKey(Selector newSelector) {
-        super.replaceSelectionKey(newSelector);
-    }
-
     // executes the pipeline. Either on the calling thread or on the owning NIO thread.
     private void executePipeline() {
          if (writeThroughEnabled && !concurrencyDetection.isDetected()) {
@@ -282,8 +278,9 @@ public final class NioOutboundPipeline
     // is never called concurrently!
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized void process() throws Exception {
+    public void process() throws Exception {
         processCount.inc();
+        checkReplaceSelectionKey();
 
         OutboundHandler[] localHandlers = handlers;
         HandlerStatus pipelineStatus = CLEAN;

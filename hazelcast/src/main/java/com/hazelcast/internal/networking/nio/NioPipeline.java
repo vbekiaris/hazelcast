@@ -30,6 +30,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static com.hazelcast.internal.metrics.ProbeLevel.DEBUG;
 import static com.hazelcast.internal.util.EmptyStatement.ignore;
@@ -37,6 +38,9 @@ import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
 import static java.lang.Thread.currentThread;
 
 public abstract class NioPipeline implements MigratablePipeline, Runnable {
+
+    private static final AtomicReferenceFieldUpdater SELECTION_KEY_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(NioPipeline.class, SelectionKey.class, "selectionKey");
 
     protected static final int LOAD_BALANCING_HANDLE = 0;
     protected static final int LOAD_BALANCING_BYTE = 1;
@@ -58,6 +62,8 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     // in case of outbound pipeline, this selectionKey is only changed when the pipeline is scheduled
     // (so a single thread has claimed possession of the pipeline)
     protected volatile SelectionKey selectionKey;
+    // when selector bug is detected (in SELECT_WITH_FIX select mode), selection key may have to be rebuilt
+    protected volatile SelectionKey newSelectionKey;
     private final ChannelErrorHandler errorHandler;
     private final int initialOps;
     private final IOBalancer ioBalancer;
@@ -136,13 +142,24 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     }
 
     final void registerOp(int operation) {
+        checkReplaceSelectionKey();
         selectionKey.interestOps(selectionKey.interestOps() | operation);
     }
 
     final void unregisterOp(int operation) {
+        checkReplaceSelectionKey();
         int interestOps = selectionKey.interestOps();
         if ((interestOps & operation) != 0) {
             selectionKey.interestOps(interestOps & ~operation);
+        }
+    }
+
+    final void checkReplaceSelectionKey() {
+        if (newSelectionKey != null) {
+            SelectionKey old = selectionKey;
+            selectionKey = newSelectionKey;
+            newSelectionKey = null;
+            old.cancel();
         }
     }
 
@@ -271,6 +288,19 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         }
 
         errorHandler.onError(channel, error);
+    }
+
+    final void buildNewSelectionKey(Selector newSelector) {
+        try {
+        int ops = selectionKey.interestOps();
+        newSelectionKey = socketChannel.register(newSelector, ops, NioPipeline.this);
+        } catch (ClosedChannelException e) {
+            logger.info("Channel was closed while trying to register with new selector.");
+        } catch (CancelledKeyException e) {
+            // a CancelledKeyException may be thrown in key.interestOps
+            // in this case, since the key is already cancelled, just do nothing
+            ignore(e);
+        }
     }
 
     // cannot be executed concurrently

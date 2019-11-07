@@ -396,16 +396,19 @@ public class NioThread extends Thread implements OperationHostileThread {
         final Selector newSelector = newSelector(logger);
         final Selector oldSelector = this.selector;
 
-        // reset each pipeline's selectionKey, cancel the old keys
+        // each pipeline must build a new selection key
         for (SelectionKey key : oldSelector.keys()) {
             NioPipeline pipeline = (NioPipeline) key.attachment();
-            pipeline.replaceSelectionKey(newSelector);
+            pipeline.buildNewSelectionKey(newSelector);
         }
 
-        // close the old selector and substitute with new one
-        closeSelector();
-        this.selector = newSelector;
-        logger.warning("Recreated Selector because of possible java/network stack bug.");
+        // add a task to close the selector in next select loop iteration
+        addTask(() -> {
+            // close the old selector and substitute with new one
+            closeSelector();
+            this.selector = newSelector;
+            logger.warning("Recreated Selector because of possible java/network stack bug.");
+        });
     }
 
     @Override

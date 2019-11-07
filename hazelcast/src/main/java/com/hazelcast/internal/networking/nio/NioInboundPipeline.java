@@ -106,6 +106,7 @@ public final class NioInboundPipeline extends NioPipeline implements InboundPipe
     @Override
     void process() throws Exception {
         processCount.inc();
+        checkReplaceSelectionKey();
         // we are going to set the timestamp even if the channel is going to fail reading. In that case
         // the connection is going to be closed anyway.
         lastReadTime = currentTimeMillis();
