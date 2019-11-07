@@ -39,7 +39,7 @@ import static java.lang.Thread.currentThread;
 
 public abstract class NioPipeline implements MigratablePipeline, Runnable {
 
-    private static final AtomicReferenceFieldUpdater SELECTION_KEY_UPDATER =
+    private static final AtomicReferenceFieldUpdater<NioPipeline, SelectionKey> SELECTION_KEY_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(NioPipeline.class, SelectionKey.class, "selectionKey");
 
     protected static final int LOAD_BALANCING_HANDLE = 0;
@@ -155,11 +155,15 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     }
 
     final void checkReplaceSelectionKey() {
+        final SelectionKey old = selectionKey;
         if (newSelectionKey != null) {
-            SelectionKey old = selectionKey;
-            selectionKey = newSelectionKey;
-            newSelectionKey = null;
-            old.cancel();
+            if (SELECTION_KEY_UPDATER.compareAndSet(this, old, newSelectionKey)) {
+                if (old != null) {
+                    selectionKey = newSelectionKey;
+                    newSelectionKey = null;
+                    old.cancel();
+                }
+            }
         }
     }
 
