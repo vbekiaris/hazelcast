@@ -19,14 +19,13 @@ package com.hazelcast.internal.networking.nio;
 import com.hazelcast.internal.metrics.Probe;
 import com.hazelcast.internal.metrics.ProbeLevel;
 import com.hazelcast.internal.networking.ChannelErrorHandler;
+import com.hazelcast.internal.util.concurrent.IdleStrategy;
 import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.impl.operationexecutor.OperationHostileThread;
-import com.hazelcast.internal.util.concurrent.IdleStrategy;
 
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -38,7 +37,6 @@ import static com.hazelcast.internal.metrics.ProbeLevel.INFO;
 import static com.hazelcast.internal.networking.nio.SelectorMode.SELECT_NOW;
 import static com.hazelcast.internal.networking.nio.SelectorOptimizer.newSelector;
 import static com.hazelcast.internal.util.counters.SwCounter.newSwCounter;
-import static com.hazelcast.internal.util.EmptyStatement.ignore;
 import static java.lang.Math.max;
 import static java.lang.System.currentTimeMillis;
 
@@ -399,16 +397,13 @@ public class NioThread extends Thread implements OperationHostileThread {
         // each pipeline must build a new selection key
         for (SelectionKey key : oldSelector.keys()) {
             NioPipeline pipeline = (NioPipeline) key.attachment();
-            pipeline.buildNewSelectionKey(newSelector);
+            pipeline.replaceSelectionKey(newSelector);
         }
 
-        // add a task to close the selector in next select loop iteration
-        addTask(() -> {
-            // close the old selector and substitute with new one
-            closeSelector();
-            this.selector = newSelector;
-            logger.warning("Recreated Selector because of possible java/network stack bug.");
-        });
+        // close the old selector and substitute with new one
+        closeSelector();
+        this.selector = newSelector;
+        logger.warning("Recreated Selector because of possible java/network stack bug.");
     }
 
     @Override

@@ -63,7 +63,12 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     // (so a single thread has claimed possession of the pipeline)
     protected volatile SelectionKey selectionKey;
     // when selector bug is detected (in SELECT_WITH_FIX select mode), selection key may have to be rebuilt
-    protected volatile SelectionKey newSelectionKey;
+    protected final Object selectionKeyLock = new Object() {
+        @Override
+        public String toString() {
+            return "selectionKeyLock";
+        }
+    };
     private final ChannelErrorHandler errorHandler;
     private final int initialOps;
     private final IOBalancer ioBalancer;
@@ -99,14 +104,18 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
 
     @Probe(level = DEBUG)
     private long opsInterested() {
-        SelectionKey selectionKey = this.selectionKey;
-        return selectionKey == null ? -1 : selectionKey.interestOps();
+        synchronized (selectionKeyLock) {
+            SelectionKey selectionKey = this.selectionKey;
+            return selectionKey == null ? -1 : selectionKey.interestOps();
+        }
     }
 
     @Probe(level = DEBUG)
     private long opsReady() {
-        SelectionKey selectionKey = this.selectionKey;
-        return selectionKey == null ? -1 : selectionKey.readyOps();
+        synchronized (selectionKeyLock) {
+            SelectionKey selectionKey = this.selectionKey;
+            return selectionKey == null ? -1 : selectionKey.readyOps();
+        }
     }
 
     /**
@@ -138,31 +147,22 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
     }
 
     final void initSelectionKey(Selector selector, int ops) throws ClosedChannelException {
-        selectionKey = socketChannel.register(selector, ops, NioPipeline.this);
-    }
-
-    final void registerOp(int operation) {
-        checkReplaceSelectionKey();
-        selectionKey.interestOps(selectionKey.interestOps() | operation);
-    }
-
-    final void unregisterOp(int operation) {
-        checkReplaceSelectionKey();
-        int interestOps = selectionKey.interestOps();
-        if ((interestOps & operation) != 0) {
-            selectionKey.interestOps(interestOps & ~operation);
+        synchronized (selectionKeyLock) {
+            selectionKey = socketChannel.register(selector, ops, NioPipeline.this);
         }
     }
 
-    final void checkReplaceSelectionKey() {
-        final SelectionKey old = selectionKey;
-        if (newSelectionKey != null) {
-            if (SELECTION_KEY_UPDATER.compareAndSet(this, old, newSelectionKey)) {
-                if (old != null) {
-                    selectionKey = newSelectionKey;
-                    newSelectionKey = null;
-                    old.cancel();
-                }
+    final void registerOp(int operation) {
+        synchronized (selectionKeyLock) {
+            selectionKey.interestOps(selectionKey.interestOps() | operation);
+        }
+    }
+
+    final void unregisterOp(int operation) {
+        synchronized (selectionKeyLock) {
+            int interestOps = selectionKey.interestOps();
+            if ((interestOps & operation) != 0) {
+                selectionKey.interestOps(interestOps & ~operation);
             }
         }
     }
@@ -294,36 +294,25 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         errorHandler.onError(channel, error);
     }
 
-    final void buildNewSelectionKey(Selector newSelector) {
-        try {
-        int ops = selectionKey.interestOps();
-        newSelectionKey = socketChannel.register(newSelector, ops, NioPipeline.this);
-        } catch (ClosedChannelException e) {
-            logger.info("Channel was closed while trying to register with new selector.");
-        } catch (CancelledKeyException e) {
-            // a CancelledKeyException may be thrown in key.interestOps
-            // in this case, since the key is already cancelled, just do nothing
-            ignore(e);
-        }
-    }
-
     // cannot be executed concurrently
     public void replaceSelectionKey(Selector newSelector) {
-        final SelectionKey oldSelectionKey = selectionKey;
-        if (oldSelectionKey == null) {
-            return;
+        synchronized (selectionKeyLock) {
+            final SelectionKey oldSelectionKey = selectionKey;
+            if (oldSelectionKey == null) {
+                return;
+            }
+            try {
+                int ops = oldSelectionKey.interestOps();
+                initSelectionKey(newSelector, ops);
+            } catch (ClosedChannelException e) {
+                logger.info("Channel was closed while trying to register with new selector.");
+            } catch (CancelledKeyException e) {
+                // a CancelledKeyException may be thrown in key.interestOps
+                // in this case, since the key is already cancelled, just do nothing
+                ignore(e);
+            }
+            oldSelectionKey.cancel();
         }
-        try {
-            int ops = oldSelectionKey.interestOps();
-            initSelectionKey(newSelector, ops);
-        } catch (ClosedChannelException e) {
-            logger.info("Channel was closed while trying to register with new selector.");
-        } catch (CancelledKeyException e) {
-            // a CancelledKeyException may be thrown in key.interestOps
-            // in this case, since the key is already cancelled, just do nothing
-            ignore(e);
-        }
-        oldSelectionKey.cancel();
     }
 
     /**
@@ -383,8 +372,10 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         startedMigrations.inc();
 
         unregisterOp(initialOps);
-        selectionKey.cancel();
-        selectionKey = null;
+        synchronized (selectionKeyLock) {
+            selectionKey.cancel();
+            selectionKey = null;
+        }
         owner = null;
         ownerId = -1;
 

@@ -231,8 +231,10 @@ public final class NioOutboundPipeline
             }
         } else {
             if (selectionKeyWakeupEnabled) {
-                registerOp(OP_WRITE);
-                selectionKey.selector().wakeup();
+                synchronized (selectionKeyLock) {
+                    registerOp(OP_WRITE);
+                    selectionKey.selector().wakeup();
+                }
             } else {
                 owner.addTaskAndWakeup(this);
             }
@@ -280,7 +282,6 @@ public final class NioOutboundPipeline
     @SuppressWarnings("unchecked")
     public void process() throws Exception {
         processCount.inc();
-        checkReplaceSelectionKey();
 
         OutboundHandler[] localHandlers = handlers;
         HandlerStatus pipelineStatus = CLEAN;
