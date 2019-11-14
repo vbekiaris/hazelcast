@@ -162,6 +162,7 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
                 if (old != null) {
                     selectionKey = newSelectionKey;
                     newSelectionKey = null;
+                    selectionKey.interestOps(selectionKey.interestOps() | old.interestOps());
                     old.cancel();
                 }
             }
@@ -297,8 +298,8 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
 
     final void buildNewSelectionKey(Selector newSelector) {
         try {
-        int ops = selectionKey.interestOps();
-        newSelectionKey = socketChannel.register(newSelector, ops, NioPipeline.this);
+            int ops = selectionKey.interestOps();
+            newSelectionKey = socketChannel.register(newSelector, ops, NioPipeline.this);
         } catch (ClosedChannelException e) {
             logger.info("Channel was closed while trying to register with new selector.");
         } catch (CancelledKeyException e) {
