@@ -158,6 +158,7 @@ public abstract class NioPipeline implements MigratablePipeline, Runnable {
         final SelectionKey old = selectionKey;
         if (newSelectionKey != null) {
             if (SELECTION_KEY_UPDATER.compareAndSet(this, old, newSelectionKey)) {
+                logger.info("replaced " + old + " with " + selectionKey);
                 if (old != null) {
                     selectionKey = newSelectionKey;
                     newSelectionKey = null;

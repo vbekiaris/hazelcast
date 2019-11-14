@@ -231,6 +231,7 @@ public final class NioOutboundPipeline
             }
         } else {
             if (selectionKeyWakeupEnabled) {
+                logger.info("registering OP_WRITE on " + selectionKey);
                 registerOp(OP_WRITE);
                 selectionKey.selector().wakeup();
             } else {
