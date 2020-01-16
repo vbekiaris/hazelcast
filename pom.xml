@@ -29,6 +29,7 @@
     <url>http://www.hazelcast.com/</url>
 
     <modules>
+        <module>hazelcast-avro-serializer</module>
         <module>hazelcast</module>
         <module>hazelcast-client</module>
         <module>hazelcast-spring</module>
