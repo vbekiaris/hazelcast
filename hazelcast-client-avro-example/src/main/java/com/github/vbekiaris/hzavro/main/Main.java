@@ -3,6 +3,7 @@ package com.github.vbekiaris.hzavro.main;
 import com.github.vbekiaris.hzavro.AvroStreamSerializer;
 import com.github.vbekiaris.hzavro.GenericRecordStreamSerializer;
 import com.github.vbekiaris.hzavro.domain.User;
+import com.github.vbekiaris.hzavro.impl.PathSchemaRegistry;
 import com.github.vbekiaris.hzavro.impl.ReplicatedMapSchemaRegistry;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
@@ -19,10 +20,12 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import java.io.IOException;
 import java.nio.file.Paths;
 
+import static com.github.vbekiaris.hzavro.impl.PathSchemaRegistry.AVRO_SCHEMAS_PATH_PROPERTY;
 import static com.github.vbekiaris.hzavro.impl.ReplicatedMapSchemaRegistry.AVRO_SCHEMAS_MAP;
 
 public class Main {
 
+    // this uses the ReplicatedMap as schema registry
     public static void main(String[] args)
             throws InterruptedException {
         System.setProperty(AvroStreamSerializer.AVRO_SCHEMA_REGISTRY_PROPERTY_NAME,
@@ -43,6 +46,31 @@ public class Main {
 
         HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
 //        genericRecords(client);
+        users(client);
+    }
+
+    // this uses the local path as schema registry
+    public static void main2(String[] args) throws InterruptedException {
+        System.setProperty(AvroStreamSerializer.AVRO_SCHEMA_REGISTRY_PROPERTY_NAME,
+                PathSchemaRegistry.class.getName());
+        System.setProperty(AVRO_SCHEMAS_PATH_PROPERTY,
+                Paths.get("src/main/avro/user.avsc").toAbsolutePath().normalize().toString());
+        SerializationConfig serializationConfig = new SerializationConfig();
+        // register the GenericRecord serializer
+        SerializerConfig genericRecordSerializerConfig = new SerializerConfig();
+        genericRecordSerializerConfig.setTypeClass(GenericRecord.class);
+        genericRecordSerializerConfig.setClass(GenericRecordStreamSerializer.class);
+        serializationConfig.addSerializerConfig(genericRecordSerializerConfig);
+        // register the reflect datum global Avro serializer
+        GlobalSerializerConfig globalSerializerConfig = new GlobalSerializerConfig();
+        globalSerializerConfig.setClassName(AvroStreamSerializer.class.getName());
+        serializationConfig.setGlobalSerializerConfig(globalSerializerConfig);
+
+        ClientConfig clientConfig = new ClientConfig();
+        clientConfig.setSerializationConfig(serializationConfig);
+
+        HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
+        //        genericRecords(client);
         users(client);
     }
 

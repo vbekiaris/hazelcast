@@ -8,6 +8,7 @@ import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
@@ -15,43 +16,36 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class AvroStreamSerializer implements StreamSerializer, HazelcastInstanceAware {
+public class GenericRecordStreamSerializer
+        implements StreamSerializer<GenericRecord>, HazelcastInstanceAware {
 
-    public static final String AVRO_SCHEMA_REGISTRY_PROPERTY_NAME = "hazelcast.avro.schemaRegistryClassName";
-
+    private static final int GENERIC_RECORD_SERIALIZER_TYPE_ID =
+            Integer.getInteger("hazelcast.avro.serializerTypeId", 1001);
     private static final String AVRO_SCHEMA_REGISTRY_CLASS_NAME =
-            System.getProperty(AVRO_SCHEMA_REGISTRY_PROPERTY_NAME,
+            System.getProperty("hazelcast.avro.schemaRegistryClassName",
                     "com.github.vbekiaris.hzavro.impl.PathSchemaRegistry");
 
-    private static final int AVRO_SERIALIZER_TYPE_ID = Integer.getInteger("hazelcast.avro.serializerTypeId", 1000);
     private final SchemaRegistry schemaRegistry;
 
-    public AvroStreamSerializer() throws Exception {
+    public GenericRecordStreamSerializer() throws Exception {
         schemaRegistry = ClassLoaderUtil.newInstance(null, AVRO_SCHEMA_REGISTRY_CLASS_NAME);
         if (schemaRegistry == null) {
-            throw new IllegalStateException("AvroStreamSerializer requires a schema registry implementation. "
+            throw new IllegalStateException("GenericRecordStreamSerializer requires a schema registry implementation. "
                     + "Tried " + AVRO_SCHEMA_REGISTRY_CLASS_NAME + " but new instance was null.");
         }
     }
 
     @Override
-    public void write(ObjectDataOutput out, Object object)
+    public void write(ObjectDataOutput out, GenericRecord object)
             throws IOException {
         // todo: can i reuse the same encoder instance?
         Encoder encoder = EncoderFactory.get().binaryEncoder((OutputStream) out, null);
-        if (object instanceof GenericRecord) {
-            GenericRecord record = (GenericRecord) object;
-            writeGenericRecord(out, encoder, record);
-        } else {
-            writeSpecificRecord(out, encoder, object);
-        }
+        writeGenericRecord(out, encoder, object);
     }
 
     private void writeGenericRecord(ObjectDataOutput out,
@@ -65,34 +59,21 @@ public class AvroStreamSerializer implements StreamSerializer, HazelcastInstance
         encoder.flush();
     }
 
-    private void writeSpecificRecord(ObjectDataOutput out,
-                                     Encoder encoder,
-                                     Object object)
-            throws IOException {
-        String typeName = object.getClass().getName();
-        Schema schema = schemaRegistry.getSchema(typeName);
-        // todo don't create new datum writer each time?
-        DatumWriter writer = new ReflectDatumWriter(schema);
-        out.writeUTF(schema.getFullName());
-        writer.write(object, encoder);
-        encoder.flush();
-    }
-
     @Override
-    public Object read(ObjectDataInput in)
+    public GenericRecord read(ObjectDataInput in)
             throws IOException {
         String typeName = in.readUTF();
         Schema schema = schemaRegistry.getSchema(typeName);
-        DatumReader reader = new ReflectDatumReader(schema);
+        DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(schema);
         // todo reuse Decoder instances ?
         Decoder decoder = DecoderFactory.get().binaryDecoder((InputStream) in, null);
-        Object deserialized = reader.read(null, decoder);
+        GenericRecord deserialized = reader.read(null, decoder);
         return deserialized;
     }
 
     @Override
     public int getTypeId() {
-        return AVRO_SERIALIZER_TYPE_ID;
+        return GENERIC_RECORD_SERIALIZER_TYPE_ID;
     }
 
     @Override

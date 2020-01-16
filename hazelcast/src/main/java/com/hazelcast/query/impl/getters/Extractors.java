@@ -26,6 +26,7 @@ import com.hazelcast.query.QueryException;
 import com.hazelcast.query.extractor.ValueExtractor;
 import com.hazelcast.query.impl.DefaultArgumentParser;
 import com.hazelcast.util.Preconditions;
+import org.apache.avro.generic.GenericRecord;
 
 import java.util.Collections;
 import java.util.List;
@@ -148,6 +149,8 @@ public final class Extractors {
                 }
             } else if (targetObject instanceof HazelcastJsonValue) {
                 return JsonGetter.INSTANCE;
+            } else if (targetObject instanceof GenericRecord) {
+                return GenericRecordGetter.INSTANCE;
             } else {
                 return ReflectionHelper.createGetter(targetObject, attributeName);
             }

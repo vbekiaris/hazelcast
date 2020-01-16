@@ -35,6 +35,7 @@
         <module>hazelcast-spring</module>
         <module>hazelcast-build-utils</module>
         <module>hazelcast-all</module>
+        <module>hazelcast-client-avro-example</module>
     </modules>
 
     <properties>
