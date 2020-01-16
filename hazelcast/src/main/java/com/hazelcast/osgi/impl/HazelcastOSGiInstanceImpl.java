@@ -16,6 +16,7 @@
 
 package com.hazelcast.osgi.impl;
 
+import com.hazelcast.avro.SchemaRegistry;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.GroupConfig;
@@ -78,6 +79,11 @@ class HazelcastOSGiInstanceImpl
                                      HazelcastOSGiService ownerService) {
         this.delegatedInstance = delegatedInstance;
         this.ownerService = ownerService;
+    }
+
+    @Override
+    public SchemaRegistry getSchemaRegistry() {
+        return null;
     }
 
     @Override

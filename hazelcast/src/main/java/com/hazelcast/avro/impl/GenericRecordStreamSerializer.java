@@ -46,7 +46,7 @@ public class GenericRecordStreamSerializer
             System.getProperty("hazelcast.avro.schemaRegistryClassName",
                     "com.hazelcast.avro.impl.ReplicatedMapSchemaRegistry");
 
-    private final SchemaRegistry schemaRegistry;
+    private final AvroSchemaRegistry schemaRegistry;
 
     public GenericRecordStreamSerializer() throws Exception {
         schemaRegistry = ClassLoaderUtil.newInstance(null, AVRO_SCHEMA_REGISTRY_CLASS_NAME);

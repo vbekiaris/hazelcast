@@ -18,13 +18,11 @@ package com.hazelcast.avro.impl;
 
 import org.apache.avro.Schema;
 
-public interface SchemaRegistry {
+public interface AvroSchemaRegistry {
 
-    Schema getSchema(int schemaId);
-
-    Schema getSchema(String typeName);
-
-    Schema getSchema(String typeName, int version);
+    Schema getSchema(String type);
 
     void destroy();
+
+    void scanSchemas();
 }

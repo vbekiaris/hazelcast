@@ -16,6 +16,8 @@
 
 package com.hazelcast.core;
 
+import com.hazelcast.avro.SchemaRegistry;
+import com.hazelcast.avro.impl.AvroSchemaRegistry;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.config.Config;
 import com.hazelcast.cp.CPSubsystem;
@@ -51,6 +53,8 @@ import java.util.concurrent.ConcurrentMap;
  * @see Hazelcast#newHazelcastInstance(Config config)
  */
 public interface HazelcastInstance {
+
+    SchemaRegistry getSchemaRegistry();
 
     /**
      * Returns the name of this Hazelcast instance.

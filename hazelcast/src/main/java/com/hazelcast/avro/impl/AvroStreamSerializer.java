@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.hazelcast.avro;
+package com.hazelcast.avro.impl;
 
-import com.hazelcast.avro.impl.SchemaRegistry;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.nio.ClassLoaderUtil;
@@ -48,7 +47,7 @@ public class AvroStreamSerializer implements StreamSerializer, HazelcastInstance
                     "com.hazelcast.avro.impl.ReplicatedMapSchemaRegistry");
 
     private static final int AVRO_SERIALIZER_TYPE_ID = Integer.getInteger("hazelcast.avro.serializerTypeId", 1000);
-    private final SchemaRegistry schemaRegistry;
+    private final AvroSchemaRegistry schemaRegistry;
 
     public AvroStreamSerializer() throws Exception {
         schemaRegistry = ClassLoaderUtil.newInstance(null, AVRO_SCHEMA_REGISTRY_CLASS_NAME);

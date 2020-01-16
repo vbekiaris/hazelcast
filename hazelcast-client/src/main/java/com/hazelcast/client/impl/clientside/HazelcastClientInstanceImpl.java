@@ -16,6 +16,8 @@
 
 package com.hazelcast.client.impl.clientside;
 
+import com.hazelcast.avro.SchemaRegistry;
+import com.hazelcast.avro.impl.SchemaRegistryImpl;
 import com.hazelcast.cache.impl.JCacheDetector;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.cardinality.impl.CardinalityEstimatorService;
@@ -460,6 +462,11 @@ public class HazelcastClientInstanceImpl implements HazelcastInstance, Serializa
 
     public HazelcastProperties getProperties() {
         return properties;
+    }
+
+    @Override
+    public SchemaRegistry getSchemaRegistry() {
+        return new SchemaRegistryImpl(this);
     }
 
     @Override

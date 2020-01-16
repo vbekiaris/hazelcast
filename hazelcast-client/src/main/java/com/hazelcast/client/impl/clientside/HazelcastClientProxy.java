@@ -16,6 +16,8 @@
 
 package com.hazelcast.client.impl.clientside;
 
+import com.hazelcast.avro.SchemaRegistry;
+import com.hazelcast.avro.impl.SchemaRegistryImpl;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.client.HazelcastClientNotActiveException;
 import com.hazelcast.client.config.ClientConfig;
@@ -79,6 +81,11 @@ public class HazelcastClientProxy implements HazelcastInstance, SerializationSer
     @Override
     public Config getConfig() {
         return getClient().getConfig();
+    }
+
+    @Override
+    public SchemaRegistry getSchemaRegistry() {
+        return new SchemaRegistryImpl(this);
     }
 
     @Override

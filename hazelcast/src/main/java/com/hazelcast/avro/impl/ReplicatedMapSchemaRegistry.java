@@ -8,6 +8,7 @@ import com.hazelcast.core.MapEvent;
 import com.hazelcast.core.ReplicatedMap;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
+import com.hazelcast.nio.serialization.HazelcastSerializationException;
 import org.apache.avro.Schema;
 
 import java.util.HashMap;
@@ -17,7 +18,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReplicatedMapSchemaRegistry
-        implements SchemaRegistry, HazelcastInstanceAware, EntryListener<String, String> {
+        implements AvroSchemaRegistry, HazelcastInstanceAware, EntryListener<String, String> {
 
     public static final String AVRO_SCHEMAS_MAP = "hz:schemas";
 
@@ -38,9 +39,9 @@ public class ReplicatedMapSchemaRegistry
     @Override
     public void setHazelcastInstance(HazelcastInstance hazelcastInstance) {
         hz = hazelcastInstance;
+        ((SchemaRegistryImpl) hz.getSchemaRegistry()).setRegistry(this);
     }
 
-    @Override
     public Schema getSchema(int schemaId) {
         initialize();
         synchronized (this) {
@@ -52,11 +53,14 @@ public class ReplicatedMapSchemaRegistry
     public Schema getSchema(String typeName) {
         initialize();
         synchronized (this) {
-            return schemasByTypeName.get(typeName)[0];
+            Schema[] schemas = schemasByTypeName.get(typeName);
+            if (schemas == null) {
+                throw new HazelcastSerializationException("Schema for " + typeName + " was not found");
+            }
+            return schemas[0];
         }
     }
 
-    @Override
     public Schema getSchema(String typeName, int version) {
         initialize();
         synchronized (this) {
@@ -111,7 +115,9 @@ public class ReplicatedMapSchemaRegistry
         imapSchemas.addEntryListener(this);
     }
 
-    private void scanSchemas() {
+    @Override
+    public void scanSchemas() {
+        logger.info("Scanning for new schemas");
         ConcurrentMap<Integer, Schema> schemas = new ConcurrentHashMap<>();
         ConcurrentMap<String, Schema[]> schemasByTypeName = new ConcurrentHashMap<>();
         final Map<String, String> sourceSchemas = new HashMap<>(imapSchemas);

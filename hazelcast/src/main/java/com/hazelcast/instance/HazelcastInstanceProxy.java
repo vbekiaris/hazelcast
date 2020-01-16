@@ -16,6 +16,8 @@
 
 package com.hazelcast.instance;
 
+import com.hazelcast.avro.SchemaRegistry;
+import com.hazelcast.avro.impl.SchemaRegistryImpl;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.ClientService;
@@ -87,6 +89,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance, Serializ
     protected HazelcastInstanceProxy(HazelcastInstanceImpl original) {
         this.original = original;
         name = original.getName();
+    }
+
+    @Override
+    public SchemaRegistry getSchemaRegistry() {
+        return new SchemaRegistryImpl(this);
     }
 
     @Override

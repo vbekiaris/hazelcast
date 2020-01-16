@@ -1,6 +1,6 @@
 package com.hazelcast.avro.hzavro.main;
 
-import com.hazelcast.avro.AvroStreamSerializer;
+import com.hazelcast.avro.impl.AvroStreamSerializer;
 import com.hazelcast.avro.GenericRecordStreamSerializer;
 import com.hazelcast.avro.hzavro.domain.User;
 import com.hazelcast.avro.impl.PathSchemaRegistry;

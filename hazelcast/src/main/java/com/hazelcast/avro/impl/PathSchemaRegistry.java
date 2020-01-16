@@ -19,9 +19,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 /**
- * A {@link SchemaRegistry} that reads avro schema definitions from a directory
+ * A {@link AvroSchemaRegistry} that reads avro schema definitions from a directory
  */
-public class PathSchemaRegistry implements SchemaRegistry {
+public class PathSchemaRegistry implements AvroSchemaRegistry {
 
     public static final String AVRO_SCHEMAS_PATH_PROPERTY = "hazelcast.avro.schemasPath";
 
@@ -67,7 +67,8 @@ public class PathSchemaRegistry implements SchemaRegistry {
                 StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
     }
 
-    private void scanSchemas() {
+    @Override
+    public void scanSchemas() {
         ConcurrentMap<Integer, Schema> schemas = new ConcurrentHashMap<>();
         ConcurrentMap<String, Schema[]> schemasByTypeName = new ConcurrentHashMap<>();
         try (Stream<Path> schemaFiles = Files.list(AVRO_SCHEMAS_DIRECTORY)) {
@@ -134,7 +135,6 @@ public class PathSchemaRegistry implements SchemaRegistry {
         return schema.getFullName();
     }
 
-    @Override
     public Schema getSchema(int schemaId) {
         synchronized (this) {
             return schemasById.get(schemaId);
@@ -149,7 +149,6 @@ public class PathSchemaRegistry implements SchemaRegistry {
         }
     }
 
-    @Override
     public Schema getSchema(String typeName, int version) {
         synchronized (this) {
             return schemasByTypeName.get(typeName)[version];

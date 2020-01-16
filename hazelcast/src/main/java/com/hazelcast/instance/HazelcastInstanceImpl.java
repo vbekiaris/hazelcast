@@ -16,6 +16,8 @@
 
 package com.hazelcast.instance;
 
+import com.hazelcast.avro.SchemaRegistry;
+import com.hazelcast.avro.impl.SchemaRegistryImpl;
 import com.hazelcast.cardinality.CardinalityEstimator;
 import com.hazelcast.cardinality.impl.CardinalityEstimatorService;
 import com.hazelcast.client.impl.ClientServiceProxy;
@@ -171,6 +173,11 @@ public class HazelcastInstanceImpl implements HazelcastInstance, SerializationSe
 
     public ManagementService getManagementService() {
         return managementService;
+    }
+
+    @Override
+    public SchemaRegistry getSchemaRegistry() {
+        return new SchemaRegistryImpl(this);
     }
 
     @Override
