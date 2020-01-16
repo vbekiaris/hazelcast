@@ -1,0 +1,9 @@
+{
+  "namespace": "com.github.vbekiaris.hzavro.domain",
+  "type": "record",
+  "name": "User",
+  "fields": [
+    {"name": "id", "type": "int"},
+    {"name": "name", "type": "string"}
+  ]
+}

@@ -1,5 +1,7 @@
 package com.github.vbekiaris.hzavro;
 
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -22,7 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class GenericRecordStreamSerializer
-        implements StreamSerializer<GenericRecord> {
+        implements StreamSerializer<GenericRecord>, HazelcastInstanceAware {
 
     private static final int GENERIC_RECORD_SERIALIZER_TYPE_ID =
             Integer.getInteger("hazelcast.avro.serializerTypeId", 1001);
@@ -79,5 +81,12 @@ public class GenericRecordStreamSerializer
     @Override
     public void destroy() {
 
+    }
+
+    @Override
+    public void setHazelcastInstance(HazelcastInstance hazelcastInstance) {
+        if (schemaRegistry instanceof HazelcastInstanceAware) {
+            ((HazelcastInstanceAware) schemaRegistry).setHazelcastInstance(hazelcastInstance);
+        }
     }
 }

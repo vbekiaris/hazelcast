@@ -19,8 +19,8 @@ public class ReplicatedMapSchemaRegistry
     public static final String AVRO_SCHEMAS_MAP = "hz:schemas";
 
     // type name -> JSON schema
-    private ReplicatedMap<String, String> imapSchemas;
-    private HazelcastInstance hz;
+    private volatile ReplicatedMap<String, String> imapSchemas;
+    private volatile HazelcastInstance hz;
 
     private volatile ConcurrentMap<Integer, Schema> schemasById;
     private volatile ConcurrentMap<String, Schema[]> schemasByTypeName;
