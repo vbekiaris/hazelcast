@@ -1,7 +1,7 @@
 package com.hazelcast.avro;
 
-import com.github.vbekiaris.hzavro.GenericRecordStreamSerializer;
-import com.github.vbekiaris.hzavro.impl.ReplicatedMapSchemaRegistry;
+import com.hazelcast.avro.impl.GenericRecordStreamSerializer;
+import com.hazelcast.avro.impl.ReplicatedMapSchemaRegistry;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.GlobalSerializerConfig;
 import com.hazelcast.config.SerializationConfig;

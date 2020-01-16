@@ -15,9 +15,9 @@
             <version>3.12.6-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>com.github.vbekiaris</groupId>
-            <artifactId>hazelcast-avro-serializer</artifactId>
-            <version>0.1-SNAPSHOT</version>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast-avro</artifactId>
+            <version>3.12.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
