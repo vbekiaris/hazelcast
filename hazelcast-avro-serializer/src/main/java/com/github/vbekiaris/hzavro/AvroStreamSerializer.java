@@ -1,5 +1,7 @@
 package com.github.vbekiaris.hzavro;
 
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -20,13 +22,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class AvroStreamSerializer implements StreamSerializer {
+public class AvroStreamSerializer implements StreamSerializer, HazelcastInstanceAware {
 
-    private static final int AVRO_SERIALIZER_TYPE_ID = Integer.getInteger("hazelcast.avro.serializerTypeId", 1000);
+    public static final String AVRO_SCHEMA_REGISTRY_PROPERTY_NAME = "hazelcast.avro.schemaRegistryClassName";
+
     private static final String AVRO_SCHEMA_REGISTRY_CLASS_NAME =
-            System.getProperty("hazelcast.avro.schemaRegistryClassName",
+            System.getProperty(AVRO_SCHEMA_REGISTRY_PROPERTY_NAME,
                     "com.github.vbekiaris.hzavro.impl.PathSchemaRegistry");
 
+    private static final int AVRO_SERIALIZER_TYPE_ID = Integer.getInteger("hazelcast.avro.serializerTypeId", 1000);
     private final SchemaRegistry schemaRegistry;
 
     public AvroStreamSerializer() throws Exception {
@@ -69,7 +73,7 @@ public class AvroStreamSerializer implements StreamSerializer {
         Schema schema = schemaRegistry.getSchema(typeName);
         // todo don't create new datum writer each time?
         DatumWriter writer = new ReflectDatumWriter(schema);
-        out.writeUTF(typeName);
+        out.writeInt(schema.hashCode());
         writer.write(object, encoder);
         encoder.flush();
     }
@@ -94,5 +98,12 @@ public class AvroStreamSerializer implements StreamSerializer {
     @Override
     public void destroy() {
 
+    }
+
+    @Override
+    public void setHazelcastInstance(HazelcastInstance hazelcastInstance) {
+        if (schemaRegistry instanceof HazelcastInstanceAware) {
+            ((HazelcastInstanceAware) schemaRegistry).setHazelcastInstance(hazelcastInstance);
+        }
     }
 }
