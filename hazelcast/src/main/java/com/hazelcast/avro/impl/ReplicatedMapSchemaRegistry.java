@@ -39,7 +39,6 @@ public class ReplicatedMapSchemaRegistry
     @Override
     public void setHazelcastInstance(HazelcastInstance hazelcastInstance) {
         hz = hazelcastInstance;
-        ((SchemaRegistryImpl) hz.getSchemaRegistry()).setRegistry(this);
     }
 
     public Schema getSchema(int schemaId) {

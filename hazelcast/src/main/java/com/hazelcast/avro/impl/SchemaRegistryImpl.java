@@ -36,6 +36,13 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     @Override
     public void add(Schema schema) {
         map().put(schema.getName(), schema.toString());
+
+        // wait for event to propagate to listener
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     ReplicatedMap<String, String> map() {
