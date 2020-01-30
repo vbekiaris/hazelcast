@@ -139,7 +139,7 @@ public class DataSerializableImplementsVersionedTest {
 
     private boolean isGetVersionCalledOnWrite(DataSerializable dataSerializable) throws IOException {
         ObjectDataOutput out = getObjectDataOutput();
-        when(out.getVersion()).thenReturn(Versions.V3_10);
+        when(out.getVersion()).thenReturn(Versions.V4_0);
 
         try {
             dataSerializable.writeData(out);
@@ -152,7 +152,7 @@ public class DataSerializableImplementsVersionedTest {
 
     private boolean isGetVersionCalledOnRead(DataSerializable dataSerializable) throws IOException {
         ObjectDataInput in = getObjectDataInput();
-        when(in.getVersion()).thenReturn(Versions.V3_10);
+        when(in.getVersion()).thenReturn(Versions.V4_0);
 
         try {
             dataSerializable.readData(in);

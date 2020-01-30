@@ -45,19 +45,16 @@ public class HazelcastVersionLocatorTest {
 
     @Test
     public void testDownloadVersion() throws Exception {
-        File[] files = HazelcastVersionLocator.locateVersion("3.6", folder.getRoot(), true);
+        File[] files = HazelcastVersionLocator.locateVersion("4.0", folder.getRoot(), true);
 
-        assertHash(files[0], "89563f7dab02bd5f592082697c24d167", "OS member");
+        // TODO: before PR, update with actual 4.0 final artifacts' md5 sums
+        assertHash(files[0], "e596427ecbdc0d297d65f99295a921a3", "OS member");
 
-        assertHash(files[1], "66615c68c2708036a6030114a1b87f2b", "OS member tests");
+        assertHash(files[1], "75047eb459c87128d958df661f9d0a95", "OS member tests");
 
-        assertHash(files[2], "fd6022e35908b42d24fe10a9c9fdaad5", "OS client");
+        assertHash(files[2], "d3a911c812fd695ad47217d4cc7c067d", "EE member");
 
-        assertHash(files[3], "c5718ba5c280339fff9b54ecb5e61549", "EE member");
-
-        assertHash(files[4], "c5df750fdab71a650fb56c41742806ff", "EE member tests");
-
-        assertHash(files[5], "b1cf93ec4bb9bcda8809b81349f48cb3", "EE client");
+        assertHash(files[3], "70508d0275943aa02e262f7f5869f001", "EE member tests");
     }
 
     private void assertHash(File file, String expectedHash, String label) throws Exception {

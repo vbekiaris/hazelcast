@@ -45,9 +45,6 @@ public class HazelcastVersionLocator {
     private static final String MEMBER_TESTS_PATH = "/com/hazelcast/hazelcast/%1$s/hazelcast-%1$s-tests.jar";
     private static final String EE_MEMBER_PATH = "/com/hazelcast/hazelcast-enterprise/%1$s/hazelcast-enterprise-%1$s.jar";
     private static final String EE_MEMBER_TESTS_PATH = "/com/hazelcast/hazelcast-enterprise/%1$s/hazelcast-enterprise-%1$s-tests.jar";
-    private static final String CLIENT_PATH = "/com/hazelcast/hazelcast-client/%1$s/hazelcast-client-%1$s.jar";
-    private static final String EE_CLIENT_PATH
-            = "/com/hazelcast/hazelcast-enterprise-client/%1$s/hazelcast-enterprise-client-%1$s.jar";
 
     static {
         LOCAL_M2_REPOSITORY_PREFIX = System.getProperty("user.home") + separator + ".m2" + separator + "repository";
@@ -56,14 +53,12 @@ public class HazelcastVersionLocator {
     }
 
     public static File[] locateVersion(String version, File target, boolean enterprise) {
-        File[] files = new File[enterprise ? 6 : 3];
+        File[] files = new File[enterprise ? 4 : 2];
         files[0] = locateMember(version, target, false);
         files[1] = locateMemberTests(version, target, false);
-        files[2] = locateClient(version, target, false);
         if (enterprise) {
-            files[3] = locateMember(version, target, true);
-            files[4] = locateMemberTests(version, target, true);
-            files[5] = locateClient(version, target, true);
+            files[2] = locateMember(version, target, true);
+            files[3] = locateMemberTests(version, target, true);
         }
         return files;
     }
@@ -86,23 +81,6 @@ public class HazelcastVersionLocator {
         } else {
             return downloadMemberTests(version, target, enterprise);
         }
-    }
-
-    // first attempt to locate artifact in local maven repository, then download
-    private static File locateClient(String version, File target, boolean enterprise) {
-        File artifact = new File(LOCAL_M2_REPOSITORY_PREFIX + constructPathForClient(version, enterprise));
-        if (artifact.exists()) {
-            return artifact;
-        } else {
-            return downloadClient(version, target, enterprise);
-        }
-    }
-
-    private static File downloadClient(String version, File target, boolean enterprise) {
-        String url = constructUrlForClient(version, enterprise);
-        String filename = extractFilenameFromUrl(url);
-        logWarningForArtifactDownload(version, false, enterprise);
-        return downloadFile(url, target, filename);
     }
 
     private static File downloadMember(String version, File target, boolean enterprise) {
@@ -145,11 +123,6 @@ public class HazelcastVersionLocator {
         }
     }
 
-    private static String constructUrlForClient(String version, boolean enterprise) {
-        return (enterprise ? HAZELCAST_REPOSITORY_PREFIX : MAVEN_CENTRAL_PREFIX)
-                + constructPathForClient(version, enterprise);
-    }
-
     private static String constructUrlForMember(String version, boolean enterprise) {
         return (enterprise ? HAZELCAST_REPOSITORY_PREFIX : MAVEN_CENTRAL_PREFIX)
                 + constructPathForMember(version, enterprise);
@@ -158,10 +131,6 @@ public class HazelcastVersionLocator {
     private static String constructUrlForMemberTests(String version, boolean enterprise) {
         return (enterprise ? HAZELCAST_REPOSITORY_PREFIX : MAVEN_CENTRAL_PREFIX)
                 + constructPathForMemberTests(version, enterprise);
-    }
-
-    private static String constructPathForClient(String version, boolean enterprise) {
-        return format(enterprise ? EE_CLIENT_PATH : CLIENT_PATH, version);
     }
 
     private static String constructPathForMember(String version, boolean enterprise) {

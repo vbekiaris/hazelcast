@@ -64,10 +64,9 @@ public class HazelcastProxyFactoryTest {
     }
 
     @Test
-    @Ignore("To be enabled with 4.x instances - see https://github.com/hazelcast/hazelcast/issues/15457")
     public void testProxyHazelcastInstanceClasses_ofSameVersion_areSame() {
-        HazelcastInstance hz1 = HazelcastStarter.newHazelcastInstance("3.8");
-        HazelcastInstance hz2 = HazelcastStarter.newHazelcastInstance("3.8");
+        HazelcastInstance hz1 = HazelcastStarter.newHazelcastInstance("4.0");
+        HazelcastInstance hz2 = HazelcastStarter.newHazelcastInstance("4.0");
         try {
             assertEquals(hz1.getClass(), hz2.getClass());
         } finally {
