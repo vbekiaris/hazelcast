@@ -437,6 +437,6 @@ public class HazelcastInstanceImpl implements HazelcastInstance, SerializationSe
     public void addSerializer(String typeName, String serializerClassName) {
         InvocationUtil.invokeOnStableClusterSerial(node.nodeEngine,
                 () -> new AddSerializerOperation(typeName, serializerClassName),
-                100);
+                100).joinInternal();
     }
 }
