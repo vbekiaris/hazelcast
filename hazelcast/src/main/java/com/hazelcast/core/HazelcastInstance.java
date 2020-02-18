@@ -456,4 +456,6 @@ public interface HazelcastInstance {
      * Shuts down this HazelcastInstance. For more information see {@link com.hazelcast.core.LifecycleService#shutdown()}.
      */
     void shutdown();
+
+    void addSerializer(String typeName, String serializerClassName);
 }

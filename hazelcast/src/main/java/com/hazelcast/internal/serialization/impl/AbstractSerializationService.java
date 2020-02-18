@@ -18,7 +18,10 @@ package com.hazelcast.internal.serialization.impl;
 
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.ManagedContext;
-import com.hazelcast.partition.PartitioningStrategy;
+import com.hazelcast.internal.nio.BufferObjectDataInput;
+import com.hazelcast.internal.nio.BufferObjectDataOutput;
+import com.hazelcast.internal.nio.ClassLoaderUtil;
+import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.internal.serialization.InputOutputFactory;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.internal.serialization.impl.bufferpool.BufferPool;
@@ -27,15 +30,13 @@ import com.hazelcast.internal.serialization.impl.bufferpool.BufferPoolThreadLoca
 import com.hazelcast.internal.usercodedeployment.impl.ClassLocator;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
-import com.hazelcast.internal.nio.BufferObjectDataInput;
-import com.hazelcast.internal.nio.BufferObjectDataOutput;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.nio.serialization.DataSerializable;
 import com.hazelcast.nio.serialization.HazelcastSerializationException;
 import com.hazelcast.nio.serialization.Portable;
 import com.hazelcast.nio.serialization.Serializer;
+import com.hazelcast.partition.PartitioningStrategy;
 
 import java.io.Externalizable;
 import java.io.Serializable;
@@ -353,6 +354,26 @@ public abstract class AbstractSerializationService implements InternalSerializat
         bufferPoolThreadLocal.clear();
     }
     //endregion Serialization Service
+
+    @Override
+    public void registerSerializer(String typeName, String serializerClassName) {
+        // serializer can be loaded via user code deployment
+        ClassLocator.onStartDeserialization();
+        try {
+            Object instantiated = ClassLoaderUtil.newInstance(null, serializerClassName);
+            if (!(instantiated instanceof Serializer)) {
+                throw new IllegalStateException(instantiated + " is not an instance of "
+                        + Serializer.class.getName());
+            }
+            Serializer serializer = (Serializer) instantiated;
+            Class type = ClassLoaderUtil.loadClass(null, typeName);
+            safeRegister(type, serializer);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not instantiate serializer", e);
+        } finally {
+            ClassLocator.onFinishDeserialization();
+        }
+    }
 
     public final void register(Class type, Serializer serializer) {
         if (type == null) {

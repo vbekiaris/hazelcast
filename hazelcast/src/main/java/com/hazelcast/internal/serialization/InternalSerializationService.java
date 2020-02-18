@@ -109,4 +109,6 @@ public interface InternalSerializationService extends SerializationService, Disp
 
     byte getVersion();
 
+    void registerSerializer(String typeName, String serializerClassName);
+
 }

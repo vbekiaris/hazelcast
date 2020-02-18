@@ -311,4 +311,9 @@ public class HazelcastClientProxy implements HazelcastInstance, SerializationSer
         }
         return "HazelcastClientInstance {NOT ACTIVE}";
     }
+
+    @Override
+    public void addSerializer(String typeName, String serializerClassName) {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -253,4 +253,9 @@ public class SamplingSerializationService implements InternalSerializationServic
         }
         return false;
     }
+
+    @Override
+    public void registerSerializer(String typeName, String serializerClassName) {
+
+    }
 }

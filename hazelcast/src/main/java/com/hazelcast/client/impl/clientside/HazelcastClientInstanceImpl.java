@@ -888,4 +888,8 @@ public class HazelcastClientInstanceImpl implements HazelcastInstance, Serializa
                            .forEach(listener -> getPartitionService().addPartitionLostListener((PartitionLostListener) listener));
     }
 
+    @Override
+    public void addSerializer(String typeName, String serializerClassName) {
+        throw new UnsupportedOperationException();
+    }
 }

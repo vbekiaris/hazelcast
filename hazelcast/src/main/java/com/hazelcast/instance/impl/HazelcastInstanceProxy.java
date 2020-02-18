@@ -336,6 +336,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance, Serializ
         HazelcastInstance that = (HazelcastInstance) o;
         return !(name != null ? !name.equals(that.getName()) : that.getName() != null);
     }
+
+    @Override
+    public void addSerializer(String typeName, String serializerClassName) {
+        original.addSerializer(typeName, serializerClassName);
+    }
 }
 
 

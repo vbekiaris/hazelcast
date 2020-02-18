@@ -340,4 +340,8 @@ class HazelcastOSGiInstanceImpl
         return sb.toString();
     }
 
+    @Override
+    public void addSerializer(String typeName, String serializerClassName) {
+        throw new UnsupportedOperationException();
+    }
 }
