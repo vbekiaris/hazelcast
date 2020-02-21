@@ -341,7 +341,12 @@ class HazelcastOSGiInstanceImpl
     }
 
     @Override
-    public void addSerializer(String typeName, String serializerClassName) {
+    public void addSerializer(int contextId, String typeName, String serializerClassName) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void removeSerializer(int contextId, String typeName) {
         throw new UnsupportedOperationException();
     }
 }

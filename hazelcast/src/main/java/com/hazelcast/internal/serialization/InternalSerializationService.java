@@ -17,13 +17,13 @@
 package com.hazelcast.internal.serialization;
 
 import com.hazelcast.config.SerializationConfig;
-import com.hazelcast.partition.PartitioningStrategy;
 import com.hazelcast.internal.nio.BufferObjectDataInput;
 import com.hazelcast.internal.nio.BufferObjectDataOutput;
 import com.hazelcast.internal.nio.Disposable;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.PortableReader;
+import com.hazelcast.partition.PartitioningStrategy;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
@@ -39,7 +39,19 @@ public interface InternalSerializationService extends SerializationService, Disp
      * <b>IMPORTANT:</b> The byte order used to serialize {@code obj}'s serializer type ID is always
      * {@link ByteOrder#BIG_ENDIAN}.
      */
-    byte[] toBytes(Object obj);
+    default byte[] toBytes(Object obj) {
+        return toBytes(ROOT_CONTEXT_ID, obj);
+    }
+
+    /**
+     * Writes the obj to a byte array with the given serialization context ID.
+     * This call is exactly the same as calling {@link #toData(Object)} and
+     * then calling {@link Data#toByteArray()}. But it doesn't force a HeapData object being created.
+     * <p>
+     * <b>IMPORTANT:</b> The byte order used to serialize {@code obj}'s serializer type ID is always
+     * {@link ByteOrder#BIG_ENDIAN}.
+     */
+    byte[] toBytes(int contextId, Object obj);
 
     /**
      * Writes an object to a byte-array.
@@ -62,19 +74,41 @@ public interface InternalSerializationService extends SerializationService, Disp
      * @param leftPadding               offset from beginning of byte array to start writing the object's bytes
      * @param insertPartitionHash       {@code true} to include the partition hash in the byte array, otherwise {@code false}
      */
-    byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash);
+    default byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
+        return toBytes(ROOT_CONTEXT_ID, obj, leftPadding, insertPartitionHash);
+    }
 
-    <B extends Data> B toData(Object obj, DataType type);
+    byte[] toBytes(int contextId, Object obj, int leftPadding, boolean insertPartitionHash);
 
-    <B extends Data> B toData(Object obj, DataType type, PartitioningStrategy strategy);
+    default <B extends Data> B toData(Object obj, DataType type) {
+        return toData(ROOT_CONTEXT_ID, obj, type);
+    }
+
+    <B extends Data> B toData(int contextId, Object obj, DataType type);
+
+    default <B extends Data> B toData(Object obj, DataType type, PartitioningStrategy strategy) {
+        return toData(ROOT_CONTEXT_ID, obj, type, strategy);
+    }
+
+    <B extends Data> B toData(int contextId, Object obj, DataType type, PartitioningStrategy strategy);
 
     <B extends Data> B convertData(Data data, DataType type);
 
-    void writeObject(ObjectDataOutput out, Object obj);
+    default void writeObject(ObjectDataOutput out, Object obj) {
+        writeObject(ROOT_CONTEXT_ID, out, obj);
+    }
 
-    <T> T readObject(ObjectDataInput in);
+    void writeObject(int contextId, ObjectDataOutput out, Object obj);
 
-    <T> T readObject(ObjectDataInput in, Class aClass);
+    default <T> T readObject(ObjectDataInput in) {
+        return readObject(ROOT_CONTEXT_ID, in);
+    }
+    <T> T readObject(int contextId, ObjectDataInput in);
+
+    default <T> T readObject(ObjectDataInput in, Class klass) {
+        return readObject(ROOT_CONTEXT_ID, in, klass);
+    }
+    <T> T readObject(int contextId, ObjectDataInput in, Class klass);
 
     void disposeData(Data data);
 
@@ -109,6 +143,8 @@ public interface InternalSerializationService extends SerializationService, Disp
 
     byte getVersion();
 
-    void registerSerializer(String typeName, String serializerClassName);
+    void registerSerializer(int contextId, String typeName, String serializerClassName);
+
+    void unregisterSerializer(int contextId, String typeName);
 
 }

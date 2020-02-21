@@ -49,6 +49,7 @@ import com.hazelcast.internal.jmx.ManagementService;
 import com.hazelcast.internal.memory.MemoryStats;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.internal.serialization.impl.operation.AddSerializerOperation;
+import com.hazelcast.internal.serialization.impl.operation.RemoveSerializerOperation;
 import com.hazelcast.internal.util.InvocationUtil;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.LoggingService;
@@ -434,9 +435,16 @@ public class HazelcastInstanceImpl implements HazelcastInstance, SerializationSe
     }
 
     @Override
-    public void addSerializer(String typeName, String serializerClassName) {
+    public void addSerializer(int contextId, String typeName, String serializerClassName) {
         InvocationUtil.invokeOnStableClusterSerial(node.nodeEngine,
-                () -> new AddSerializerOperation(typeName, serializerClassName),
+                () -> new AddSerializerOperation(contextId, typeName, serializerClassName),
+                100).joinInternal();
+    }
+
+    @Override
+    public void removeSerializer(int contextId, String typeName) {
+        InvocationUtil.invokeOnStableClusterSerial(node.nodeEngine,
+                () -> new RemoveSerializerOperation(contextId, typeName),
                 100).joinInternal();
     }
 }

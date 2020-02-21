@@ -46,6 +46,7 @@ import static java.util.Collections.newSetFromMap;
  *
  * @see TestEnvironment#SAMPLE_SERIALIZED_OBJECTS
  */
+// TODO implement new methods
 public class SamplingSerializationService implements InternalSerializationService {
 
     static final ConcurrentMap<String, List<byte[]>> SERIALIZED_SAMPLES_PER_CLASS_NAME =
@@ -255,7 +256,67 @@ public class SamplingSerializationService implements InternalSerializationServic
     }
 
     @Override
-    public void registerSerializer(String typeName, String serializerClassName) {
+    public void registerSerializer(int contextId, String typeName, String serializerClassName) {
+
+    }
+
+    @Override
+    public byte[] toBytes(int contextId, Object obj) {
+        return new byte[0];
+    }
+
+    @Override
+    public byte[] toBytes(int contextId, Object obj, int leftPadding, boolean insertPartitionHash) {
+        return new byte[0];
+    }
+
+    @Override
+    public <B extends Data> B toData(int contextId, Object obj, DataType type) {
+        return null;
+    }
+
+    @Override
+    public <B extends Data> B toData(int contextId, Object obj, DataType type, PartitioningStrategy strategy) {
+        return null;
+    }
+
+    @Override
+    public void writeObject(int contextId, ObjectDataOutput out, Object obj) {
+
+    }
+
+    @Override
+    public <T> T readObject(int contextId, ObjectDataInput in) {
+        return null;
+    }
+
+    @Override
+    public <T> T readObject(int contextId, ObjectDataInput in, Class klass) {
+        return null;
+    }
+
+    @Override
+    public <B extends Data> B toData(int contextId, Object obj) {
+        return null;
+    }
+
+    @Override
+    public <B extends Data> B toData(int contextId, Object obj, PartitioningStrategy strategy) {
+        return null;
+    }
+
+    @Override
+    public <T> T toObject(int contextId, Object data) {
+        return null;
+    }
+
+    @Override
+    public <T> T toObject(int contextId, Object data, Class klass) {
+        return null;
+    }
+
+    @Override
+    public void unregisterSerializer(int contextId, String typeName) {
 
     }
 }

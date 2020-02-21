@@ -338,8 +338,13 @@ public final class HazelcastInstanceProxy implements HazelcastInstance, Serializ
     }
 
     @Override
-    public void addSerializer(String typeName, String serializerClassName) {
-        original.addSerializer(typeName, serializerClassName);
+    public void addSerializer(int contextId, String typeName, String serializerClassName) {
+        original.addSerializer(contextId, typeName, serializerClassName);
+    }
+
+    @Override
+    public void removeSerializer(int contextId, String typeName) {
+        original.removeSerializer(contextId, typeName);
     }
 }
 

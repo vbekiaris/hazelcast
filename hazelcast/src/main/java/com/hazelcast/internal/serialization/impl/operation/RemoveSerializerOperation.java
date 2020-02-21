@@ -1,19 +1,3 @@
-/*
- * Copyright (c) 2008-2020, Hazelcast, Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.hazelcast.internal.serialization.impl.operation;
 
 import com.hazelcast.internal.serialization.InternalSerializationService;
@@ -25,21 +9,18 @@ import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.io.IOException;
 
-import static com.hazelcast.internal.serialization.impl.SerializationDataSerializerHook.ADD_SERIALIZER_OPERATION;
+import static com.hazelcast.internal.serialization.impl.SerializationDataSerializerHook.REMOVE_SERIALIZER_OPERATION;
 
-public class AddSerializerOperation extends Operation implements IdentifiedDataSerializable {
-
+public class RemoveSerializerOperation extends Operation implements IdentifiedDataSerializable {
     private int contextId;
     private String typeName;
-    private String serializerClassName;
 
-    public AddSerializerOperation() {
+    public RemoveSerializerOperation() {
     }
 
-    public AddSerializerOperation(int contextId, String typeName, String serializerClassName) {
+    public RemoveSerializerOperation(int contextId, String typeName) {
         this.contextId = contextId;
         this.typeName = typeName;
-        this.serializerClassName = serializerClassName;
     }
 
     @Override
@@ -47,7 +28,7 @@ public class AddSerializerOperation extends Operation implements IdentifiedDataS
             throws Exception {
         InternalSerializationService serializationService =
                 (InternalSerializationService) getNodeEngine().getSerializationService();
-        serializationService.registerSerializer(contextId, typeName, serializerClassName);
+        serializationService.unregisterSerializer(contextId, typeName);
     }
 
     @Override
@@ -57,7 +38,7 @@ public class AddSerializerOperation extends Operation implements IdentifiedDataS
 
     @Override
     public int getClassId() {
-        return ADD_SERIALIZER_OPERATION;
+        return REMOVE_SERIALIZER_OPERATION;
     }
 
     @Override
@@ -66,7 +47,6 @@ public class AddSerializerOperation extends Operation implements IdentifiedDataS
         super.readInternal(in);
         contextId = in.readInt();
         typeName = in.readUTF();
-        serializerClassName = in.readUTF();
     }
 
     @Override
@@ -75,6 +55,5 @@ public class AddSerializerOperation extends Operation implements IdentifiedDataS
         super.writeInternal(out);
         out.writeInt(contextId);
         out.writeUTF(typeName);
-        out.writeUTF(serializerClassName);
     }
 }

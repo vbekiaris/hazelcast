@@ -318,8 +318,8 @@ public interface HazelcastInstance {
 
     /**
      * Returns the partition service of this Hazelcast instance.
-     * InternalPartitionService allows you to introspect current partitions in the
-     * cluster, partition the owner members, and listen for partition migration events.
+     * {@link PartitionService} allows you to introspect current partitions in the
+     * cluster and listen for partition migration events.
      *
      * @return the partition service of this Hazelcast instance
      */
@@ -457,5 +457,9 @@ public interface HazelcastInstance {
      */
     void shutdown();
 
-    void addSerializer(String typeName, String serializerClassName);
+    ////////////////////////////////
+    // TODO SerializationService?
+    void addSerializer(int contextId, String typeName, String serializerClassName);
+
+    void removeSerializer(int contextId, String typeName);
 }

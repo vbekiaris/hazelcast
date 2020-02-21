@@ -76,8 +76,9 @@ public abstract class AbstractSerializationService implements InternalSerializat
     private final IdentityHashMap<Class, SerializerAdapter> constantTypesMap = new IdentityHashMap<Class, SerializerAdapter>(
             CONSTANT_SERIALIZERS_LENGTH);
     private final SerializerAdapter[] constantTypeIds = new SerializerAdapter[CONSTANT_SERIALIZERS_LENGTH];
-    private final ConcurrentMap<Class, SerializerAdapter> typeMap = new ConcurrentHashMap<Class, SerializerAdapter>();
-    private final ConcurrentMap<Integer, SerializerAdapter> idMap = new ConcurrentHashMap<Integer, SerializerAdapter>();
+
+    private final ConcurrentMap<Integer, SerializationContext> contexts = new ConcurrentHashMap<>();
+    private final SerializationContext rootContext = new ConcurrentSerializationContext(0);
     private final AtomicReference<SerializerAdapter> global = new AtomicReference<SerializerAdapter>();
 
     //Global serializer may override Java Serialization or not
@@ -103,12 +104,12 @@ public abstract class AbstractSerializationService implements InternalSerializat
 
     //region Serialization Service
     @Override
-    public final <B extends Data> B toData(Object obj) {
-        return toData(obj, globalPartitioningStrategy);
+    public final <B extends Data> B toData(int contextId, Object obj) {
+        return toData(contextId, obj, globalPartitioningStrategy);
     }
 
     @Override
-    public final <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
+    public final <B extends Data> B toData(int contextId, Object obj, PartitioningStrategy strategy) {
         if (obj == null) {
             return null;
         }
@@ -116,25 +117,21 @@ public abstract class AbstractSerializationService implements InternalSerializat
             return (B) obj;
         }
 
-        byte[] bytes = toBytes(obj, 0, true, strategy);
+        byte[] bytes = toBytes(contextId, obj, 0, true, strategy, BIG_ENDIAN);
         return (B) new HeapData(bytes);
     }
 
     @Override
-    public byte[] toBytes(Object obj) {
-        return toBytes(obj, 0, true, globalPartitioningStrategy);
+    public byte[] toBytes(int contextId, Object obj) {
+        return toBytes(contextId, obj, 0, true, globalPartitioningStrategy, BIG_ENDIAN);
     }
 
     @Override
-    public byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
-        return toBytes(obj, leftPadding, insertPartitionHash, globalPartitioningStrategy, getByteOrder());
+    public byte[] toBytes(int contextId, Object obj, int leftPadding, boolean insertPartitionHash) {
+        return toBytes(contextId, obj, leftPadding, insertPartitionHash, globalPartitioningStrategy, getByteOrder());
     }
 
-    private byte[] toBytes(Object obj, int leftPadding, boolean writeHash, PartitioningStrategy strategy) {
-        return toBytes(obj, leftPadding, writeHash, strategy, BIG_ENDIAN);
-    }
-
-    private byte[] toBytes(Object obj, int leftPadding, boolean writeHash, PartitioningStrategy strategy,
+    private byte[] toBytes(int contextId, Object obj, int leftPadding, boolean writeHash, PartitioningStrategy strategy,
                            ByteOrder serializerTypeIdByteOrder) {
         checkNotNull(obj);
         checkNotNull(serializerTypeIdByteOrder);
@@ -144,7 +141,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
         try {
             out.position(leftPadding);
 
-            SerializerAdapter serializer = serializerFor(obj);
+            SerializerAdapter serializer = serializerFor(contextId, obj);
             if (writeHash) {
                 int partitionHash = calculatePartitionHash(obj, strategy);
                 out.writeInt(partitionHash, BIG_ENDIAN);
@@ -162,7 +159,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T toObject(final Object object) {
+    public final <T> T toObject(int contextId, final Object object) {
         if (!(object instanceof Data)) {
             return (T) object;
         }
@@ -177,7 +174,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
         try {
             ClassLocator.onStartDeserialization();
             final int typeId = data.getType();
-            final SerializerAdapter serializer = serializerFor(typeId);
+            final SerializerAdapter serializer = serializerFor(contextId, typeId);
             if (serializer == null) {
                 if (active) {
                     throw newHazelcastSerializationException(typeId);
@@ -199,7 +196,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T toObject(final Object object, Class aClass) {
+    public final <T> T toObject(int contextId, final Object object, Class aClass) {
         if (!(object instanceof Data)) {
             return (T) object;
         }
@@ -214,7 +211,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
         try {
             ClassLocator.onStartDeserialization();
             final int typeId = data.getType();
-            final SerializerAdapter serializer = serializerFor(typeId);
+            final SerializerAdapter serializer = serializerFor(contextId, typeId);
             if (serializer == null) {
                 if (active) {
                     throw newHazelcastSerializationException(typeId);
@@ -242,12 +239,12 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final void writeObject(final ObjectDataOutput out, final Object obj) {
+    public final void writeObject(int contextId, final ObjectDataOutput out, final Object obj) {
         if (obj instanceof Data) {
             throw new HazelcastSerializationException("Cannot write a Data instance, use writeData() instead");
         }
         try {
-            SerializerAdapter serializer = serializerFor(obj);
+            SerializerAdapter serializer = serializerFor(contextId, obj);
             out.writeInt(serializer.getTypeId());
             serializer.write(out, obj);
         } catch (Throwable e) {
@@ -256,10 +253,10 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T readObject(final ObjectDataInput in) {
+    public final <T> T readObject(int contextId, final ObjectDataInput in) {
         try {
             final int typeId = in.readInt();
-            final SerializerAdapter serializer = serializerFor(typeId);
+            final SerializerAdapter serializer = serializerFor(contextId, typeId);
             if (serializer == null) {
                 if (active) {
                     throw newHazelcastSerializationException(typeId);
@@ -277,10 +274,10 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     @Override
-    public final <T> T readObject(final ObjectDataInput in, Class aClass) {
+    public final <T> T readObject(int contextId, final ObjectDataInput in, Class aClass) {
         try {
             final int typeId = in.readInt();
-            final SerializerAdapter serializer = serializerFor(typeId);
+            final SerializerAdapter serializer = serializerFor(contextId, typeId);
             if (serializer == null) {
                 if (active) {
                     throw newHazelcastSerializationException(typeId);
@@ -341,14 +338,13 @@ public abstract class AbstractSerializationService implements InternalSerializat
 
     public void dispose() {
         active = false;
-        for (SerializerAdapter serializer : typeMap.values()) {
-            serializer.destroy();
+        rootContext.destroy();
+        for (SerializationContext context : contexts.values()) {
+            context.destroy();
         }
         for (SerializerAdapter serializer : constantTypesMap.values()) {
             serializer.destroy();
         }
-        typeMap.clear();
-        idMap.clear();
         global.set(null);
         constantTypesMap.clear();
         bufferPoolThreadLocal.clear();
@@ -356,9 +352,8 @@ public abstract class AbstractSerializationService implements InternalSerializat
     //endregion Serialization Service
 
     @Override
-    public void registerSerializer(String typeName, String serializerClassName) {
+    public void registerSerializer(int contextId, String typeName, String serializerClassName) {
         // serializer can be loaded via user code deployment
-        ClassLocator.onStartDeserialization();
         try {
             Object instantiated = ClassLoaderUtil.newInstance(null, serializerClassName);
             if (!(instantiated instanceof Serializer)) {
@@ -367,11 +362,25 @@ public abstract class AbstractSerializationService implements InternalSerializat
             }
             Serializer serializer = (Serializer) instantiated;
             Class type = ClassLoaderUtil.loadClass(null, typeName);
-            safeRegister(type, serializer);
+            safeRegister(contextId, type, serializer);
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Could not instantiate serializer", e);
-        } finally {
-            ClassLocator.onFinishDeserialization();
+        }
+    }
+
+    @Override
+    public void unregisterSerializer(int contextId, String typeName) {
+        SerializationContext context = contextId == ROOT_CONTEXT_ID ? rootContext
+                : contexts.get(contextId);
+        if (context != null) {
+            try {
+                Class type = ClassLoaderUtil.loadClass(null, typeName);
+                context.unregister(type);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalStateException("Cannot unregister serializer for type " + typeName, e);
+            }
         }
     }
 
@@ -383,7 +392,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
             throw new IllegalArgumentException(
                     "Type ID must be positive. Current: " + serializer.getTypeId() + ", Serializer: " + serializer);
         }
-        safeRegister(type, createSerializerAdapter(serializer, this));
+        safeRegister(ROOT_CONTEXT_ID, type, createSerializerAdapter(serializer, this));
     }
 
     public final void registerGlobal(final Serializer serializer) {
@@ -396,12 +405,12 @@ public abstract class AbstractSerializationService implements InternalSerializat
             throw new IllegalStateException("Global serializer is already registered");
         }
         this.overrideJavaSerialization = overrideJavaSerialization;
-        SerializerAdapter current = idMap.putIfAbsent(serializer.getTypeId(), adapter);
-        if (current != null && current.getImpl().getClass() != adapter.getImpl().getClass()) {
+        try {
+            rootContext.register(null, adapter);
+        } catch (IllegalStateException e) {
             global.compareAndSet(adapter, null);
             this.overrideJavaSerialization = false;
-            throw new IllegalStateException(
-                    "Serializer [" + current.getImpl() + "] has been already registered for type ID: " + serializer.getTypeId());
+            throw e;
         }
     }
 
@@ -419,24 +428,28 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     protected final boolean safeRegister(final Class type, final Serializer serializer) {
-        return safeRegister(type, createSerializerAdapter(serializer, this));
+        return safeRegister(ROOT_CONTEXT_ID, type, createSerializerAdapter(serializer, this));
     }
 
     protected final boolean safeRegister(final Class type, final SerializerAdapter serializer) {
+        return safeRegister(ROOT_CONTEXT_ID, type, serializer);
+    }
+
+    protected final boolean safeRegister(int contextId, final Class type, final Serializer serializer) {
+        return safeRegister(contextId, type, createSerializerAdapter(serializer, this));
+    }
+
+    protected final boolean safeRegister(int contextId, final Class type, final SerializerAdapter serializer) {
+        SerializationContext context = contextId == ROOT_CONTEXT_ID ? rootContext
+                : contexts.computeIfAbsent(contextId, ConcurrentSerializationContext::new);
+        return safeRegister(context, type, serializer);
+    }
+
+    protected final boolean safeRegister(SerializationContext context, final Class type, final SerializerAdapter serializer) {
         if (constantTypesMap.containsKey(type)) {
             throw new IllegalArgumentException("[" + type + "] serializer cannot be overridden");
         }
-        SerializerAdapter current = typeMap.putIfAbsent(type, serializer);
-        if (current != null && current.getImpl().getClass() != serializer.getImpl().getClass()) {
-            throw new IllegalStateException(
-                    "Serializer[" + current.getImpl() + "] has been already registered for type: " + type);
-        }
-        current = idMap.putIfAbsent(serializer.getTypeId(), serializer);
-        if (current != null && current.getImpl().getClass() != serializer.getImpl().getClass()) {
-            throw new IllegalStateException(
-                    "Serializer [" + current.getImpl() + "] has been already registered for type ID: " + serializer.getTypeId());
-        }
-        return current == null;
+        return context.register(type, serializer);
     }
 
     protected final void registerConstant(Class type, Serializer serializer) {
@@ -448,25 +461,39 @@ public abstract class AbstractSerializationService implements InternalSerializat
         constantTypeIds[indexForDefaultType(serializer.getTypeId())] = serializer;
     }
 
-    private SerializerAdapter registerFromSuperType(final Class type, final Class superType) {
-        final SerializerAdapter serializer = typeMap.get(superType);
+    private SerializerAdapter registerFromSuperType(SerializationContext context, final Class type, final Class superType) {
+        final SerializerAdapter serializer = context.getSerializerFor(superType);
         if (serializer != null) {
-            safeRegister(type, serializer);
+            safeRegister(context, type, serializer);
         }
         return serializer;
     }
 
     protected final SerializerAdapter serializerFor(final int typeId) {
+        return serializerFor(ROOT_CONTEXT_ID, typeId);
+    }
+
+    protected final SerializerAdapter serializerFor(int contextId, final int typeId) {
         if (typeId <= 0) {
             final int index = indexForDefaultType(typeId);
             if (index < CONSTANT_SERIALIZERS_LENGTH) {
                 return constantTypeIds[index];
             }
         }
-        return idMap.get(typeId);
+        SerializationContext context = contextId == ROOT_CONTEXT_ID ? rootContext
+                : contexts.computeIfAbsent(contextId, ConcurrentSerializationContext::new);
+        SerializerAdapter adapter = context.getSerializerFor(typeId);
+        if (adapter == null && contextId != ROOT_CONTEXT_ID) {
+            adapter = rootContext.getSerializerFor(typeId);
+        }
+        return adapter;
     }
 
     protected final SerializerAdapter serializerFor(Object object) {
+        return serializerFor(ROOT_CONTEXT_ID, object);
+    }
+
+    protected final SerializerAdapter serializerFor(int contextId, Object object) {
         /*
             Searches for a serializer for the provided object
             Serializers will be  searched in this order;
@@ -489,7 +516,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
 
         //3-Custom registered types by user
         if (serializer == null) {
-            serializer = lookupCustomSerializer(type);
+            serializer = lookupCustomSerializer(contextId, type);
         }
 
         //4-JDK serialization ( Serializable and Externalizable )
@@ -521,17 +548,27 @@ public abstract class AbstractSerializationService implements InternalSerializat
         return constantTypesMap.get(type);
     }
 
-    private SerializerAdapter lookupCustomSerializer(Class type) {
-        SerializerAdapter serializer = typeMap.get(type);
+    private SerializerAdapter lookupCustomSerializer(int contextId, Class type) {
+        SerializationContext context = contextId == ROOT_CONTEXT_ID ? rootContext
+                : contexts.computeIfAbsent(contextId, ConcurrentSerializationContext::new);
+        SerializerAdapter adapter = lookupCustomSerializer(context, type);
+        if (adapter == null && contextId != ROOT_CONTEXT_ID) {
+            adapter = lookupCustomSerializer(rootContext, type);
+        }
+        return adapter;
+    }
+
+    private SerializerAdapter lookupCustomSerializer(SerializationContext context, Class type) {
+        SerializerAdapter serializer = context.getSerializerFor(type);
         if (serializer != null) {
             return serializer;
         }
         // look for super classes
         Class typeSuperclass = type.getSuperclass();
-        final Set<Class> interfaces = new LinkedHashSet<Class>(5);
+        final Set<Class> interfaces = new LinkedHashSet<>(5);
         getInterfaces(type, interfaces);
         while (typeSuperclass != null) {
-            serializer = registerFromSuperType(type, typeSuperclass);
+            serializer = registerFromSuperType(context, type, typeSuperclass);
             if (serializer != null) {
                 break;
             }
@@ -544,7 +581,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
             interfaces.remove(Externalizable.class);
             // look for interfaces
             for (Class typeInterface : interfaces) {
-                serializer = registerFromSuperType(type, typeInterface);
+                serializer = registerFromSuperType(context, type, typeInterface);
                 if (serializer != null) {
                     break;
                 }

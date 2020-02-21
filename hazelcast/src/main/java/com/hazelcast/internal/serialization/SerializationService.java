@@ -25,6 +25,8 @@ import com.hazelcast.partition.PartitioningStrategy;
  */
 public interface SerializationService {
 
+    int ROOT_CONTEXT_ID = 0;
+
     /**
      * Serializes an object to a {@link Data}.
      * <p>
@@ -36,7 +38,11 @@ public interface SerializationService {
      * @return the serialized object.
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when serialization fails.
      */
-    <B extends Data> B toData(Object obj);
+    default <B extends Data> B toData(Object obj) {
+        return toData(ROOT_CONTEXT_ID, obj);
+    }
+
+    <B extends Data> B toData(int contextId, Object obj);
 
     /**
      * Serializes an object to a {@link Data}.
@@ -50,7 +56,11 @@ public interface SerializationService {
      * @return the serialized object.
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when serialization fails.
      */
-    <B extends Data> B toData(Object obj, PartitioningStrategy strategy);
+    default <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
+        return toData(ROOT_CONTEXT_ID, obj, strategy);
+    }
+
+    <B extends Data> B toData(int contextId, Object obj, PartitioningStrategy strategy);
 
     /**
      * Deserializes an object.
@@ -64,7 +74,11 @@ public interface SerializationService {
      * @return the deserialized object.
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when deserialization fails.
      */
-    <T> T toObject(Object data);
+    default <T> T toObject(Object data) {
+        return toObject(ROOT_CONTEXT_ID, data);
+    }
+
+    <T> T toObject(int contextId, Object data);
 
     /**
      * Deserializes an object.
@@ -75,11 +89,15 @@ public interface SerializationService {
      * If this method is called with null, null is returned.
      *
      * @param data  the data to deserialize.
-     * @param klazz The class to instantiate when deserializing the object.
+     * @param klass The class to instantiate when deserializing the object.
      * @return the deserialized object.
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when deserialization fails.
      */
-    <T> T toObject(Object data, Class klazz);
+    default <T> T toObject(Object data, Class klass) {
+        return toObject(ROOT_CONTEXT_ID, data, klass);
+    }
+
+    <T> T toObject(int contextId, Object data, Class klass);
 
     /**
      * see {@link com.hazelcast.config.Config#setManagedContext(ManagedContext)}

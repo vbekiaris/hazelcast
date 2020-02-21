@@ -130,19 +130,19 @@ public class SerializationServiceV1 extends AbstractSerializationService {
     }
 
     @Override
-    public <B extends Data> B toData(Object obj, DataType type) {
+    public <B extends Data> B toData(int contextId, Object obj, DataType type) {
         if (type == DataType.NATIVE) {
             throw new IllegalArgumentException("Native data type is not supported");
         }
-        return toData(obj);
+        return toData(contextId, obj);
     }
 
     @Override
-    public <B extends Data> B toData(Object obj, DataType type, PartitioningStrategy strategy) {
+    public <B extends Data> B toData(int contextId, Object obj, DataType type, PartitioningStrategy strategy) {
         if (type == DataType.NATIVE) {
             throw new IllegalArgumentException("Native data type is not supported");
         }
-        return toData(obj, strategy);
+        return toData(contextId, obj, strategy);
     }
 
     @Override

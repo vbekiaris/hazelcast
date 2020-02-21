@@ -18,6 +18,7 @@ package com.hazelcast.internal.serialization.impl;
 
 import com.hazelcast.internal.serialization.DataSerializerHook;
 import com.hazelcast.internal.serialization.impl.operation.AddSerializerOperation;
+import com.hazelcast.internal.serialization.impl.operation.RemoveSerializerOperation;
 import com.hazelcast.internal.util.ConstructorFunction;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
@@ -29,8 +30,9 @@ public class SerializationDataSerializerHook implements DataSerializerHook {
 
     public static final int F_ID = FactoryIdHelper.getFactoryId(SERIALIZATION_DS_FACTORY, SERIALIZATION_DS_FACTORY_ID);
     public  static final int ADD_SERIALIZER_OPERATION = 0;
+    public  static final int REMOVE_SERIALIZER_OPERATION = 1;
 
-    private static final int LEN = ADD_SERIALIZER_OPERATION + 1;
+    private static final int LEN = REMOVE_SERIALIZER_OPERATION + 1;
 
     @Override
     public int getFactoryId() {
@@ -41,6 +43,7 @@ public class SerializationDataSerializerHook implements DataSerializerHook {
     public DataSerializableFactory createFactory() {
         ConstructorFunction<Integer, IdentifiedDataSerializable>[] constructors = new ConstructorFunction[LEN];
         constructors[ADD_SERIALIZER_OPERATION] = arg -> new AddSerializerOperation();
+        constructors[REMOVE_SERIALIZER_OPERATION] = arg -> new RemoveSerializerOperation();
         return new ArrayDataSerializableFactory(constructors);
     }
 }
