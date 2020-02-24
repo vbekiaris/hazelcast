@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.hazelcast.internal.serialization.SerializationService.ROOT_CONTEXT_ID;
 import static com.hazelcast.internal.util.Preconditions.isNotNull;
 
 /**
@@ -49,6 +50,7 @@ public class SerializationConfig {
     private boolean enableCompression;
     private boolean enableSharedObject = true;
     private boolean allowUnsafe;
+    private int defaultSerializationContextId = ROOT_CONTEXT_ID;
     private final Set<ClassDefinition> classDefinitions;
     private JavaSerializationFilterConfig javaSerializationFilterConfig;
 
@@ -469,6 +471,14 @@ public class SerializationConfig {
     public SerializationConfig setJavaSerializationFilterConfig(JavaSerializationFilterConfig javaSerializationFilterConfig) {
         this.javaSerializationFilterConfig = javaSerializationFilterConfig;
         return this;
+    }
+
+    public int getDefaultSerializationContextId() {
+        return defaultSerializationContextId;
+    }
+
+    public void setDefaultSerializationContextId(int defaultSerializationContextId) {
+        this.defaultSerializationContextId = defaultSerializationContextId;
     }
 
     @Override

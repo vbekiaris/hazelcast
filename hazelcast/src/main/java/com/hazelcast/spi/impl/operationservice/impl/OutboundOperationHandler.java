@@ -21,6 +21,7 @@ import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.cluster.Address;
 import com.hazelcast.internal.nio.Connection;
 import com.hazelcast.internal.nio.Packet;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import static com.hazelcast.instance.EndpointQualifier.MEMBER;
@@ -34,11 +35,13 @@ public class OutboundOperationHandler {
     private final Address thisAddress;
     private final InternalSerializationService serializationService;
     private final Node node;
+    private final int serializationContextId;
 
     public OutboundOperationHandler(Node node, Address thisAddress, InternalSerializationService serializationService) {
         this.node = node;
         this.thisAddress = thisAddress;
         this.serializationService = serializationService;
+        this.serializationContextId = node.getConfig().getSerializationConfig().getDefaultSerializationContextId();
     }
 
     public boolean send(Operation op, Address target) {
@@ -59,6 +62,11 @@ public class OutboundOperationHandler {
 
         if (op.isUrgent()) {
             packet.raiseFlags(FLAG_URGENT);
+        }
+        if (op.getSerializationContextId() != SerializationService.ROOT_CONTEXT_ID) {
+            packet.setSerializationContextId(op.getSerializationContextId());
+        } else if (serializationContextId != SerializationService.ROOT_CONTEXT_ID) {
+            packet.setSerializationContextId(serializationContextId);
         }
 
         return node.getEndpointManager(MEMBER).transmit(packet, connection);

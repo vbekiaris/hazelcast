@@ -87,6 +87,10 @@ public final class Packet extends HeapData implements OutboundFrame {
      * Marks an Operation packet as Operation control (like invocation-heartbeats)
      */
     public static final int FLAG_OP_CONTROL = 1 << 6;
+    /**
+     * Has explicit serialization context ID?
+     */
+    public static final int FLAG_HAS_SERIALIZATION_CONTEXT_ID = 1 << 7;
 
 
     // 3.b Jet packet flags
@@ -104,6 +108,8 @@ public final class Packet extends HeapData implements OutboundFrame {
     private char flags;
 
     private int partitionId;
+    private int serializationContextId;
+
     private transient Connection conn;
 
     public Packet() {
@@ -139,6 +145,15 @@ public final class Packet extends HeapData implements OutboundFrame {
     public Packet setConn(Connection conn) {
         this.conn = conn;
         return this;
+    }
+
+    public int getSerializationContextId() {
+        return serializationContextId;
+    }
+
+    public void setSerializationContextId(int serializationContextId) {
+        raiseFlags(FLAG_HAS_SERIALIZATION_CONTEXT_ID);
+        this.serializationContextId = serializationContextId;
     }
 
     public Type getPacketType() {
@@ -190,7 +205,7 @@ public final class Packet extends HeapData implements OutboundFrame {
         return isFlagRaised(flags, flagsToCheck);
     }
 
-    private static boolean isFlagRaised(char flags, int flagsToCheck) {
+    public static boolean isFlagRaised(char flags, int flagsToCheck) {
         return (flags & flagsToCheck) != 0;
     }
 

@@ -1276,7 +1276,7 @@ abstract class MapProxySupport<K, V>
     }
 
     protected <T> T toObject(Object object) {
-        return serializationService.toObject(object);
+        return getNodeEngine().toObject(object);
     }
 
     protected Data toDataWithStrategy(Object object) {

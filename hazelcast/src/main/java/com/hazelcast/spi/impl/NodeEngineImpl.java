@@ -120,10 +120,12 @@ public class NodeEngineImpl implements NodeEngine {
     private final Diagnostics diagnostics;
     private final SplitBrainMergePolicyProvider splitBrainMergePolicyProvider;
     private final ConcurrencyDetection concurrencyDetection;
+    private final int defaultSerializationContextId;
 
     @SuppressWarnings("checkstyle:executablestatementcount")
     public NodeEngineImpl(Node node) {
         this.node = node;
+        this.defaultSerializationContextId = node.config.getSerializationConfig().getDefaultSerializationContextId();
         try {
             this.serializationService = node.getSerializationService();
             this.concurrencyDetection = newConcurrencyDetection();
@@ -331,17 +333,17 @@ public class NodeEngineImpl implements NodeEngine {
 
     @Override
     public Data toData(Object object) {
-        return serializationService.toData(object);
+        return serializationService.toData(defaultSerializationContextId, object);
     }
 
     @Override
     public <T> T toObject(Object object) {
-        return serializationService.toObject(object);
+        return serializationService.toObject(defaultSerializationContextId, object);
     }
 
     @Override
     public <T> T toObject(Object object, Class klazz) {
-        return serializationService.toObject(object, klazz);
+        return serializationService.toObject(defaultSerializationContextId, object, klazz);
     }
 
     @Override

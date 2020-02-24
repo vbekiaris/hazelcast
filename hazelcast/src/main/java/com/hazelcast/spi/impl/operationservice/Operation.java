@@ -16,6 +16,7 @@
 
 package com.hazelcast.spi.impl.operationservice;
 
+import com.hazelcast.internal.serialization.SerializationContextAware;
 import com.hazelcast.internal.util.UUIDSerializationUtil;
 import com.hazelcast.internal.cluster.ClusterClock;
 import com.hazelcast.internal.partition.InternalPartition;
@@ -52,7 +53,7 @@ import static com.hazelcast.internal.util.StringUtil.timeToString;
  * {@link Operation#run()} method.
  */
 @SuppressWarnings({"checkstyle:methodcount", "checkstyle:magicnumber"})
-public abstract class Operation implements DataSerializable {
+public abstract class Operation implements DataSerializable, SerializationContextAware {
 
     /**
      * Marks an {@link Operation} as non-partition-specific.
@@ -89,6 +90,7 @@ public abstract class Operation implements DataSerializable {
     private transient Connection connection;
     private transient OperationResponseHandler responseHandler;
     private transient long clientCallId = -1;
+    private transient volatile int serializationContextId;
 
     protected Operation() {
         setFlag(true, BITMASK_VALIDATE_TARGET);
@@ -583,6 +585,15 @@ public abstract class Operation implements DataSerializable {
     protected final ILogger getLogger() {
         final NodeEngine ne = nodeEngine;
         return ne != null ? ne.getLogger(getClass()) : Logger.getLogger(getClass());
+    }
+
+    @Override
+    public int getSerializationContextId() {
+        return serializationContextId;
+    }
+
+    public void setSerializationContextId(int serializationContextId) {
+        this.serializationContextId = serializationContextId;
     }
 
     void setFlag(boolean value, int bitmask) {

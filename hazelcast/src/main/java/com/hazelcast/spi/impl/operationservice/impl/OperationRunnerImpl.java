@@ -415,7 +415,13 @@ class OperationRunnerImpl extends OperationRunner implements StaticMetricsProvid
         Connection connection = packet.getConn();
         Address caller = connection.getEndPoint();
         try {
-            Object object = nodeEngine.toObject(packet);
+            Object object;
+            if (!packet.isFlagRaised(Packet.FLAG_HAS_SERIALIZATION_CONTEXT_ID)) {
+                object = nodeEngine.toObject(packet);
+            } else {
+                object = nodeEngine.getSerializationService().toObject(packet.getSerializationContextId(),
+                        packet);
+            }
             Operation op = (Operation) object;
             op.setNodeEngine(nodeEngine);
             setCallerAddress(op, caller);

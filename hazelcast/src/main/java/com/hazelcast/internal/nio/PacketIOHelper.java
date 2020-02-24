@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import static com.hazelcast.internal.nio.Bits.BYTE_SIZE_IN_BYTES;
 import static com.hazelcast.internal.nio.Bits.INT_SIZE_IN_BYTES;
 import static com.hazelcast.internal.nio.Bits.SHORT_SIZE_IN_BYTES;
+import static com.hazelcast.internal.nio.Packet.FLAG_HAS_SERIALIZATION_CONTEXT_ID;
 import static com.hazelcast.internal.nio.Packet.VERSION;
 
 /**
@@ -37,12 +38,15 @@ import static com.hazelcast.internal.nio.Packet.VERSION;
  */
 public class PacketIOHelper {
     static final int HEADER_SIZE = BYTE_SIZE_IN_BYTES + SHORT_SIZE_IN_BYTES + INT_SIZE_IN_BYTES + INT_SIZE_IN_BYTES;
+    static final int HEADER_SIZE_WITH_CONTEXT_ID = BYTE_SIZE_IN_BYTES + SHORT_SIZE_IN_BYTES + INT_SIZE_IN_BYTES
+            + INT_SIZE_IN_BYTES + INT_SIZE_IN_BYTES;
 
     private int valueOffset;
     private int size;
     private boolean headerComplete;
     private char flags;
     private int partitionId;
+    private int serializationContextId;
     private byte[] payload;
 
     /**
@@ -54,6 +58,8 @@ public class PacketIOHelper {
      */
     public boolean writeTo(Packet packet, ByteBuffer dst) {
         if (!headerComplete) {
+            final int headerSize = packet.isFlagRaised(FLAG_HAS_SERIALIZATION_CONTEXT_ID)
+                ? HEADER_SIZE_WITH_CONTEXT_ID : HEADER_SIZE;
             if (dst.remaining() < HEADER_SIZE) {
                 return false;
             }
@@ -63,6 +69,9 @@ public class PacketIOHelper {
             dst.putInt(packet.getPartitionId());
             size = packet.totalSize();
             dst.putInt(size);
+            if (packet.isFlagRaised(FLAG_HAS_SERIALIZATION_CONTEXT_ID)) {
+                dst.putInt(packet.getSerializationContextId());
+            }
             headerComplete = true;
         }
 
@@ -114,7 +123,7 @@ public class PacketIOHelper {
      */
     public Packet readFrom(ByteBuffer src) {
         if (!headerComplete) {
-            if (src.remaining() < HEADER_SIZE) {
+            if (src.remaining() < HEADER_SIZE_WITH_CONTEXT_ID) {
                 return null;
             }
 
@@ -127,6 +136,9 @@ public class PacketIOHelper {
             flags = src.getChar();
             partitionId = src.getInt();
             size = src.getInt();
+            if (Packet.isFlagRaised(flags, FLAG_HAS_SERIALIZATION_CONTEXT_ID)) {
+                serializationContextId = src.getInt();
+            }
             headerComplete = true;
         }
 
