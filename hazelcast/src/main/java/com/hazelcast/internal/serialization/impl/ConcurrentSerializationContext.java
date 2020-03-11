@@ -1,7 +1,5 @@
 package com.hazelcast.internal.serialization.impl;
 
-import com.hazelcast.internal.util.collection.Int2ObjectHashMap;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,12 +9,13 @@ public class ConcurrentSerializationContext implements SerializationContext {
 
     private final int contextId;
     private final ConcurrentMap<Class<?>, SerializerAdapter> typeMap;
-    private final Int2ObjectHashMap<SerializerAdapter> idMap;
+    // todo consider Int2ObjectHashMap
+    private final ConcurrentMap<Integer, SerializerAdapter> idMap;
 
     public ConcurrentSerializationContext(int contextId) {
         this.contextId = contextId;
         this.typeMap = new ConcurrentHashMap<>();
-        this.idMap = new Int2ObjectHashMap<>();
+        this.idMap = new ConcurrentHashMap<>();
     }
 
     @Override

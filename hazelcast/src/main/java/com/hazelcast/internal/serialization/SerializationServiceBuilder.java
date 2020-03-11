@@ -65,5 +65,7 @@ public interface SerializationServiceBuilder {
 
     SerializationServiceBuilder setInitialOutputBufferSize(int initialOutputBufferSize);
 
+    SerializationServiceBuilder setDefaultSerializationContextId(int defaultSerializationContextId);
+
     <T extends SerializationService> T build();
 }

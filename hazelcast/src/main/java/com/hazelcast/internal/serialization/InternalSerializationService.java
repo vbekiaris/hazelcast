@@ -40,7 +40,7 @@ public interface InternalSerializationService extends SerializationService, Disp
      * {@link ByteOrder#BIG_ENDIAN}.
      */
     default byte[] toBytes(Object obj) {
-        return toBytes(ROOT_CONTEXT_ID, obj);
+        return toBytes(getDefaultSerializationContextId(), obj);
     }
 
     /**
@@ -75,19 +75,19 @@ public interface InternalSerializationService extends SerializationService, Disp
      * @param insertPartitionHash       {@code true} to include the partition hash in the byte array, otherwise {@code false}
      */
     default byte[] toBytes(Object obj, int leftPadding, boolean insertPartitionHash) {
-        return toBytes(ROOT_CONTEXT_ID, obj, leftPadding, insertPartitionHash);
+        return toBytes(getDefaultSerializationContextId(), obj, leftPadding, insertPartitionHash);
     }
 
     byte[] toBytes(int contextId, Object obj, int leftPadding, boolean insertPartitionHash);
 
     default <B extends Data> B toData(Object obj, DataType type) {
-        return toData(ROOT_CONTEXT_ID, obj, type);
+        return toData(getDefaultSerializationContextId(), obj, type);
     }
 
     <B extends Data> B toData(int contextId, Object obj, DataType type);
 
     default <B extends Data> B toData(Object obj, DataType type, PartitioningStrategy strategy) {
-        return toData(ROOT_CONTEXT_ID, obj, type, strategy);
+        return toData(getDefaultSerializationContextId(), obj, type, strategy);
     }
 
     <B extends Data> B toData(int contextId, Object obj, DataType type, PartitioningStrategy strategy);
@@ -95,18 +95,18 @@ public interface InternalSerializationService extends SerializationService, Disp
     <B extends Data> B convertData(Data data, DataType type);
 
     default void writeObject(ObjectDataOutput out, Object obj) {
-        writeObject(ROOT_CONTEXT_ID, out, obj);
+        writeObject(getDefaultSerializationContextId(), out, obj);
     }
 
     void writeObject(int contextId, ObjectDataOutput out, Object obj);
 
     default <T> T readObject(ObjectDataInput in) {
-        return readObject(ROOT_CONTEXT_ID, in);
+        return readObject(getDefaultSerializationContextId(), in);
     }
     <T> T readObject(int contextId, ObjectDataInput in);
 
     default <T> T readObject(ObjectDataInput in, Class klass) {
-        return readObject(ROOT_CONTEXT_ID, in, klass);
+        return readObject(getDefaultSerializationContextId(), in, klass);
     }
     <T> T readObject(int contextId, ObjectDataInput in, Class klass);
 

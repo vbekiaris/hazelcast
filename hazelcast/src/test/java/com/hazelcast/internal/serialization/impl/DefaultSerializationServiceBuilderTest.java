@@ -18,6 +18,7 @@ package com.hazelcast.internal.serialization.impl;
 
 import com.hazelcast.instance.BuildInfoProvider;
 import com.hazelcast.internal.serialization.InternalSerializationService;
+import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.serialization.SerializationServiceBuilder;
 import com.hazelcast.spi.properties.ClusterProperty;
 import com.hazelcast.test.HazelcastParallelClassRunner;
@@ -29,6 +30,7 @@ import org.junit.runner.RunWith;
 
 import java.nio.ByteOrder;
 
+import static com.hazelcast.internal.serialization.SerializationService.ROOT_CONTEXT_ID;
 import static com.hazelcast.internal.serialization.impl.DefaultSerializationServiceBuilder.DEFAULT_BYTE_ORDER;
 import static org.junit.Assert.assertEquals;
 
@@ -36,7 +38,21 @@ import static org.junit.Assert.assertEquals;
 @Category({QuickTest.class, ParallelJVMTest.class})
 public class DefaultSerializationServiceBuilderTest {
 
+    private final int NON_DEFAULT_CONTEXT_ID = 1013;
     private final String BYTE_ORDER_OVERRRIDE_PROPERTY = "hazelcast.serialization.byteOrder";
+
+    @Test
+    public void test_serializationContextId() {
+        InternalSerializationService serializationService = getSerializationServiceBuilder()
+                .setDefaultSerializationContextId(NON_DEFAULT_CONTEXT_ID).build();
+        assertEquals(NON_DEFAULT_CONTEXT_ID, serializationService.getDefaultSerializationContextId());
+    }
+
+    @Test
+    public void test_defaultSerializationContextId() {
+        InternalSerializationService serializationService = getSerializationServiceBuilder().build();
+        assertEquals(ROOT_CONTEXT_ID, serializationService.getDefaultSerializationContextId());
+    }
 
     @Test
     public void test_byteOrderIsOverridden_whenLittleEndian() {

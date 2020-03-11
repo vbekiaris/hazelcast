@@ -97,6 +97,7 @@ public class DefaultClientExtension implements ClientExtension {
                     .setPartitioningStrategy(partitioningStrategy)
                     .setHazelcastInstance(hazelcastInstance)
                     .setNotActiveExceptionSupplier(HazelcastClientNotActiveException::new)
+                    .setDefaultSerializationContextId(config.getSerializationConfig().getDefaultSerializationContextId())
                     .build();
         } catch (Exception e) {
             throw rethrow(e);

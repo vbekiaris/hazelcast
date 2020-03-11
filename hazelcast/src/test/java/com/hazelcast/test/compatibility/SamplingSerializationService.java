@@ -319,4 +319,9 @@ public class SamplingSerializationService implements InternalSerializationServic
     public void unregisterSerializer(int contextId, String typeName) {
 
     }
+
+    @Override
+    public int getDefaultSerializationContextId() {
+        return 0;
+    }
 }

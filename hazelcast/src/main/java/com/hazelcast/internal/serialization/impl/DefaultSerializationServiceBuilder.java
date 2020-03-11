@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import static com.hazelcast.internal.serialization.SerializationService.ROOT_CONTEXT_ID;
 import static java.nio.ByteOrder.BIG_ENDIAN;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.ByteOrder.nativeOrder;
@@ -92,6 +93,7 @@ public class DefaultSerializationServiceBuilder implements SerializationServiceB
     protected Supplier<RuntimeException> notActiveExceptionSupplier;
 
     protected ClassNameFilter classNameFilter;
+    private int defaultSerializationContextId;
 
     @Override
     public SerializationServiceBuilder setVersion(byte version) {
@@ -224,6 +226,12 @@ public class DefaultSerializationServiceBuilder implements SerializationServiceB
     }
 
     @Override
+    public SerializationServiceBuilder setDefaultSerializationContextId(int defaultSerializationContextId) {
+        this.defaultSerializationContextId = defaultSerializationContextId;
+        return this;
+    }
+
+    @Override
     public InternalSerializationService build() {
         initVersions();
         if (config != null) {
@@ -296,6 +304,7 @@ public class DefaultSerializationServiceBuilder implements SerializationServiceB
                     .withEnableSharedObject(enableSharedObject)
                     .withNotActiveExceptionSupplier(notActiveExceptionSupplier)
                     .withClassNameFilter(classNameFilter)
+                    .withDefaultSerializationContextId(defaultSerializationContextId)
                     .build();
                 serializationServiceV1.registerClassDefinitions(classDefinitions, checkClassDefErrors);
                 return serializationServiceV1;
@@ -324,7 +333,7 @@ public class DefaultSerializationServiceBuilder implements SerializationServiceB
             if (ClassLoaderUtil.isInternalType(value.getClass())) {
                 ((AbstractSerializationService) ss).safeRegister(serializationType, serializer);
             } else {
-                ((AbstractSerializationService) ss).register(serializationType, serializer);
+                ((AbstractSerializationService) ss).register(ROOT_CONTEXT_ID, serializationType, serializer);
             }
         }
     }

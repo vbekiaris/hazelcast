@@ -88,6 +88,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
     private final int outputBufferSize;
     private volatile boolean active = true;
     private final byte version;
+    private final int defaultSerializationContextId;
     private final ILogger logger = Logger.getLogger(InternalSerializationService.class);
 
     AbstractSerializationService(Builder<?> builder) {
@@ -100,9 +101,15 @@ public abstract class AbstractSerializationService implements InternalSerializat
         this.bufferPoolThreadLocal = new BufferPoolThreadLocal(this, builder.bufferPoolFactory,
                 builder.notActiveExceptionSupplier);
         this.nullSerializerAdapter = createSerializerAdapter(new ConstantSerializers.NullSerializer(), this);
+        this.defaultSerializationContextId = builder.defaultSerializationContextId;
     }
 
     //region Serialization Service
+    @Override
+    public int getDefaultSerializationContextId() {
+        return defaultSerializationContextId;
+    }
+
     @Override
     public final <B extends Data> B toData(int contextId, Object obj) {
         return toData(contextId, obj, globalPartitioningStrategy);
@@ -385,6 +392,10 @@ public abstract class AbstractSerializationService implements InternalSerializat
     }
 
     public final void register(Class type, Serializer serializer) {
+        register(defaultSerializationContextId, type, serializer);
+    }
+
+    public final void register(int contextId, Class type, Serializer serializer) {
         if (type == null) {
             throw new IllegalArgumentException("type is required");
         }
@@ -392,7 +403,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
             throw new IllegalArgumentException(
                     "Type ID must be positive. Current: " + serializer.getTypeId() + ", Serializer: " + serializer);
         }
-        safeRegister(ROOT_CONTEXT_ID, type, createSerializerAdapter(serializer, this));
+        safeRegister(contextId, type, createSerializerAdapter(serializer, this));
     }
 
     public final void registerGlobal(final Serializer serializer) {
@@ -627,6 +638,7 @@ public abstract class AbstractSerializationService implements InternalSerializat
         private int initialOutputBufferSize;
         private BufferPoolFactory bufferPoolFactory;
         private Supplier<RuntimeException> notActiveExceptionSupplier;
+        private int defaultSerializationContextId;
 
         protected Builder() {
         }
@@ -674,6 +686,11 @@ public abstract class AbstractSerializationService implements InternalSerializat
 
         public final T withNotActiveExceptionSupplier(Supplier<RuntimeException> notActiveExceptionSupplier) {
             this.notActiveExceptionSupplier = notActiveExceptionSupplier;
+            return self();
+        }
+
+        public final T withDefaultSerializationContextId(int id) {
+            this.defaultSerializationContextId = id;
             return self();
         }
     }

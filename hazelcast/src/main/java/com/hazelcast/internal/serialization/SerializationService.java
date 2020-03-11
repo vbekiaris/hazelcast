@@ -27,6 +27,8 @@ public interface SerializationService {
 
     int ROOT_CONTEXT_ID = 0;
 
+    int getDefaultSerializationContextId();
+
     /**
      * Serializes an object to a {@link Data}.
      * <p>
@@ -39,7 +41,7 @@ public interface SerializationService {
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when serialization fails.
      */
     default <B extends Data> B toData(Object obj) {
-        return toData(ROOT_CONTEXT_ID, obj);
+        return toData(getDefaultSerializationContextId(), obj);
     }
 
     <B extends Data> B toData(int contextId, Object obj);
@@ -57,7 +59,7 @@ public interface SerializationService {
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when serialization fails.
      */
     default <B extends Data> B toData(Object obj, PartitioningStrategy strategy) {
-        return toData(ROOT_CONTEXT_ID, obj, strategy);
+        return toData(getDefaultSerializationContextId(), obj, strategy);
     }
 
     <B extends Data> B toData(int contextId, Object obj, PartitioningStrategy strategy);
@@ -75,7 +77,7 @@ public interface SerializationService {
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when deserialization fails.
      */
     default <T> T toObject(Object data) {
-        return toObject(ROOT_CONTEXT_ID, data);
+        return toObject(getDefaultSerializationContextId(), data);
     }
 
     <T> T toObject(int contextId, Object data);
@@ -94,7 +96,7 @@ public interface SerializationService {
      * @throws com.hazelcast.nio.serialization.HazelcastSerializationException when deserialization fails.
      */
     default <T> T toObject(Object data, Class klass) {
-        return toObject(ROOT_CONTEXT_ID, data, klass);
+        return toObject(getDefaultSerializationContextId(), data, klass);
     }
 
     <T> T toObject(int contextId, Object data, Class klass);

@@ -108,7 +108,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Supplier;
 
 import static com.hazelcast.config.ConfigAccessor.getActiveMemberNetworkConfig;
 import static com.hazelcast.map.impl.MapServiceConstructor.getDefaultMapServiceConstructor;
@@ -243,12 +242,8 @@ public class DefaultNodeExtension implements NodeExtension {
                     .setPartitioningStrategy(partitioningStrategy)
                     .setHazelcastInstance(hazelcastInstance)
                     .setVersion(version)
-                    .setNotActiveExceptionSupplier(new Supplier<RuntimeException>() {
-                        @Override
-                        public RuntimeException get() {
-                            return new HazelcastInstanceNotActiveException();
-                        }
-                    })
+                    .setDefaultSerializationContextId(config.getSerializationConfig().getDefaultSerializationContextId())
+                    .setNotActiveExceptionSupplier(HazelcastInstanceNotActiveException::new)
                     .build();
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
