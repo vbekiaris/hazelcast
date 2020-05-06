@@ -44,6 +44,7 @@ import com.hazelcast.wan.impl.CallerProvenance;
 
 import javax.annotation.Nonnull;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 import static com.hazelcast.map.impl.ExpirationTimeSetter.setExpirationTimes;
 
@@ -108,6 +109,23 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
         // Add observer for indexing
         indexingObserver = new IndexingMutationObserver<>(this, serializationService);
         mutationObserver.add(indexingObserver);
+    }
+
+    @Override
+    public void markPromotion() {
+    }
+
+    @Override
+    public void markDemotion() {
+    }
+
+    @Override
+    public int deltaSize() {
+        return -1;
+    }
+
+    @Override
+    public void forEachDeltaEntry(BiConsumer<Data, Record> consumer) {
     }
 
     // Overridden in EE.

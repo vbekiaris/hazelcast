@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static com.hazelcast.config.InMemoryFormat.NATIVE;
 import static com.hazelcast.map.impl.MapService.SERVICE_NAME;
 import static java.lang.Thread.currentThread;
@@ -278,7 +279,9 @@ public class LocalMapStatsProvider {
     }
 
     private void printWarning(int partitionId, int replica) {
-        logger.warning("partitionId: " + partitionId + ", replica: " + replica + " has no owner!");
+        if (!STABLE_CLUSTER.equals(clusterService.getClusterState())) {
+            logger.warning("partitionId: " + partitionId + ", replica: " + replica + " has no owner!");
+        }
     }
 
     /**

@@ -39,6 +39,7 @@ import com.hazelcast.spi.merge.SplitBrainMergePolicy;
 import com.hazelcast.spi.merge.SplitBrainMergeTypes.MapMergeTypes;
 import com.hazelcast.wan.impl.CallerProvenance;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -616,4 +617,12 @@ public interface RecordStore<R extends Record> {
     InMemoryFormat getInMemoryFormat();
 
     EvictionPolicy getEvictionPolicy();
+
+    void markPromotion();
+
+    void markDemotion();
+
+    int deltaSize();
+
+    void forEachDeltaEntry(BiConsumer<Data, R> consumer);
 }

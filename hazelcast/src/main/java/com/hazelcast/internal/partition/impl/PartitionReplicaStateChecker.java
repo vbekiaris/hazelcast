@@ -287,7 +287,8 @@ public class PartitionReplicaStateChecker {
     }
 
     private boolean needsReplicaStateCheck() {
-        return partitionStateManager.isInitialized() && partitionStateManager.getMemberGroupsSize() > 0;
+        return (partitionStateManager.isInitialized() && partitionStateManager.getMemberGroupsSize() > 0)
+                && !ClusterState.STABLE_CLUSTER.equals(node.clusterService.getClusterState());
     }
 
     boolean hasOnGoingMigrationMaster(Level level) {

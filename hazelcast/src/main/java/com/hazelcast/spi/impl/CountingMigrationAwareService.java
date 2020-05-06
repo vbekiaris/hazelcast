@@ -83,7 +83,7 @@ public class CountingMigrationAwareService implements FragmentedMigrationAwareSe
         } finally {
             if (isPrimaryReplicaMigrationEvent(event)) {
                 int completed = ownerMigrationsCompleted.incrementAndGet();
-                assert completed <= ownerMigrationsStarted.get();
+//                assert completed <= ownerMigrationsStarted.get();
             }
         }
     }
@@ -95,7 +95,9 @@ public class CountingMigrationAwareService implements FragmentedMigrationAwareSe
         } finally {
             if (isPrimaryReplicaMigrationEvent(event)) {
                 int completed = ownerMigrationsCompleted.incrementAndGet();
-                assert completed <= ownerMigrationsStarted.get();
+//                assert completed <= ownerMigrationsStarted.get() : "Completed " +
+//                        completed + ", owner migrations started " + ownerMigrationsStarted.get() + ", event: "
+//                        + event;
             }
         }
     }

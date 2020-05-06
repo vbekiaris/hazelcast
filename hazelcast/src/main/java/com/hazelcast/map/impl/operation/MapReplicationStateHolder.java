@@ -24,7 +24,9 @@ import com.hazelcast.internal.services.ObjectNamespace;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
+import com.hazelcast.internal.util.MutableInteger;
 import com.hazelcast.internal.util.ThreadUtil;
+import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapDataSerializerHook;
 import com.hazelcast.map.impl.PartitionContainer;
@@ -234,16 +236,44 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
             SerializationService ss = getSerializationService(operation.getRecordStore(mapName).getMapContainer());
             RecordStore<Record> recordStore = entry.getValue();
-            out.writeInt(recordStore.size());
-            // No expiration should be done in forEach, since we have serialized size before.
-            recordStore.forEach((dataKey, record) -> {
-                try {
-                    IOUtil.writeData(out, dataKey);
-                    Records.writeRecord(out, record, ss.toData(record.getValue()));
-                } catch (IOException e) {
-                    throw ExceptionUtil.rethrow(e);
+
+            // TODO: RU_COMPAT_4_1
+            int deltaSize = recordStore.deltaSize();
+            if (deltaSize > 0) {
+                System.out.println("Delta update for " + mapName + " partitionID " + operation.getPartitionId() + " / " +
+                        operation.getReplicaIndex() + ", deltas are: " + deltaSize);
+                // handle delta migration
+                out.writeBoolean(true);
+                out.writeInt(deltaSize);
+                MutableInteger count = new MutableInteger();
+                recordStore.forEachDeltaEntry((dataKey, record) -> {
+                    try {
+                        IOUtil.writeData(out, dataKey);
+                        Records.writeRecord(out, record, ss.toData(record.getValue()));
+                        count.getAndInc();
+                    } catch (IOException e) {
+                        throw ExceptionUtil.rethrow(e);
+                    }
+                });
+                if (count.value < deltaSize) {
+                    for (int i = count.value; i < deltaSize; i++) {
+                        // pad with nulls up to deltaSize
+                        IOUtil.writeData(out, null);
+                    }
                 }
-            }, operation.getReplicaIndex() != 0, true);
+            } else {
+                out.writeBoolean(false);
+                out.writeInt(recordStore.size());
+                // No expiration should be done in forEach, since we have serialized size before.
+                recordStore.forEach((dataKey, record) -> {
+                    try {
+                        IOUtil.writeData(out, dataKey);
+                        Records.writeRecord(out, record, ss.toData(record.getValue()));
+                    } catch (IOException e) {
+                        throw ExceptionUtil.rethrow(e);
+                    }
+                }, operation.getReplicaIndex() != 0, true);
+            }
         }
 
         out.writeInt(loaded.size());
@@ -270,10 +300,16 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
         for (int i = 0; i < size; i++) {
             String name = in.readUTF();
+            // RU_COMPAT_4_1
+            boolean deltaMigration = in.readBoolean();
             int numOfRecords = in.readInt();
             List keyRecord = new ArrayList<>(numOfRecords * 2);
             for (int j = 0; j < numOfRecords; j++) {
                 Data dataKey = IOUtil.readData(in);
+                if ((dataKey == null) && deltaMigration) {
+                    // consume nulls
+                    continue;
+                }
                 Record record = Records.readRecord(in);
 
                 keyRecord.add(dataKey);

@@ -17,6 +17,7 @@
 package com.hazelcast.internal.partition.operation;
 
 import com.hazelcast.cluster.Address;
+import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.core.MemberLeftException;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.InternalPartitionService;
@@ -59,6 +60,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 
+import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 
@@ -127,6 +129,10 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         }
 
         super.executeBeforeMigrations();
+    }
+
+    boolean isStableCluster() {
+        return STABLE_CLUSTER.equals(getNodeEngine().getClusterService().getClusterState());
     }
 
     /**

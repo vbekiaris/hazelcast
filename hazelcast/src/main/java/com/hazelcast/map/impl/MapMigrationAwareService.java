@@ -16,6 +16,7 @@
 
 package com.hazelcast.map.impl;
 
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nearcache.impl.invalidation.MetaDataGenerator;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.MigrationEndpoint;
@@ -39,6 +40,8 @@ import com.hazelcast.query.impl.QueryableEntry;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Stack;
 import java.util.function.Predicate;
 
 import static com.hazelcast.internal.partition.MigrationEndpoint.DESTINATION;
@@ -54,14 +57,16 @@ import static com.hazelcast.map.impl.querycache.publisher.AccumulatorSweeper.sen
  */
 class MapMigrationAwareService implements FragmentedMigrationAwareService {
 
-    protected final PartitionContainer[] containers;
-    protected final MapServiceContext mapServiceContext;
-    protected final SerializationService serializationService;
+    private final PartitionContainer[] containers;
+    private final MapServiceContext mapServiceContext;
+    private final SerializationService serializationService;
+    private final Stack<String> promotions;
 
     MapMigrationAwareService(MapServiceContext mapServiceContext) {
         this.mapServiceContext = mapServiceContext;
         this.serializationService = mapServiceContext.getNodeEngine().getSerializationService();
         this.containers = mapServiceContext.getPartitionContainers();
+        this.promotions = new Stack<>();
     }
 
     @Override
@@ -87,9 +92,23 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
 
             // 2. Populate non-global partitioned indexes.
             populateIndexes(event, TargetIndexes.NON_GLOBAL);
+
+            // 3. TODO: Hot-Restart hook: mark beginning of promotion
+            hookHotRestartMutationObserver(event);
         }
 
         flushAndRemoveQueryCaches(event);
+    }
+
+    private void hookHotRestartMutationObserver(PartitionMigrationEvent event) {
+        for (Map.Entry<String, MapContainer> mapContainerEntry : mapServiceContext.getMapContainers().entrySet()) {
+            String mapName = mapContainerEntry.getKey();
+            MapConfig mapConfig = mapContainerEntry.getValue().getMapConfig();
+            if (mapConfig.getHotRestartConfig().isEnabled()) {
+                mapServiceContext.getRecordStore(event.getPartitionId(), mapName)
+                                 .markPromotion();
+            }
+        }
     }
 
     /**
