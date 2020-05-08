@@ -128,6 +128,11 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     public void forEachDeltaEntry(BiConsumer<Data, Record> consumer) {
     }
 
+    @Override
+    public boolean isHotRestartEnabled() {
+        return mapContainer.getMapConfig().getHotRestartConfig().isEnabled();
+    }
+
     // Overridden in EE.
     protected void addJsonMetadataMutationObserver() {
         mutationObserver.add(new JsonMetadataMutationObserver(serializationService,
