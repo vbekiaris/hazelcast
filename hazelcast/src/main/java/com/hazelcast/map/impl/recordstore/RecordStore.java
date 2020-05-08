@@ -620,4 +620,28 @@ public interface RecordStore<R extends Record> {
     InMemoryFormat getInMemoryFormat();
 
     EvictionPolicy getEvictionPolicy();
+
+    /**
+     * Marks that this replica is promoted to primary.
+     */
+    void markPromotion();
+
+    /**
+     * Marks that this replica is no longer primary.
+     */
+    void markDemotion();
+
+    /**
+     * @return maximum count of entries tracked for differential sync
+     */
+    int deltaSize();
+
+    /**
+     * Executes the {@code consumer} on each {@code (Data key, R record)} tuple
+     * that has been tracked as mutated since this partition replica was promoted.
+     * @param consumer
+     */
+    void forEachDeltaEntry(BiConsumer<Data, R> consumer);
+
+    boolean isHotRestartEnabled();
 }

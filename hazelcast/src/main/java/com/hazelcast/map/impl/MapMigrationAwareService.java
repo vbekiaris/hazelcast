@@ -126,12 +126,23 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
 
         int partitionId = event.getPartitionId();
 
+
+        // a differential update is possible if:
+        // 1) cluster version >= 4.1,
+        // 2) hot restart is enabled for a namespace
+        // 3) migration event has replicaIndex == 0
+        // 1 & 2 are checked in MapReplicationStateHolder at the time of gathering data for
+        // replication, while 3 is checked here.
         Operation operation = new MapReplicationOperation(containers[partitionId],
-                namespaces, partitionId, event.getReplicaIndex());
+                namespaces, partitionId, event.getReplicaIndex(), differentialMigrationHint(event));
         operation.setService(mapServiceContext.getService());
         operation.setNodeEngine(mapServiceContext.getNodeEngine());
 
         return operation;
+    }
+
+    private boolean differentialMigrationHint(PartitionReplicationEvent e) {
+        return e.getReplicaIndex() == 0;
     }
 
     private boolean assertAllKnownNamespaces(Collection<ServiceNamespace> namespaces) {

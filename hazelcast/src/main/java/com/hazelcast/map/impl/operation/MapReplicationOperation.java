@@ -26,6 +26,7 @@ import com.hazelcast.memory.NativeOutOfMemoryError;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+import com.hazelcast.nio.serialization.impl.Versioned;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.io.IOException;
@@ -35,20 +36,25 @@ import java.util.Collection;
  * Replicates all IMap-states of this partition to a repReservedCapacityCounterTestlica partition.
  */
 public class MapReplicationOperation extends Operation
-        implements IdentifiedDataSerializable {
+        implements IdentifiedDataSerializable, Versioned {
 
     private MapReplicationStateHolder mapReplicationStateHolder;
     private WriteBehindStateHolder writeBehindStateHolder;
     private MapNearCacheStateHolder mapNearCacheStateHolder;
 
     private transient NativeOutOfMemoryError oome;
+    private transient boolean differentialMigrationHint;
 
     public MapReplicationOperation() {
     }
 
     public MapReplicationOperation(PartitionContainer container,
-                                   Collection<ServiceNamespace> namespaces, int partitionId, int replicaIndex) {
+                                   Collection<ServiceNamespace> namespaces,
+                                   int partitionId,
+                                   int replicaIndex,
+                                   boolean differentialMigrationHint) {
 
+        this.differentialMigrationHint = differentialMigrationHint;
         setPartitionId(partitionId).setReplicaIndex(replicaIndex);
 
         this.mapReplicationStateHolder = new MapReplicationStateHolder();
@@ -152,5 +158,9 @@ public class MapReplicationOperation extends Operation
     @Override
     public int getClassId() {
         return MapDataSerializerHook.MAP_REPLICATION;
+    }
+
+    public boolean isDifferentialMigrationHint() {
+        return differentialMigrationHint;
     }
 }

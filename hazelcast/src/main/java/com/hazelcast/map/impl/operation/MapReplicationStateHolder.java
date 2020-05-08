@@ -19,11 +19,13 @@ package com.hazelcast.map.impl.operation;
 import com.hazelcast.config.IndexConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nio.IOUtil;
+import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.services.ObjectNamespace;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
+import com.hazelcast.internal.util.MutableInteger;
 import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapDataSerializerHook;
@@ -35,7 +37,7 @@ import com.hazelcast.map.impl.recordstore.RecordStore;
 import com.hazelcast.map.impl.recordstore.RecordStoreAdapter;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.internal.serialization.Data;
+import com.hazelcast.nio.VersionAware;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.query.impl.Index;
 import com.hazelcast.query.impl.Indexes;
@@ -50,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.hazelcast.internal.cluster.Versions.V4_1;
 import static com.hazelcast.internal.util.MapUtil.createHashMap;
 import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
 
@@ -234,16 +237,50 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
             SerializationService ss = getSerializationService(operation.getRecordStore(mapName).getMapContainer());
             RecordStore<Record> recordStore = entry.getValue();
-            out.writeInt(recordStore.size());
-            // No expiration should be done in forEach, since we have serialized size before.
-            recordStore.forEach((dataKey, record) -> {
-                try {
-                    IOUtil.writeData(out, dataKey);
-                    Records.writeRecord(out, record, ss.toData(record.getValue()));
-                } catch (IOException e) {
-                    throw ExceptionUtil.rethrow(e);
+            boolean canPerformDifferentialMigration = differentialMigrationCapable(out, recordStore);
+
+            // RU_COMPAT_4_0
+            if (out.getVersion().isGreaterOrEqual(V4_1)) {
+                out.writeBoolean(canPerformDifferentialMigration);
+            }
+
+            if (canPerformDifferentialMigration) {
+                int deltaSize = recordStore.deltaSize();
+                System.out.println("Delta update for " + mapName + " partitionID " + operation.getPartitionId() + " / " +
+                        operation.getReplicaIndex() + ", deltas are: " + deltaSize);
+                // only send delta
+                out.writeInt(deltaSize);
+                MutableInteger count = new MutableInteger();
+                recordStore.forEachDeltaEntry((dataKey, record) -> {
+                    try {
+                        IOUtil.writeData(out, dataKey);
+                        Records.writeRecord(out, record, ss.toData(record.getValue()));
+                        count.getAndInc();
+                    } catch (IOException e) {
+                        throw ExceptionUtil.rethrow(e);
+                    }
+                });
+                // it is possible that delta tracking happens on a WeakHashMap, so entries
+                // may disappear spuriously -> pad with nulls up to expected size
+                if (count.value < deltaSize) {
+                    for (int i = count.value; i < deltaSize; i++) {
+                        // pad with nulls up to deltaSize
+                        IOUtil.writeData(out, null);
+                    }
                 }
-            }, operation.getReplicaIndex() != 0, true);
+            } else {
+                // full record store migration
+                out.writeInt(recordStore.size());
+                // No expiration should be done in forEach, since we have serialized size before.
+                recordStore.forEach((dataKey, record) -> {
+                    try {
+                        IOUtil.writeData(out, dataKey);
+                        Records.writeRecord(out, record, ss.toData(record.getValue()));
+                    } catch (IOException e) {
+                        throw ExceptionUtil.rethrow(e);
+                    }
+                }, operation.getReplicaIndex() != 0, true);
+            }
         }
 
         out.writeInt(loaded.size());
@@ -258,6 +295,12 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
         }
     }
 
+    private boolean differentialMigrationCapable(VersionAware versionAware, RecordStore recordStore) {
+        return operation.isDifferentialMigrationHint()
+                && versionAware.getVersion().isGreaterOrEqual(V4_1)
+                && recordStore.isHotRestartEnabled();
+    }
+
     private static SerializationService getSerializationService(MapContainer mapContainer) {
         return mapContainer.getMapServiceContext()
                 .getNodeEngine().getSerializationService();
@@ -270,10 +313,19 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
         for (int i = 0; i < size; i++) {
             String name = in.readUTF();
+            // RU_COMPAT_4_0
+            boolean differentialMigration = false;
+            if (in.getVersion().isGreaterOrEqual(V4_1)) {
+                differentialMigration = in.readBoolean();
+            }
             int numOfRecords = in.readInt();
             List keyRecord = new ArrayList<>(numOfRecords * 2);
             for (int j = 0; j < numOfRecords; j++) {
                 Data dataKey = IOUtil.readData(in);
+                if ((dataKey == null) && differentialMigration) {
+                    // consume null padding
+                    continue;
+                }
                 Record record = Records.readRecord(in);
 
                 keyRecord.add(dataKey);
