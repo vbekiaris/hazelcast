@@ -39,6 +39,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.VersionAware;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+import com.hazelcast.nio.serialization.impl.Versioned;
 import com.hazelcast.query.impl.Index;
 import com.hazelcast.query.impl.Indexes;
 import com.hazelcast.query.impl.InternalIndex;
@@ -60,7 +61,7 @@ import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
  * Holder for raw IMap key-value pairs and their metadata.
  */
 // keep this `protected`, extended in another context.
-public class MapReplicationStateHolder implements IdentifiedDataSerializable {
+public class MapReplicationStateHolder implements IdentifiedDataSerializable, Versioned {
 
     // holds recordStore-references of this partitions' maps
     protected transient Map<String, RecordStore<Record>> storesByMapName;
@@ -80,6 +81,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
     protected transient List<MapIndexInfo> mapIndexInfos;
 
     private MapReplicationOperation operation;
+
+    // only populated in readData, used in applyState
+    private boolean differentialMigration = false;
 
     /**
      * This constructor exists solely for instantiation by {@code MapDataSerializerHook}. The object is not ready to use
@@ -149,7 +153,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                 String mapName = dataEntry.getKey();
                 List keyRecord = dataEntry.getValue();
                 RecordStore recordStore = operation.getRecordStore(mapName);
-                recordStore.reset();
+                if (!differentialMigration) {
+                    recordStore.reset();
+                }
                 recordStore.setPreMigrationLoadedStatus(loaded.get(mapName));
                 StoreAdapter storeAdapter = new RecordStoreAdapter(recordStore);
 
@@ -298,7 +304,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
     private boolean differentialMigrationCapable(VersionAware versionAware, RecordStore recordStore) {
         return operation.isDifferentialMigrationHint()
                 && versionAware.getVersion().isGreaterOrEqual(V4_1)
-                && recordStore.isHotRestartEnabled();
+                && recordStore.isDifferentialMigrationCapable();
     }
 
     private static SerializationService getSerializationService(MapContainer mapContainer) {
@@ -314,7 +320,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
         for (int i = 0; i < size; i++) {
             String name = in.readUTF();
             // RU_COMPAT_4_0
-            boolean differentialMigration = false;
+            differentialMigration = false;
             if (in.getVersion().isGreaterOrEqual(V4_1)) {
                 differentialMigration = in.readBoolean();
             }

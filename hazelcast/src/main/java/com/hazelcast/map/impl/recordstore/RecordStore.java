@@ -643,5 +643,5 @@ public interface RecordStore<R extends Record> {
      */
     void forEachDeltaEntry(BiConsumer<Data, R> consumer);
 
-    boolean isHotRestartEnabled();
+    boolean isDifferentialMigrationCapable();
 }

@@ -16,6 +16,7 @@
 
 package com.hazelcast.map.impl;
 
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nearcache.impl.invalidation.MetaDataGenerator;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.MigrationEndpoint;
@@ -39,8 +40,11 @@ import com.hazelcast.query.impl.QueryableEntry;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Stack;
 import java.util.function.Predicate;
 
+import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static com.hazelcast.internal.partition.MigrationEndpoint.DESTINATION;
 import static com.hazelcast.internal.partition.MigrationEndpoint.SOURCE;
 import static com.hazelcast.map.impl.querycache.publisher.AccumulatorSweeper.flushAccumulator;
@@ -90,6 +94,18 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         }
 
         flushAndRemoveQueryCaches(event);
+    }
+
+    private void hookHotRestartMutationObserver(PartitionMigrationEvent event) {
+        for (Map.Entry<String, MapContainer> mapContainerEntry : mapServiceContext.getMapContainers().entrySet()) {
+            String mapName = mapContainerEntry.getKey();
+            MapConfig mapConfig = mapContainerEntry.getValue().getMapConfig();
+            if (mapConfig.getHotRestartConfig().isEnabled()
+                    && STABLE_CLUSTER == mapServiceContext.getNodeEngine().getClusterService().getClusterState()) {
+                mapServiceContext.getRecordStore(event.getPartitionId(), mapName)
+                                 .markPromotion();
+            }
+        }
     }
 
     /**
