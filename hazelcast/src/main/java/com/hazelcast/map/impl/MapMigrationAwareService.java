@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.function.Predicate;
 
+import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static com.hazelcast.internal.partition.MigrationEndpoint.DESTINATION;
 import static com.hazelcast.internal.partition.MigrationEndpoint.SOURCE;
 import static com.hazelcast.map.impl.querycache.publisher.AccumulatorSweeper.flushAccumulator;
@@ -104,7 +105,8 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         for (Map.Entry<String, MapContainer> mapContainerEntry : mapServiceContext.getMapContainers().entrySet()) {
             String mapName = mapContainerEntry.getKey();
             MapConfig mapConfig = mapContainerEntry.getValue().getMapConfig();
-            if (mapConfig.getHotRestartConfig().isEnabled()) {
+            if (mapConfig.getHotRestartConfig().isEnabled()
+                    && STABLE_CLUSTER == mapServiceContext.getNodeEngine().getClusterService().getClusterState()) {
                 mapServiceContext.getRecordStore(event.getPartitionId(), mapName)
                                  .markPromotion();
             }

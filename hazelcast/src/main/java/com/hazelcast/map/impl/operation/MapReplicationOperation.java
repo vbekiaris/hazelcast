@@ -26,7 +26,6 @@ import com.hazelcast.memory.NativeOutOfMemoryError;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.nio.serialization.impl.Versioned;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.io.IOException;
@@ -36,7 +35,7 @@ import java.util.Collection;
  * Replicates all IMap-states of this partition to a repReservedCapacityCounterTestlica partition.
  */
 public class MapReplicationOperation extends Operation
-        implements IdentifiedDataSerializable, Versioned {
+        implements IdentifiedDataSerializable {
 
     private MapReplicationStateHolder mapReplicationStateHolder;
     private WriteBehindStateHolder writeBehindStateHolder;

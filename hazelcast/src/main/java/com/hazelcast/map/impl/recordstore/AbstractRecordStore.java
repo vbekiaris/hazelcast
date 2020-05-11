@@ -129,8 +129,8 @@ abstract class AbstractRecordStore implements RecordStore<Record> {
     }
 
     @Override
-    public boolean isHotRestartEnabled() {
-        return mapContainer.getMapConfig().getHotRestartConfig().isEnabled();
+    public boolean isDifferentialMigrationCapable() {
+        return false;
     }
 
     // Overridden in EE.
