@@ -218,8 +218,12 @@ abstract class BaseMigrationOperation extends AbstractPartitionOperation
 
     private boolean isMigrationAllowedInStableCluster() {
         ClusterState clusterState = getNodeEngine().getClusterService().getClusterState();
-        return (STABLE_CLUSTER.equals(clusterState) &&
+        boolean allowed = (STABLE_CLUSTER.equals(clusterState) &&
                 (migrationInfo.isLocalShiftOperation() || migrationInfo.getDestinationCurrentReplicaIndex() == -1));
+        if (allowed && !migrationInfo.isLocalShiftOperation()) {
+            System.out.println("Allowing migration " + migrationInfo);
+        }
+        return allowed;
     }
 
     /** Sets the active migration and the partition migration flag. */
