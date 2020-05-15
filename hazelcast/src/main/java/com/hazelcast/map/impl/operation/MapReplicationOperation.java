@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 /**
- * Replicates all IMap-states of this partition to a repReservedCapacityCounterTestlica partition.
+ * Replicates all IMap-states of this partition to a replica partition.
  */
 public class MapReplicationOperation extends Operation
         implements IdentifiedDataSerializable {

@@ -343,6 +343,7 @@ public class PartitionStateManager {
 
         if (snapshot == null) {
             // todo cannot transparently repartition here, requires other post-actions
+            logger.warning("Even though partition table restore from snapshot was requested, no snapshot exists");
             return repartition(excludedMembers, partitionInclusionSet);
         }
 

@@ -167,7 +167,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 System.out.println("Working on " +mapName+ " / " + partition.getPartitionId() + ", this member owns "
                         + replicaIndex
                         + ", current record store size is " + recordStore.size() + ", " +
-                        keyRecord.size() + " migrated KVs");
+                        keyRecord.size() + " migrated KVs from " + operation.getCallerAddress());
                 if (!differentialMigration) {
                     System.out.println("Resetting record store of size " + recordStore.size() + " due to non-diff migration");
                     recordStore.reset();
