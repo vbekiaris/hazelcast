@@ -53,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static com.hazelcast.internal.cluster.Versions.V4_1;
 import static com.hazelcast.internal.util.MapUtil.createHashMap;
 import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
@@ -154,7 +153,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 String mapName = dataEntry.getKey();
                 List keyRecord = dataEntry.getValue();
                 RecordStore recordStore = operation.getRecordStore(mapName);
-                System.out.println("Working on " +mapName+ " current record store size is " + recordStore.size() + ", " +
+                System.out.println("Working on " +mapName+ " / " + operation.getPartitionId()
+                        + " current record store size is " + recordStore.size() + ", " +
                         keyRecord.size() + " migrated KVs");
                 if (!differentialMigration) {
                     System.out.println("Resetting record store of size " + recordStore.size() + " due to non-diff migration");

@@ -61,11 +61,13 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
     protected final PartitionContainer[] containers;
     protected final MapServiceContext mapServiceContext;
     protected final SerializationService serializationService;
+    private final Stack<String> promotions;
 
     MapMigrationAwareService(MapServiceContext mapServiceContext) {
         this.mapServiceContext = mapServiceContext;
         this.serializationService = mapServiceContext.getNodeEngine().getSerializationService();
         this.containers = mapServiceContext.getPartitionContainers();
+        this.promotions = new Stack<>();
     }
 
     @Override
@@ -91,6 +93,13 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
 
             // 2. Populate non-global partitioned indexes.
             populateIndexes(event, TargetIndexes.NON_GLOBAL);
+        }
+
+        if (event.getMigrationEndpoint() == DESTINATION
+            && event.getCurrentReplicaIndex() > event.getNewReplicaIndex()
+            && event.getNewReplicaIndex() >= 0) {
+            // 3. TODO: Hot-Restart hook: mark beginning of promotion
+            hookHotRestartMutationObserver(event);
         }
 
         flushAndRemoveQueryCaches(event);
