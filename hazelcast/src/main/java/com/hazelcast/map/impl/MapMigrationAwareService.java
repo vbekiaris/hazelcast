@@ -99,6 +99,7 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
             && event.getCurrentReplicaIndex() > event.getNewReplicaIndex()
             && event.getNewReplicaIndex() >= 0) {
             // 3. TODO: Hot-Restart hook: mark beginning of promotion
+            System.out.println("Starting mutation observer " + event);
             hookHotRestartMutationObserver(event);
         }
 
