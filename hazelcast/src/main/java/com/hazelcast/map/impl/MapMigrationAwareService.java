@@ -93,7 +93,11 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
 
             // 2. Populate non-global partitioned indexes.
             populateIndexes(event, TargetIndexes.NON_GLOBAL);
+        }
 
+        if (event.getMigrationEndpoint() == DESTINATION
+            && event.getCurrentReplicaIndex() > event.getNewReplicaIndex()
+            && event.getNewReplicaIndex() >= 0) {
             // 3. TODO: Hot-Restart hook: mark beginning of promotion
             hookHotRestartMutationObserver(event);
         }
