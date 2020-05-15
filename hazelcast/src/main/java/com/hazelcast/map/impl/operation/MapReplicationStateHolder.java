@@ -16,9 +16,11 @@
 
 package com.hazelcast.map.impl.operation;
 
+import com.hazelcast.cluster.Address;
 import com.hazelcast.config.IndexConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nio.IOUtil;
+import com.hazelcast.internal.partition.IPartition;
 import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.services.ObjectNamespace;
@@ -153,8 +155,18 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 String mapName = dataEntry.getKey();
                 List keyRecord = dataEntry.getValue();
                 RecordStore recordStore = operation.getRecordStore(mapName);
-                System.out.println("Working on " +mapName+ " / " + operation.getPartitionId()
-                        + " current record store size is " + recordStore.size() + ", " +
+                IPartition partition = operation.getNodeEngine().getPartitionService().getPartition(operation.getPartitionId());
+                Address thisAddress = operation.getNodeEngine().getThisAddress();
+                int replicaIndex = 0;
+                for (int i = 0; i < 7; i++) {
+                    if (thisAddress.equals(partition.getReplicaAddress(i))) {
+                        replicaIndex = i;
+                        break;
+                    }
+                }
+                System.out.println("Working on " +mapName+ " / " + partition.getPartitionId() + ", this member owns "
+                        + replicaIndex
+                        + ", current record store size is " + recordStore.size() + ", " +
                         keyRecord.size() + " migrated KVs");
                 if (!differentialMigration) {
                     System.out.println("Resetting record store of size " + recordStore.size() + " due to non-diff migration");
