@@ -291,6 +291,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                     }
                 }
             } else {
+                System.out.println("Full migration for " + operation.getPartitionId());
                 // full record store migration
                 out.writeInt(recordStore.size());
                 // No expiration should be done in forEach, since we have serialized size before.

@@ -203,15 +203,21 @@ final class OperationBackupHandler {
         return sendSingleBackup(backupAwareOp, partition, replicaVersions, syncBackups, 1);
     }
 
+    // TODO do not assume contiguous allocation of replicas to a partition's replica index
+    //  This allocation of replicas might be ok in some cluster states: [m1, null, m2, m3, null, null, null]
     private int sendMultipleBackups(BackupAwareOperation backupAwareOp, InternalPartition partition,
                                     long[] replicaVersions, int syncBackups, int totalBackups) {
-        int sendSyncBackups = 0;
+        // number of sync backups sent
+        int syncBackupsSent = 0;
+        // number of backups sent
+        int backupsSent = 0;
         Operation backupOp = getBackupOperation(backupAwareOp);
         if (!(backupOp instanceof TargetAware)) {
             // optimize common case: serialize operation once and send to multiple targets
             Data backupOpData = nodeEngine.getSerializationService().toData(backupOp);
 
-            for (int replicaIndex = 1; replicaIndex <= totalBackups; replicaIndex++) {
+            int replicaIndex = 1;
+            while (backupsSent < totalBackups && replicaIndex < MAX_BACKUP_COUNT) {
                 PartitionReplica target = partition.getReplica(replicaIndex);
 
                 if (target == null) {
@@ -222,23 +228,35 @@ final class OperationBackupHandler {
                     continue;
                 }
 
-                boolean isSyncBackup = replicaIndex <= syncBackups;
+                boolean isSyncBackup = syncBackupsSent <= syncBackups;
 
                 Backup backup = newBackup(backupAwareOp, backupOpData, replicaVersions, replicaIndex, isSyncBackup);
                 outboundOperationHandler.send(backup, target.address());
 
+                backupsSent++;
                 if (isSyncBackup) {
-                    sendSyncBackups++;
+                    syncBackupsSent++;
                 }
             }
         } else {
-            for (int replicaIndex = 1; replicaIndex <= totalBackups; replicaIndex++) {
+            // todo this does not take into account null holes in the replica versions array
+            for (int replicaIndex = 1; replicaIndex <= MAX_BACKUP_COUNT && syncBackupsSent < syncBackups; replicaIndex++) {
                 int syncBackupSent = sendSingleBackup(backupAwareOp, partition, replicaVersions,
                         syncBackups, replicaIndex);
-                sendSyncBackups += syncBackupSent;
+                syncBackupsSent += syncBackupSent;
             }
         }
-        return sendSyncBackups;
+        return syncBackupsSent;
+    }
+
+    // serialize anew or return the existing serialized form of the backupOp
+    // todo also needs target here
+    private Data serializeBackupOp(Operation backupOp, Data serializedOp) {
+        if (backupOp instanceof TargetAware || serializedOp == null) {
+            return nodeEngine.getSerializationService().toData(backupOp);
+        } else {
+            return serializedOp;
+        }
     }
 
     private int sendSingleBackup(BackupAwareOperation backupAwareOp, InternalPartition partition,
