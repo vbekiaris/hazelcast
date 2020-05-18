@@ -388,6 +388,14 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
 
     @Override
     public void onClusterStateChange(ClusterState newState) {
+        if (ClusterState.STABLE.equals(newState)) {
+            // we must keep snapshot of partition table
+            partitionStateManager.snapshotPartitionTable();
+        } else {
+            // can be avoided if previous state was not STABLE_CLUSTER
+            logger.finest("Resetting partition table snapshot, cluster state is " + newState);
+            partitionStateManager.resetSnapshot();
+        }
         if (!newState.isMigrationAllowed()) {
             return;
         }

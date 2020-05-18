@@ -37,10 +37,12 @@ import com.hazelcast.internal.partition.membergroup.MemberGroupFactoryFactory;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.partitiongroup.MemberGroup;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.PARTITIONS_METRIC_PARTITION_REPLICA_STATE_MANAGER_ACTIVE_PARTITION_COUNT;
@@ -67,6 +69,7 @@ public class PartitionStateManager {
 
     private final PartitionStateGenerator partitionStateGenerator;
     private final MemberGroupFactory memberGroupFactory;
+    private final AtomicReference<PartitionTableView> partitionTableSnapshot = new AtomicReference<>();
 
     // updates will be done under lock, but reads will be multithreaded.
     // set to true when the partitions are assigned for the first time. remains true until partition service has been reset.
@@ -413,5 +416,34 @@ public class PartitionStateManager {
             return new PartitionTableView(new PartitionReplica[partitions.length][InternalPartition.MAX_REPLICA_COUNT], 0);
         }
         return new PartitionTableView(partitions, stateVersion.get());
+    }
+
+    // STABLE: keep a snapshot of partition table
+    void snapshotPartitionTable() {
+        logger.info("Cluster state changed to STABLE, keeping partition table snapshot");
+        partitionTableSnapshot.compareAndSet(null, getPartitionTable());
+    }
+
+    public void resetSnapshot() {
+        logger.info("Resetting partition table snapshot");
+        partitionTableSnapshot.set(null);
+    }
+
+    @Nullable
+    public PartitionTableView getPartitionTableSnapshot() {
+        return partitionTableSnapshot.get();
+    }
+
+    // TODO what is the proper way to compare here?
+    private boolean contains(Collection<Member> members, PartitionReplica partitionReplica) {
+        if (partitionReplica == null) {
+            return false;
+        }
+        for (Member m : members) {
+            if (PartitionReplica.from(m).equals(partitionReplica)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
