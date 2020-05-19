@@ -16,6 +16,7 @@
 
 package com.hazelcast.map;
 
+import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.instance.impl.TestUtil;
@@ -143,6 +144,8 @@ public class BackupTest extends HazelcastTestSupport {
             checkMapSizes(mapSize, backupCount, instances);
         }
 
+        waitClusterForSafeState(instances.get(0));
+        instances.get(0).getCluster().changeClusterState(ClusterState.STABLE);
         Random rand = new Random();
         while (!instances.isEmpty()) {
             int ix = rand.nextInt(instances.size());

@@ -37,7 +37,9 @@ import com.hazelcast.internal.partition.membergroup.MemberGroupFactoryFactory;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.spi.partitiongroup.MemberGroup;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
@@ -115,10 +117,14 @@ public class PartitionStateManager {
     }
 
     private Collection<MemberGroup> createMemberGroups(final Set<Member> excludedMembers) {
+        final Collection<Member> members = getDataMembersExcluding(excludedMembers);
+        return memberGroupFactory.createMemberGroups(members);
+    }
+
+    private Collection<Member> getDataMembersExcluding(Set<Member> excludedMembers) {
         MemberSelector exclude = member -> !excludedMembers.contains(member);
         final MemberSelector selector = MemberSelectors.and(DATA_MEMBER_SELECTOR, exclude);
-        final Collection<Member> members = node.getClusterService().getMembers(selector);
-        return memberGroupFactory.createMemberGroups(members);
+        return node.getClusterService().getMembers(selector);
     }
 
     private Collection<MemberGroup> createMemberGroups() {
@@ -419,6 +425,60 @@ public class PartitionStateManager {
     }
 
     // STABLE: keep a snapshot of partition table
+    PartitionReplica[][] attemptRestoreFromSnapshot(Set<Member> excludedMembers, Collection<Integer> partitionInclusionSet) {
+        if (!initialized) {
+            return null;
+        }
+
+        logger.info("Attempting restore with excluded members: " + excludedMembers);
+
+        final PartitionTableView snapshot = getPartitionTableSnapshot();
+
+        if (snapshot == null) {
+            // todo check if we can transparently repartition here, requires other post-actions
+            logger.warning("Even though partition table restore from snapshot was requested, no snapshot exists");
+            return repartition(excludedMembers, partitionInclusionSet);
+        }
+
+        Collection<Member> presentMembers = getDataMembersExcluding(excludedMembers);
+        logger.info("Attempting restore present members: " + Arrays.toString(presentMembers.toArray()));
+        PartitionReplica[][] toReturn = new PartitionReplica[partitionCount][InternalPartition.MAX_REPLICA_COUNT];
+
+        for (int partitionId = 0; partitionId < partitionCount; partitionId++) {
+            System.arraycopy(partitions[partitionId].getReplicas(), 0,
+                    toReturn[partitionId], 0, InternalPartition.MAX_REPLICA_COUNT);
+            PartitionReplica[] replicas = snapshot.getReplicas(partitionId);
+            for (int i = 0; i < replicas.length; i++) {
+                if (contains(presentMembers, replicas[i]) && !isAlreadyUsed(replicas[i], toReturn[partitionId], i)) {
+                    toReturn[partitionId][i] = replicas[i];
+                }
+            }
+            for (int i = 0; i < replicas.length - 1; i++) {
+                // shift backups up, pushing nulls down
+                // normally (in the repartition() path) this is done by PartitionStateGenerator#arrange
+                if ((toReturn[partitionId][i] == null) &&
+                        ((toReturn[partitionId][i+1] != null))) {
+                    toReturn[partitionId][i] = toReturn[partitionId][i+1];
+                    toReturn[partitionId][i+1] = null;
+                }
+            }
+        }
+        return toReturn;
+    }
+
+    // checks if the proposedReplica for replicaIndex has already been used
+    // in previous replicas
+    private boolean isAlreadyUsed(@Nonnull PartitionReplica proposedReplica,
+                                  PartitionReplica[] replicas,
+                                  int replicaIndex) {
+        for (int i = 0; i < replicaIndex; i++) {
+            if (proposedReplica.equals(replicas[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void snapshotPartitionTable() {
         logger.info("Cluster state changed to STABLE, keeping partition table snapshot");
         partitionTableSnapshot.compareAndSet(null, getPartitionTable());

@@ -285,4 +285,18 @@ public class MigrationInfo implements IdentifiedDataSerializable {
     public int getClassId() {
         return ClusterDataSerializerHook.MIGRATION_INFO;
     }
+
+    /**
+     *
+     * @return {@code true} if this object describes a local operation that shifts
+     * replica indexes.
+     * TODO: Will return {@code true} even when currentReplicaIndex==-1
+     *  at destination (so partition "appears" out of thin air, in STABLE_CLUSTER case
+     *  of member rejoining cluster and reclaiming its old partitions back). Is this
+     *  behaviour desired?
+     */
+    public boolean isLocalShiftOperation() {
+        return source == null && destination != null &&
+                destinationCurrentReplicaIndex != destinationNewReplicaIndex;
+    }
 }

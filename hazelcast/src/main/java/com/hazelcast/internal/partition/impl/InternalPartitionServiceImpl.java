@@ -213,6 +213,7 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
             }
 
             ClusterState clusterState = node.getClusterService().getClusterState();
+            // todo consider whether migrations are allowed in STABLE cluster state
             if (!clusterState.isMigrationAllowed()) {
                 throw new IllegalStateException("Partitions can't be assigned since cluster-state: " + clusterState);
             }

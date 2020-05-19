@@ -82,7 +82,7 @@ final class PartitionInvocation extends Invocation<PartitionReplica> {
     @Override
     Exception newTargetNullException() {
         ClusterState clusterState = context.clusterService.getClusterState();
-        if (!clusterState.isMigrationAllowed()) {
+        if (!clusterState.isMigrationAllowed() && !clusterState.isPartitionPromotionAllowed()) {
             return new IllegalStateException("Target of invocation cannot be found! Partition owner is null "
                     + "but partitions can't be assigned in cluster-state: " + clusterState);
         }

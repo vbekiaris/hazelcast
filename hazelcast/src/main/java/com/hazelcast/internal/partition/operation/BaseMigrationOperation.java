@@ -47,6 +47,7 @@ import com.hazelcast.spi.impl.operationservice.PartitionAwareOperation;
 import java.io.IOException;
 import java.util.List;
 
+import static com.hazelcast.cluster.ClusterState.STABLE;
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.readList;
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.writeList;
 
@@ -204,11 +205,25 @@ abstract class BaseMigrationOperation extends AbstractPartitionOperation
 
     /** Verifies that the cluster is active. */
     private void verifyClusterState() {
-        NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
+        NodeEngine nodeEngine = getNodeEngine();
         ClusterState clusterState = nodeEngine.getClusterService().getClusterState();
         if (!clusterState.isMigrationAllowed()) {
-            throw new IllegalStateException("Cluster state does not allow migrations! " + clusterState);
+            // local shifts are allowed in STABLE_CLUSTER, otherwise fail
+            if (!isMigrationAllowedInStableCluster()) {
+                throw new IllegalStateException("Cluster state " + clusterState + " does not allow migrations,"
+                        + " attempted migration: " + migrationInfo);
+            }
         }
+    }
+
+    private boolean isMigrationAllowedInStableCluster() {
+        ClusterState clusterState = getNodeEngine().getClusterService().getClusterState();
+        boolean allowed = (STABLE.equals(clusterState) &&
+                (migrationInfo.isLocalShiftOperation() || migrationInfo.getDestinationCurrentReplicaIndex() == -1));
+        if (allowed && !migrationInfo.isLocalShiftOperation()) {
+            System.out.println("Allowing migration " + migrationInfo);
+        }
+        return allowed;
     }
 
     /** Sets the active migration and the partition migration flag. */

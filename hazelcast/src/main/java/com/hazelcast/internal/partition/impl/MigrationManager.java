@@ -34,6 +34,7 @@ import com.hazelcast.internal.partition.MigrationStateImpl;
 import com.hazelcast.internal.partition.PartitionReplica;
 import com.hazelcast.internal.partition.PartitionRuntimeState;
 import com.hazelcast.internal.partition.PartitionStateVersionMismatchException;
+import com.hazelcast.internal.partition.PartitionTableView;
 import com.hazelcast.internal.partition.impl.MigrationInterceptor.MigrationParticipant;
 import com.hazelcast.internal.partition.impl.MigrationPlanner.MigrationDecisionCallback;
 import com.hazelcast.internal.partition.operation.FinalizeMigrationOperation;
@@ -86,6 +87,7 @@ import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import static com.hazelcast.cluster.ClusterState.STABLE;
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_MIGRATION_MANAGER_MIGRATION_ACTIVE;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.PARTITIONS_PREFIX;
@@ -702,12 +704,26 @@ public class MigrationManager {
                 triggerRepartitioningWhenClusterStateAllowsMigration
                         = !node.getClusterService().getClusterState().isMigrationAllowed();
                 if (triggerRepartitioningWhenClusterStateAllowsMigration) {
-                    if (logger.isFineEnabled()) {
-                        logger.fine("Migrations are not allowed yet, "
-                                + "repartitioning will be triggered when cluster state allows migrations.");
+                    // TODO: if some partitions are completely lost and STABLE_CLUSTER?
+                    if (STABLE.equals(node.getClusterService().getClusterState())) {
+                        logger.finest("Before restore \n" + dumpPartitionTable());
+                        PartitionReplica[][] newState = partitionStateManager.attemptRestoreFromSnapshot(shutdownRequestedMembers, null);
+                        if (newState == null) {
+                            return;
+                        }
+                        partitionService.publishPartitionRuntimeState();
+                        logger.finest("After restore \n" + dumpPartitionTable(newState));
+                        processNewPartitionState(newState);
+
+                        migrationQueue.add(new ProcessShutdownRequestsTask());
+                        return;
+                    } else {
+                        if (logger.isFineEnabled()) {
+                            logger.fine("Migrations are not allowed yet, " + "repartitioning will be triggered when cluster state allows migrations.");
+                        }
+                        assignCompletelyLostPartitions();
+                        return;
                     }
-                    assignCompletelyLostPartitions();
-                    return;
                 }
 
                 PartitionReplica[][] newState = repartition();
@@ -1245,8 +1261,11 @@ public class MigrationManager {
                 return;
             }
 
+            logger.finest("Repairing partition table, original is: \n" + dumpPartitionTable());
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);
+            logger.finest("After backup promotions partition table is: \n" + dumpPartitionTable());
+
             partitionServiceLock.lock();
             try {
                 if (success) {
@@ -1561,5 +1580,24 @@ public class MigrationManager {
             partitionService.getPartitionEventManager().sendMigrationProcessCompletedEvent(stats.toMigrationState());
             publishCompletedMigrations();
         }
+    }
+
+    private String dumpPartitionTable() {
+        PartitionTableView table = partitionStateManager.getPartitionTable();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < table.getLength(); i++) {
+            sb.append(i).append(" -> [")
+              .append(Arrays.toString(table.getReplicas(i))).append("]\n");
+        }
+        return sb.toString();
+    }
+
+    private String dumpPartitionTable(PartitionReplica[][] replicas) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < replicas.length; i++) {
+            sb.append(i).append(" -> [")
+              .append(Arrays.toString(replicas[i])).append("]\n");
+        }
+        return sb.toString();
     }
 }
