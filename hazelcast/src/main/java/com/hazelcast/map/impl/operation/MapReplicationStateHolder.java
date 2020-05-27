@@ -115,12 +115,16 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
 
             MapContainer mapContainer = recordStore.getMapContainer();
             MapConfig mapConfig = mapContainer.getMapConfig();
-            if (mapConfig.getTotalBackupCount() < replicaIndex ||
-                    // todo: should take into account number of members missing vs snapshot partition table
-                    //  but it's enough for an experiment
-                    ((ClusterState.STABLE_CLUSTER == clusterState)
-                     && (mapConfig.getTotalBackupCount() == replicaIndex))) {
+            if (mapConfig.getTotalBackupCount() < replicaIndex) {
                 continue;
+            }
+
+            // todo: should take into account number of members missing vs snapshot partition table
+            //  but it's enough for an experiment
+            if ((ClusterState.STABLE_CLUSTER == clusterState)
+                    && (mapConfig.getTotalBackupCount() == replicaIndex)) {
+                System.out.println("Skipping migration of " + mapContainer.getName() + " because cluster is STABLE and "
+                        + replicaIndex + " is max backup configured.");
             }
 
             loaded.put(mapName, recordStore.isLoaded());
