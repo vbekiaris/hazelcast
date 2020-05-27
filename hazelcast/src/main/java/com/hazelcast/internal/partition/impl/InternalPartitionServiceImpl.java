@@ -70,6 +70,7 @@ import com.hazelcast.spi.properties.ClusterProperty;
 import com.hazelcast.spi.properties.HazelcastProperties;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -1281,6 +1282,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         }
     }
 
+    @Nullable
+    public PartitionTableView getPartitionTableSnapshot() {
+        return partitionStateManager.getPartitionTableSnapshot();
+    }
 
     /**
      * Invoked on a node when it becomes master. It will receive partition states from all members and consolidate them into one.
