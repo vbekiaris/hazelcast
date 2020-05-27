@@ -823,11 +823,11 @@ public class MigrationManager {
                 PartitionReplica[] currentReplicas = currentPartition.getReplicas();
                 PartitionReplica[] newReplicas = newState[partitionId];
 
-                MigrationCollector migrationCollector = STABLE_CLUSTER.equals(node.clusterService.getClusterState())
-                        ? new StableClusterMigrationCollector(currentPartition)
-                        : new MigrationCollector(currentPartition);
+//                MigrationCollector migrationCollector = STABLE_CLUSTER.equals(node.clusterService.getClusterState())
+//                        ? new StableClusterMigrationCollector(currentPartition)
+//                        : new MigrationCollector(currentPartition);
 
-//                MigrationCollector migrationCollector = new MigrationCollector(currentPartition);
+                MigrationCollector migrationCollector = new MigrationCollector(currentPartition);
                 if (logger.isFinestEnabled()) {
                     logger.finest("Planning migrations for partitionId=" + partitionId
                             + ". Current replicas: " + Arrays.toString(currentReplicas)
@@ -915,7 +915,7 @@ public class MigrationManager {
         }
 
         private class MigrationCollector implements MigrationDecisionCallback {
-            final InternalPartitionImpl partition;
+            private final InternalPartitionImpl partition;
             private final LinkedList<MigrationInfo> migrations = new LinkedList<>();
             private PartitionReplica lostPartitionDestination;
 
@@ -998,7 +998,7 @@ public class MigrationManager {
                     return;
                 }
 
-                MigrationInfo info = new MigrationInfo(partition.getPartitionId(), source, destination, sourceCurrentReplicaIndex,
+                MigrationInfo info = new MigrationInfo(0, source, destination, sourceCurrentReplicaIndex,
                         sourceNewReplicaIndex, destinationCurrentReplicaIndex, destinationNewReplicaIndex);
                 logger.severe("Unacceptable migration planned: " + info);
             }
