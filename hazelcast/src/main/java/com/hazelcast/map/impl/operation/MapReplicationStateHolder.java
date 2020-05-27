@@ -17,6 +17,7 @@
 package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.cluster.Address;
+import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.config.IndexConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nio.IOUtil;
@@ -99,6 +100,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
     }
 
     void prepare(PartitionContainer container, Collection<ServiceNamespace> namespaces, int replicaIndex) {
+        ClusterState clusterState = operation.getNodeEngine().getClusterService().getClusterState();
         storesByMapName = createHashMap(namespaces.size());
 
         loaded = createHashMap(namespaces.size());
@@ -113,7 +115,11 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
 
             MapContainer mapContainer = recordStore.getMapContainer();
             MapConfig mapConfig = mapContainer.getMapConfig();
-            if (mapConfig.getTotalBackupCount() < replicaIndex) {
+            if (mapConfig.getTotalBackupCount() < replicaIndex ||
+                    // todo: should take into account number of members missing vs snapshot partition table
+                    //  but it's enough for an experiment
+                    ((ClusterState.STABLE_CLUSTER == clusterState)
+                     && (mapConfig.getTotalBackupCount() == replicaIndex))) {
                 continue;
             }
 

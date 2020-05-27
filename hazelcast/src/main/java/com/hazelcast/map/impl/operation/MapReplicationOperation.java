@@ -26,6 +26,7 @@ import com.hazelcast.memory.NativeOutOfMemoryError;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
+import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.io.IOException;
@@ -51,10 +52,12 @@ public class MapReplicationOperation extends Operation
                                    Collection<ServiceNamespace> namespaces,
                                    int partitionId,
                                    int replicaIndex,
-                                   boolean differentialMigrationHint) {
+                                   boolean differentialMigrationHint,
+                                   NodeEngine nodeEngine) {
 
         this.differentialMigrationHint = differentialMigrationHint;
         setPartitionId(partitionId).setReplicaIndex(replicaIndex);
+        this.setNodeEngine(nodeEngine);
 
         this.mapReplicationStateHolder = new MapReplicationStateHolder();
         this.mapReplicationStateHolder.setOperation(this);

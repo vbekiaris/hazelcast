@@ -160,9 +160,9 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         // 1 & 2 are checked in MapReplicationStateHolder at the time of gathering data for
         // replication, while 3 is checked here.
         Operation operation = new MapReplicationOperation(containers[partitionId],
-                namespaces, partitionId, event.getReplicaIndex(), differentialMigrationHint(event));
+                namespaces, partitionId, event.getReplicaIndex(), differentialMigrationHint(event),
+                mapServiceContext.getNodeEngine());
         operation.setService(mapServiceContext.getService());
-        operation.setNodeEngine(mapServiceContext.getNodeEngine());
 
         return operation;
     }
