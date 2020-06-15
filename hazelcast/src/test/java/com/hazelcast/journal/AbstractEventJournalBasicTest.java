@@ -476,7 +476,6 @@ public abstract class AbstractEventJournalBasicTest<EJ_TYPE> extends HazelcastTe
     }
 
     @Test
-    @Ignore("https://github.com/hazelcast/hazelcast/issues/16964")
     public void allowReadingWithFutureSeq() throws Exception {
         final EventJournalTestContext<String, Integer, EJ_TYPE> context = createContext();
 

@@ -58,6 +58,8 @@ public class ClusterViewListenerService {
     private final AtomicBoolean pushScheduled = new AtomicBoolean();
     private final CoalescingDelayedTrigger delayedPartitionUpdateTrigger;
 
+    private volatile boolean initialArrangement = true;
+
     ClusterViewListenerService(NodeEngineImpl nodeEngine) {
         this.nodeEngine = nodeEngine;
         this.advancedNetworkConfigEnabled = nodeEngine.getConfig().getAdvancedNetworkConfig().isEnabled();
@@ -83,7 +85,12 @@ public class ClusterViewListenerService {
     }
 
     public void onPartitionStateChange() {
-        delayedPartitionUpdateTrigger.executeWithDelay();
+        if (initialArrangement) {
+            pushPartitionTableView();
+            initialArrangement = false;
+        } else {
+            delayedPartitionUpdateTrigger.executeWithDelay();
+        }
     }
 
     public void onMemberListChange() {
