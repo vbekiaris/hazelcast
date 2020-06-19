@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="hr-stable-1" type="Java Scratch">
+    <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+    <option name="MAIN_CLASS_NAME" value="Scratch" />
+    <module name="hazelcast-enterprise" />
+    <option name="SCRATCH_FILE_URL" value="file://$APPLICATION_CONFIG_DIR$/scratches/scratch_129.java" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="delete hot-restart dir" run_configuration_type="ShConfigurationType" />
+    </method>
+  </configuration>
+</component>

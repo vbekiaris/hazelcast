@@ -27,6 +27,7 @@ import com.hazelcast.nio.serialization.ClassNameFilter;
 import com.hazelcast.internal.serialization.Data;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.EOFException;
@@ -141,12 +142,13 @@ public final class IOUtil {
         return in.readObject();
     }
 
-    public static void writeData(ObjectDataOutput out, Data data) throws IOException {
+    public static void writeData(@Nonnull ObjectDataOutput out, @Nullable Data data) throws IOException {
         assert out instanceof DataWriter : "out must be an instance of DataWriter";
         ((DataWriter) out).writeData(data);
     }
 
-    public static Data readData(ObjectDataInput in) throws IOException {
+    @Nullable
+    public static Data readData(@Nonnull ObjectDataInput in) throws IOException {
         assert in instanceof DataReader : "in must be an instance of DataReader";
         return ((DataReader) in).readData();
     }
