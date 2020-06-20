@@ -20,6 +20,7 @@ import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.internal.serialization.Data;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -34,9 +35,17 @@ class CompositeMutationObserver<R extends Record> implements MutationObserver<R>
 
     void add(MutationObserver<R> mutationObserver) {
         if (mutationObservers == null) {
-            mutationObservers = new LinkedList<>();
+            mutationObservers = new ArrayList<>();
         }
         mutationObservers.add(mutationObserver);
+    }
+
+    void remove(MutationObserver<R> mutationObserver) {
+        if (mutationObservers == null) {
+            mutationObservers = new ArrayList<>();
+            return;
+        }
+        mutationObservers.remove(mutationObserver);
     }
 
     @Override

@@ -98,7 +98,7 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         if (event.getMigrationEndpoint() == DESTINATION
             && event.getCurrentReplicaIndex() > event.getNewReplicaIndex()
             && event.getNewReplicaIndex() >= 0) {
-            // 3. TODO: Hot-Restart hook: mark beginning of promotion
+            // 3. TODO: Hot-Restart hook: mark beginning of shift up
             System.out.println("Starting mutation observer " + event);
             hookHotRestartMutationObserver(event);
         }
@@ -168,7 +168,7 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
     }
 
     private boolean differentialMigrationHint(PartitionReplicationEvent e) {
-        return e.getReplicaIndex() == 0;
+        return true; // todo
     }
 
     private boolean assertAllKnownNamespaces(Collection<ServiceNamespace> namespaces) {

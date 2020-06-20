@@ -165,7 +165,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                     }
                 }
                 System.out.println("Working on " +mapName+ " / " + partition.getPartitionId() + ", this member owns "
-                        + replicaIndex
+                        + replicaIndex + ", diff migration? " + differentialMigration
                         + ", current record store size is " + recordStore.size() + ", " +
                         keyRecord.size() + " migrated KVs from " + operation.getCallerAddress());
                 if (!differentialMigration) {
@@ -318,6 +318,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
     }
 
     private boolean differentialMigrationCapable(VersionAware versionAware, RecordStore recordStore) {
+        System.out.println(">> diffm decision: Op " + operation.isDifferentialMigrationHint() + ", "
+                            + versionAware.getVersion().isGreaterOrEqual(V4_1) + ", "
+                            + recordStore.isDifferentialMigrationCapable());
         return operation.isDifferentialMigrationHint()
                 && versionAware.getVersion().isGreaterOrEqual(V4_1)
                 && recordStore.isDifferentialMigrationCapable();
