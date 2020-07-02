@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.partition.operation;
 
+import com.hazelcast.internal.partition.ExtendedMigrationAwareService;
 import com.hazelcast.internal.partition.MigrationCycleOperation;
 import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.PartitionReplica;
@@ -211,7 +212,11 @@ public final class FinalizeMigrationOperation extends AbstractPartitionOperation
 
     private void beforeMigration(PartitionMigrationEvent event, MigrationAwareService service) {
         try {
-            service.beforeMigration(event);
+            if (service instanceof ExtendedMigrationAwareService) {
+                ((ExtendedMigrationAwareService)service).beforeMigration(migrationInfo, event);
+            } else {
+                service.beforeMigration(event);
+            }
         } catch (Throwable e) {
             getLogger().warning("Error before migration -> " + event, e);
         }

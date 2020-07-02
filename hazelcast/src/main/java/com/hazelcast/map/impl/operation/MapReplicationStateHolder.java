@@ -19,11 +19,13 @@ package com.hazelcast.map.impl.operation;
 import com.hazelcast.config.IndexConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.internal.nio.IOUtil;
+import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.internal.serialization.SerializationService;
 import com.hazelcast.internal.services.ObjectNamespace;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
+import com.hazelcast.internal.util.SetUtil;
 import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapDataSerializerHook;
@@ -35,7 +37,6 @@ import com.hazelcast.map.impl.recordstore.RecordStore;
 import com.hazelcast.map.impl.recordstore.RecordStoreAdapter;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.query.impl.Index;
 import com.hazelcast.query.impl.Indexes;
@@ -45,6 +46,7 @@ import com.hazelcast.query.impl.MapIndexInfo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +58,6 @@ import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
 /**
  * Holder for raw IMap key-value pairs and their metadata.
  */
-// keep this `protected`, extended in another context.
 public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
     // holds recordStore-references of this partitions' maps
@@ -76,13 +77,24 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
     // operations, which meant that the index did not include some data.
     protected transient List<MapIndexInfo> mapIndexInfos;
 
-    private MapReplicationOperation operation;
+    protected transient Map<String, int[]> merkleTreeDiffByMapName;
+
+    protected Set<String> mapNamesWithDifferentialReplication;
+
+    protected MapReplicationOperation operation;
 
     /**
      * This constructor exists solely for instantiation by {@code MapDataSerializerHook}. The object is not ready to use
      * unless {@code operation} is set.
      */
     public MapReplicationStateHolder() {
+    }
+
+    public void setMerkleTreeDiffByMapName(Map<String, int[]> merkleTreeDiffByMapName) {
+        this.merkleTreeDiffByMapName = merkleTreeDiffByMapName;
+        this.mapNamesWithDifferentialReplication = merkleTreeDiffByMapName == null
+                ? Collections.emptySet()
+                : merkleTreeDiffByMapName.keySet();
     }
 
     public void setOperation(MapReplicationOperation operation) {
@@ -146,7 +158,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                 String mapName = dataEntry.getKey();
                 List keyRecord = dataEntry.getValue();
                 RecordStore recordStore = operation.getRecordStore(mapName);
-                recordStore.reset();
+                if (!mapNamesWithDifferentialReplication.contains(mapName)) {
+                    recordStore.reset();
+                }
                 recordStore.setPreMigrationLoadedStatus(loaded.get(mapName));
                 StoreAdapter storeAdapter = new RecordStoreAdapter(recordStore);
 
@@ -226,24 +240,20 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
     @Override
     public void writeData(ObjectDataOutput out) throws IOException {
+        // todo RU
         out.writeInt(storesByMapName.size());
 
         for (Map.Entry<String, RecordStore<Record>> entry : storesByMapName.entrySet()) {
             String mapName = entry.getKey();
             out.writeUTF(mapName);
 
-            SerializationService ss = getSerializationService(operation.getRecordStore(mapName).getMapContainer());
-            RecordStore<Record> recordStore = entry.getValue();
-            out.writeInt(recordStore.size());
-            // No expiration should be done in forEach, since we have serialized size before.
-            recordStore.forEach((dataKey, record) -> {
-                try {
-                    IOUtil.writeData(out, dataKey);
-                    Records.writeRecord(out, record, ss.toData(record.getValue()));
-                } catch (IOException e) {
-                    throw ExceptionUtil.rethrow(e);
-                }
-            }, operation.getReplicaIndex() != 0, true);
+            if (mapNamesWithDifferentialReplication.contains(mapName)) {
+                out.writeBoolean(true);
+                writeDifferentialData(mapName, entry.getValue(), out);
+            } else {
+                out.writeBoolean(false);
+                writeRecordStoreData(entry.getValue(), out);
+            }
         }
 
         out.writeInt(loaded.size());
@@ -258,7 +268,27 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
         }
     }
 
-    private static SerializationService getSerializationService(MapContainer mapContainer) {
+    protected void writeDifferentialData(String mapName,
+                                         RecordStore<Record> recordStore, ObjectDataOutput out) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    private void writeRecordStoreData(RecordStore<Record> recordStore, ObjectDataOutput out)
+            throws IOException {
+        SerializationService ss = getSerializationService(recordStore.getMapContainer());
+        out.writeInt(recordStore.size());
+        // No expiration should be done in forEach, since we have serialized size before.
+        recordStore.forEach((dataKey, record) -> {
+            try {
+                IOUtil.writeData(out, dataKey);
+                Records.writeRecord(out, record, ss.toData(record.getValue()));
+            } catch (IOException e) {
+                throw ExceptionUtil.rethrow(e);
+            }
+        }, operation.getReplicaIndex() != 0, true);
+    }
+
+    protected static SerializationService getSerializationService(MapContainer mapContainer) {
         return mapContainer.getMapServiceContext()
                 .getNodeEngine().getSerializationService();
     }
@@ -267,19 +297,18 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
     public void readData(ObjectDataInput in) throws IOException {
         int size = in.readInt();
         data = createHashMap(size);
+        mapNamesWithDifferentialReplication = new HashSet<>();
 
         for (int i = 0; i < size; i++) {
-            String name = in.readUTF();
-            int numOfRecords = in.readInt();
-            List keyRecord = new ArrayList<>(numOfRecords * 2);
-            for (int j = 0; j < numOfRecords; j++) {
-                Data dataKey = IOUtil.readData(in);
-                Record record = Records.readRecord(in);
+            String mapName = in.readUTF();
+            boolean differentialReplication = in.readBoolean();
 
-                keyRecord.add(dataKey);
-                keyRecord.add(record);
+            if (differentialReplication) {
+                mapNamesWithDifferentialReplication.add(mapName);
+                readDifferentialData(mapName, in);
+            } else {
+                readRecordStoreData(mapName, in);
             }
-            data.put(name, keyRecord);
         }
 
         int loadedSize = in.readInt();
@@ -294,6 +323,26 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
             MapIndexInfo mapIndexInfo = in.readObject();
             mapIndexInfos.add(mapIndexInfo);
         }
+    }
+
+    // todo remove, not necessary
+    protected void readDifferentialData(String mapName, ObjectDataInput in)
+            throws IOException {
+        readRecordStoreData(mapName, in);
+    }
+
+    protected void readRecordStoreData(String mapName, ObjectDataInput in)
+            throws IOException {
+        int numOfRecords = in.readInt();
+        List keyRecord = new ArrayList<>(numOfRecords * 2);
+        for (int j = 0; j < numOfRecords; j++) {
+            Data dataKey = IOUtil.readData(in);
+            Record record = Records.readRecord(in);
+
+            keyRecord.add(dataKey);
+            keyRecord.add(record);
+        }
+        data.put(mapName, keyRecord);
     }
 
     @Override

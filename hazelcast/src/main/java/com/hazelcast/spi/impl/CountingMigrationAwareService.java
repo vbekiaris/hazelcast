@@ -16,12 +16,14 @@
 
 package com.hazelcast.spi.impl;
 
+import com.hazelcast.internal.partition.ExtendedMigrationAwareService;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.MigrationAwareService;
+import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.PartitionMigrationEvent;
 import com.hazelcast.internal.partition.PartitionReplicationEvent;
-import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.internal.services.ServiceNamespace;
+import com.hazelcast.spi.impl.operationservice.Operation;
 
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A {@link MigrationAwareService} that delegates to another {@link MigrationAwareService} and keeps track of the number of
  * migrations concerning the partition owner (either as current or new replica index) currently in-flight.
  */
-public class CountingMigrationAwareService implements FragmentedMigrationAwareService {
+public class CountingMigrationAwareService implements FragmentedMigrationAwareService, ExtendedMigrationAwareService {
 
     static final int PRIMARY_REPLICA_INDEX = 0;
     static final int IN_FLIGHT_MIGRATION_STAMP = -1;
@@ -74,6 +76,18 @@ public class CountingMigrationAwareService implements FragmentedMigrationAwareSe
             ownerMigrationsStarted.incrementAndGet();
         }
         migrationAwareService.beforeMigration(event);
+    }
+
+    @Override
+    public void beforeMigration(MigrationInfo migrationInfo, PartitionMigrationEvent event) {
+        if (isPrimaryReplicaMigrationEvent(event)) {
+            ownerMigrationsStarted.incrementAndGet();
+        }
+        if (migrationAwareService instanceof ExtendedMigrationAwareService) {
+            ((ExtendedMigrationAwareService) migrationAwareService).beforeMigration(migrationInfo, event);
+        } else {
+            migrationAwareService.beforeMigration(event);
+        }
     }
 
     @Override

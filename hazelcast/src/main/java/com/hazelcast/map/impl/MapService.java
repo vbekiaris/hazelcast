@@ -23,8 +23,10 @@ import com.hazelcast.internal.cluster.ClusterStateListener;
 import com.hazelcast.internal.metrics.DynamicMetricsProvider;
 import com.hazelcast.internal.metrics.MetricDescriptor;
 import com.hazelcast.internal.metrics.MetricsCollectionContext;
+import com.hazelcast.internal.partition.ExtendedMigrationAwareService;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.IPartitionLostEvent;
+import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.PartitionAwareService;
 import com.hazelcast.internal.partition.PartitionMigrationEvent;
 import com.hazelcast.internal.partition.PartitionReplicationEvent;
@@ -94,7 +96,7 @@ public class MapService implements ManagedService, FragmentedMigrationAwareServi
                                    SplitBrainHandlerService, WanSupportingService, StatisticsAwareService<LocalMapStats>,
                                    PartitionAwareService, ClientAwareService, SplitBrainProtectionAwareService,
                                    NotifiableEventListener, ClusterStateListener, LockInterceptorService<Data>,
-                                   DynamicMetricsProvider {
+                                   DynamicMetricsProvider, ExtendedMigrationAwareService {
 
     public static final String SERVICE_NAME = "hz:impl:mapService";
 
@@ -164,6 +166,11 @@ public class MapService implements ManagedService, FragmentedMigrationAwareServi
     @Override
     public void beforeMigration(PartitionMigrationEvent event) {
         migrationAwareService.beforeMigration(event);
+    }
+
+    @Override
+    public void beforeMigration(MigrationInfo migrationInfo, PartitionMigrationEvent event) {
+        migrationAwareService.beforeMigration(migrationInfo, event);
     }
 
     @Override

@@ -20,6 +20,7 @@ import com.hazelcast.cluster.Address;
 import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.core.MemberLeftException;
+import com.hazelcast.internal.partition.ExtendedMigrationAwareService;
 import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.internal.partition.MigrationAwareService;
@@ -252,7 +253,11 @@ abstract class BaseMigrationOperation extends AbstractPartitionOperation
         for (MigrationAwareService service : getMigrationAwareServices()) {
             // we need to make sure all beforeMigration() methods are executed
             try {
-                service.beforeMigration(event);
+                if (service instanceof ExtendedMigrationAwareService) {
+                    ((ExtendedMigrationAwareService)service).beforeMigration(migrationInfo, event);
+                } else {
+                    service.beforeMigration(event);
+                }
             } catch (Throwable e) {
                 getLogger().warning("Error while executing beforeMigration()", e);
                 t = e;

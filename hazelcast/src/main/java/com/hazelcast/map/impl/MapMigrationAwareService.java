@@ -134,7 +134,7 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         return operation;
     }
 
-    private boolean assertAllKnownNamespaces(Collection<ServiceNamespace> namespaces) {
+    boolean assertAllKnownNamespaces(Collection<ServiceNamespace> namespaces) {
         for (ServiceNamespace namespace : namespaces) {
             assert isKnownServiceNamespace(namespace) : namespace + " is not a MapService namespace!";
         }
