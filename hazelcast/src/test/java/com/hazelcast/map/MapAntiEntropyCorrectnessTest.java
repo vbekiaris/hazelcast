@@ -145,7 +145,6 @@ public class MapAntiEntropyCorrectnessTest extends AntiEntropyCorrectnessTest {
         assertTrueEventually(() -> {
             for (int i = 1; i <= backupCount; i++) {
                 BackupAccessor backupAccessor = TestBackupUtils.newMapAccessor(instances, mapName, i);
-                System.out.println("Replica index " + i + " has size " + backupAccessor.size());
                 assertEquals(expectedSize, backupAccessor.size());
             }
         }, 20);
