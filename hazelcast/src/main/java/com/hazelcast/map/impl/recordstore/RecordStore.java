@@ -290,6 +290,8 @@ public interface RecordStore<R extends Record> {
      */
     R putReplicatedRecord(Data dataKey, R record, long nowInMillis, boolean indexesMustBePopulated);
 
+    void removeReplicatedRecord(Data dataKey);
+
     void forEach(BiConsumer<Data, R> consumer, boolean backup);
 
     void forEach(BiConsumer<Data, Record> consumer, boolean backup, boolean includeExpiredRecords);

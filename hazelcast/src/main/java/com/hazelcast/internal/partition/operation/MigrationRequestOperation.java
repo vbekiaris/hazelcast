@@ -262,7 +262,8 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
     }
 
     private PartitionReplicationEvent getPartitionReplicationEvent() {
-        return new PartitionReplicationEvent(migrationInfo.getPartitionId(), migrationInfo.getDestinationNewReplicaIndex());
+        return new PartitionReplicationEvent(migrationInfo.getDestinationAddress(),
+                migrationInfo.getPartitionId(), migrationInfo.getDestinationNewReplicaIndex());
     }
 
     private void completeMigration(boolean result) {

@@ -129,7 +129,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
     private void sendOperationsForNamespaces(int permits) {
         InternalPartitionServiceImpl partitionService = getService();
         try {
-            PartitionReplicationEvent event = new PartitionReplicationEvent(getPartitionId(), getReplicaIndex());
+            PartitionReplicationEvent event = new PartitionReplicationEvent(getCallerAddress(), getPartitionId(), getReplicaIndex());
             Iterator<ServiceNamespace> iterator = namespaces.iterator();
             for (int i = 0; i < permits; i++) {
                 ServiceNamespace namespace = iterator.next();

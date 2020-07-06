@@ -25,7 +25,6 @@ import com.hazelcast.internal.services.ObjectNamespace;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
-import com.hazelcast.internal.util.SetUtil;
 import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapDataSerializerHook;
@@ -47,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -158,9 +158,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                 String mapName = dataEntry.getKey();
                 List keyRecord = dataEntry.getValue();
                 RecordStore recordStore = operation.getRecordStore(mapName);
-                if (!mapNamesWithDifferentialReplication.contains(mapName)) {
-                    recordStore.reset();
-                }
+                initializeRecordStore(mapName, recordStore);
                 recordStore.setPreMigrationLoadedStatus(loaded.get(mapName));
                 StoreAdapter storeAdapter = new RecordStoreAdapter(recordStore);
 
@@ -200,6 +198,12 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                     Indexes.markPartitionAsIndexed(partitionContainer.getPartitionId(), indexesSnapshot);
                 }
             }
+        }
+    }
+
+    protected void initializeRecordStore(String mapName, RecordStore recordStore) {
+        if (!mapNamesWithDifferentialReplication.contains(mapName)) {
+            recordStore.reset();
         }
     }
 
@@ -247,7 +251,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
             String mapName = entry.getKey();
             out.writeUTF(mapName);
 
-            if (mapNamesWithDifferentialReplication.contains(mapName)) {
+            if (mapNamesWithDifferentialReplication != null && mapNamesWithDifferentialReplication.contains(mapName)) {
                 out.writeBoolean(true);
                 writeDifferentialData(mapName, entry.getValue(), out);
             } else {
@@ -298,6 +302,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
         int size = in.readInt();
         data = createHashMap(size);
         mapNamesWithDifferentialReplication = new HashSet<>();
+        merkleTreeDiffByMapName = new HashMap<>();
 
         for (int i = 0; i < size; i++) {
             String mapName = in.readUTF();
@@ -328,6 +333,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
     // todo remove, not necessary
     protected void readDifferentialData(String mapName, ObjectDataInput in)
             throws IOException {
+        int[] diffNodeOrder = in.readIntArray();
+        merkleTreeDiffByMapName.put(mapName, diffNodeOrder);
         readRecordStoreData(mapName, in);
     }
 

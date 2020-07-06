@@ -68,7 +68,7 @@ public abstract class PartitionCorrectnessTestSupport extends HazelcastTestSuppo
 
     private static final String[] NAMESPACES = {"ns1", "ns2"};
 
-    TestHazelcastInstanceFactory factory;
+    protected TestHazelcastInstanceFactory factory;
 
     @Parameterized.Parameter(0)
     public int backupCount;
@@ -361,7 +361,7 @@ public abstract class PartitionCorrectnessTestSupport extends HazelcastTestSuppo
         return node.nodeEngine.getService(serviceName);
     }
 
-    Config getConfig(boolean withService, boolean antiEntropyEnabled) {
+    protected Config getConfig(boolean withService, boolean antiEntropyEnabled) {
         Config config = new Config();
 
         if (withService) {

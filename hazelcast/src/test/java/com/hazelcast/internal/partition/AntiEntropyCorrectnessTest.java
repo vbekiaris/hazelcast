@@ -95,7 +95,7 @@ public class AntiEntropyCorrectnessTest extends PartitionCorrectnessTestSupport 
         cm.setPacketFilter(new BackupPacketDropFilter(node.getSerializationService(), blockRatio));
     }
 
-    private static class BackupPacketDropFilter extends OperationPacketFilter implements PacketFilter {
+    public static class BackupPacketDropFilter extends OperationPacketFilter implements PacketFilter {
         final float blockRatio;
 
         BackupPacketDropFilter(InternalSerializationService serializationService, float blockRatio) {
