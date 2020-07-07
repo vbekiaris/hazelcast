@@ -68,7 +68,7 @@ public abstract class PartitionCorrectnessTestSupport extends HazelcastTestSuppo
 
     private static final String[] NAMESPACES = {"ns1", "ns2"};
 
-    protected TestHazelcastInstanceFactory factory;
+    public TestHazelcastInstanceFactory factory;
 
     @Parameterized.Parameter(0)
     public int backupCount;

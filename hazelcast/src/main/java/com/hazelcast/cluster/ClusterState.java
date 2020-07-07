@@ -163,7 +163,39 @@ public enum ClusterState {
      * </li>
      * </ul>
      */
-    IN_TRANSITION(false, false, false, 4);
+    IN_TRANSITION(false, false, false, 4),
+
+
+    /**
+     * In {@code STABLE_CLUSTER} state of the cluster:
+     * <ul>
+     * <li>
+     * New members are not allowed to join, except members that left during
+     * {@code STABLE_CLUSTER}, {@link #FROZEN} or {@link #PASSIVE} state.
+     * For example, cluster has 3 nodes; A, B and C in {@code STABLE_CLUSTER} state. If member B leaves
+     * the cluster (either proper shutdown or crash), it will be allowed to re-join to the cluster.
+     * But another member D, won't be able to join.
+     * </li>
+     * <li>
+     *     TODO HERE
+     * Partition table/assignments will be frozen. When a member leaves the cluster, its partition
+     * assignments (as primary and backup) will remain the same, until either that member re-joins
+     * to the cluster or {@code ClusterState} changes back to {@code ACTIVE}.
+     * If that member re-joins while still in {@code FROZEN}, it will own all previously assigned partitions.
+     * If {@code ClusterState} changes to {@code ACTIVE} then partition re-balancing process will
+     * kick in and all unassigned partitions will be assigned to active members.
+     * It's not allowed to change {@code ClusterState} to {@code FROZEN}
+     * when there are pending migration/replication tasks in the system.
+     * </li>
+     * <li>
+     * Nodes continue to stay in {@link NodeState#ACTIVE} state when cluster goes into the {@code STABLE_CLUSTER} state.
+     * </li>
+     * <li>
+     * TODO HERE All operations except migrations are allowed and will operate without any restriction.
+     * </li>
+     * </ul>
+     */
+    STABLE_CLUSTER(false, true, true, 5);
 
     private final boolean joinAllowed;
     private final boolean migrationAllowed;

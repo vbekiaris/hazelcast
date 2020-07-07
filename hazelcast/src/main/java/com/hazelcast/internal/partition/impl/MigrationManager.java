@@ -34,6 +34,7 @@ import com.hazelcast.internal.partition.MigrationStateImpl;
 import com.hazelcast.internal.partition.PartitionReplica;
 import com.hazelcast.internal.partition.PartitionRuntimeState;
 import com.hazelcast.internal.partition.PartitionStateVersionMismatchException;
+import com.hazelcast.internal.partition.PartitionTableView;
 import com.hazelcast.internal.partition.impl.MigrationInterceptor.MigrationParticipant;
 import com.hazelcast.internal.partition.impl.MigrationPlanner.MigrationDecisionCallback;
 import com.hazelcast.internal.partition.operation.FinalizeMigrationOperation;
@@ -87,6 +88,7 @@ import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import static com.hazelcast.cluster.ClusterState.STABLE_CLUSTER;
 import static com.hazelcast.cluster.memberselector.MemberSelectors.DATA_MEMBER_SELECTOR;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_MIGRATION_MANAGER_MIGRATION_ACTIVE;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.PARTITIONS_PREFIX;
@@ -702,16 +704,18 @@ public class MigrationManager {
             try {
                 triggerRepartitioningWhenClusterStateAllowsMigration
                         = !node.getClusterService().getClusterState().isMigrationAllowed();
+                // TODO: if some partitions are completely lost and STABLE_CLUSTER?
                 if (triggerRepartitioningWhenClusterStateAllowsMigration) {
-                    if (logger.isFineEnabled()) {
-                        logger.fine("Migrations are not allowed yet, "
-                                + "repartitioning will be triggered when cluster state allows migrations.");
+                        if (logger.isFineEnabled()) {
+                            logger.fine("Migrations are not allowed yet, " + "repartitioning will be triggered when cluster state allows migrations.");
+                        }
+                        assignCompletelyLostPartitions();
+                        return;
                     }
-                    assignCompletelyLostPartitions();
-                    return;
-                }
 
-                PartitionReplica[][] newState = repartition();
+                PartitionReplica[][] newState = STABLE_CLUSTER.equals(node.getClusterService().getClusterState())
+                    ? restoreFromSnapshot()
+                    : repartition();
                 if (newState == null) {
                     return;
                 }
@@ -720,6 +724,13 @@ public class MigrationManager {
             } finally {
                 partitionServiceLock.unlock();
             }
+        }
+
+        private PartitionReplica[][] restoreFromSnapshot() {
+            logger.finest("Before restore \n" + dumpPartitionTable());
+            PartitionReplica[][] newState = partitionStateManager.attemptRestoreFromSnapshot(shutdownRequestedMembers, null);
+            logger.finest("After restore \n" + dumpPartitionTable(newState));
+            return newState;
         }
 
         /**
@@ -803,12 +814,14 @@ public class MigrationManager {
             List<Queue<MigrationInfo>> migrations = new ArrayList<>(newState.length);
             Int2ObjectHashMap<PartitionReplica> lostPartitions = new Int2ObjectHashMap<>();
 
+            Map<String, AtomicInteger> migrationsPerType = new ConcurrentHashMap<>();
+
             for (int partitionId = 0; partitionId < newState.length; partitionId++) {
                 InternalPartitionImpl currentPartition = partitionStateManager.getPartitionImpl(partitionId);
                 PartitionReplica[] currentReplicas = currentPartition.getReplicas();
                 PartitionReplica[] newReplicas = newState[partitionId];
 
-                MigrationCollector migrationCollector = new MigrationCollector(currentPartition);
+                StatsTrackingCollector migrationCollector = new StatsTrackingCollector(currentPartition, migrationsPerType);
                 if (logger.isFinestEnabled()) {
                     logger.finest("Planning migrations for partitionId=" + partitionId
                             + ". Current replicas: " + Arrays.toString(currentReplicas)
@@ -823,7 +836,10 @@ public class MigrationManager {
                     migrations.add(migrationCollector.migrations);
                     migrationCount += migrationCollector.migrations.size();
                 }
+                logger.info("Migrations for partition " + partitionId + ": " + migrationCollector.dumpPartitionTypes());
             }
+
+            logger.info("Planned migrations per type: " + dumpMigrationTypes(migrationsPerType));
 
             stats.markNewRepartition(migrationCount);
             if (migrationCount > 0) {
@@ -895,10 +911,49 @@ public class MigrationManager {
             return false;
         }
 
+        class StatsTrackingCollector extends MigrationCollector {
+            private final Map<String, AtomicInteger> migrationsPerType;
+            private final Map<String, AtomicInteger> thisMigrationsPerType;
+
+            public StatsTrackingCollector(InternalPartitionImpl partition, Map<String, AtomicInteger> migrationsPerType) {
+                super(partition);
+                this.migrationsPerType = migrationsPerType;
+                thisMigrationsPerType = new ConcurrentHashMap<>();
+            }
+
+            @Override
+            public void migrate(PartitionReplica source, int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
+                                PartitionReplica destination, int destinationCurrentReplicaIndex,
+                                int destinationNewReplicaIndex, String migrationType) {
+                migrationsPerType.compute(migrationType, (k, v) -> {
+                    if (v == null) {
+                        return new AtomicInteger(1);
+                    } else {
+                        v.incrementAndGet();
+                        return v;
+                    }
+                });
+                thisMigrationsPerType.compute(migrationType, (k, v) -> {
+                    if (v == null) {
+                        return new AtomicInteger(1);
+                    } else {
+                        v.incrementAndGet();
+                        return v;
+                    }
+                });
+                super.migrate(source, sourceCurrentReplicaIndex, sourceNewReplicaIndex, destination,
+                        destinationCurrentReplicaIndex, destinationNewReplicaIndex, migrationType);
+            }
+
+            public String dumpPartitionTypes() {
+                return dumpMigrationTypes(thisMigrationsPerType);
+            }
+        }
+
         private class MigrationCollector implements MigrationDecisionCallback {
-            private final InternalPartitionImpl partition;
-            private final LinkedList<MigrationInfo> migrations = new LinkedList<>();
-            private PartitionReplica lostPartitionDestination;
+            final InternalPartitionImpl partition;
+            final LinkedList<MigrationInfo> migrations = new LinkedList<>();
+            PartitionReplica lostPartitionDestination;
 
             MigrationCollector(InternalPartitionImpl partition) {
                 this.partition = partition;
@@ -906,7 +961,8 @@ public class MigrationManager {
 
             @Override
             public void migrate(PartitionReplica source, int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
-                    PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex) {
+                    PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex,
+                                String migrationType) {
 
                 int partitionId = partition.getPartitionId();
                 if (logger.isFineEnabled()) {
@@ -1246,8 +1302,10 @@ public class MigrationManager {
                 return;
             }
 
+            logger.finest("Repairing partition table, original is: \n" + dumpPartitionTable());
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);
+            logger.finest("After backup promotions partition table is: \n" + dumpPartitionTable());
             partitionServiceLock.lock();
             try {
                 if (success) {
@@ -1416,6 +1474,14 @@ public class MigrationManager {
         private boolean commitPromotionsToDestination(PartitionReplica destination, Collection<MigrationInfo> migrations) {
             assert migrations.size() > 0 : "No promotions to commit! destination=" + destination;
 
+            for (MigrationInfo info : migrations) {
+                if (!info.isLocalShiftOperation()) {
+                    throw new RuntimeException("FU exception " + info);
+                } else {
+                    logger.finest("Migration OK: " + info);
+                }
+            }
+
             Member member = node.getClusterService().getMember(destination.address(), destination.uuid());
             if (member == null) {
                 logger.warning("Cannot commit promotions. Destination " + destination + " is not a member anymore");
@@ -1562,5 +1628,30 @@ public class MigrationManager {
             partitionService.getPartitionEventManager().sendMigrationProcessCompletedEvent(stats.toMigrationState());
             publishCompletedMigrations();
         }
+    }
+
+    private String dumpPartitionTable() {
+        PartitionTableView table = partitionStateManager.getPartitionTable();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < table.getLength(); i++) {
+            sb.append(i).append(" -> [")
+              .append(Arrays.toString(table.getReplicas(i))).append("]\n");
+        }
+        return sb.toString();
+    }
+
+    private String dumpPartitionTable(PartitionReplica[][] replicas) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < replicas.length; i++) {
+            sb.append(i).append(" -> [")
+              .append(Arrays.toString(replicas[i])).append("]\n");
+        }
+        return sb.toString();
+    }
+
+    private static String dumpMigrationTypes(Map<String, AtomicInteger> migrationsPerType) {
+        return migrationsPerType.entrySet().stream()
+                                .map(e -> e.getKey() + " -> " + e.getValue())
+                                .collect(Collectors.joining("\n"));
     }
 }

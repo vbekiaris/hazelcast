@@ -70,6 +70,7 @@ import com.hazelcast.spi.properties.ClusterProperty;
 import com.hazelcast.spi.properties.HazelcastProperties;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -388,6 +389,14 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
 
     @Override
     public void onClusterStateChange(ClusterState newState) {
+        if (ClusterState.STABLE_CLUSTER.equals(newState)) {
+            // we must keep snapshot of partition table
+            partitionStateManager.snapshotPartitionTable();
+        } else {
+            // can be avoided if previous state was not STABLE_CLUSTER
+            logger.info("Going to reset snapshot, cluster state is " + newState);
+            partitionStateManager.resetSnapshot();
+        }
         if (!newState.isMigrationAllowed()) {
             return;
         }
@@ -1270,6 +1279,11 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         } finally {
             lock.unlock();
         }
+    }
+
+    @Nullable
+    public PartitionTableView getPartitionTableSnapshot() {
+        return partitionStateManager.getPartitionTableSnapshot();
     }
 
 

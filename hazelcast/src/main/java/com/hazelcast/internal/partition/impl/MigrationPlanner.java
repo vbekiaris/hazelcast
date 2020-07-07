@@ -42,11 +42,24 @@ import static java.lang.String.format;
  */
 class MigrationPlanner {
 
+    public static final String SHIFT_UP_1 = "SHIFT_UP_1 👍 (remove from source replica and shift in destination)";
+    public static final String SHIFT_UP_2 = "SHIFT_UP_2 👍";
+    public static final String SHIFT_UP_3 = "SHIFT_UP_3 👍 (remove from source replica and shift in destination)";
+    public static final String SHIFT_UP_AND_DN = "SHIFT_UP_AND_DOWN 👍 (shift down on source and copy to destination at";
+    public static final String SHIFT_UP_AND_MOVE_OTHER = "SHIFT_UP_AND_MOVE_OTHER";
+    public static final String SHIFT_DN = "SHIFT_DOWN AND COPY 👎 (shift down on source and copy to destination since it didn't exist there before)";
+    public static final String COPY = "COPY 👎 (from partition owner to destination)";
+    public static final String MOVE = "MOVE 👎 (from source replica to destination replica at same, new index)";
+    public static final String MOVE_2 = "MOVE_2 👎 (from source replica to destination replica at same, new index)";
+    public static final String MOVE_3 = "MOVE_3 👎 (from source replica to destination replica at same, new index)";
+    public static final String REMOVE = "REMOVE 👍";
+
     private static final boolean ASSERTION_ENABLED = MigrationPlanner.class.desiredAssertionStatus();
 
     interface MigrationDecisionCallback {
         void migrate(PartitionReplica source, int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
-                PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex);
+                PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex,
+                     String migrationType);
     }
 
     private final ILogger logger;
@@ -92,11 +105,13 @@ class MigrationPlanner {
             }
             assertNoDuplicate(partitionId, oldReplicas, newReplicas);
 
+            // todo should we also check that state[currentIndex] does not appear anywhere in newReplicas?
+            //  otherwise we risk introducing a copy or move migration instead of a local shift
             if (newReplicas[currentIndex] == null) {
                 if (state[currentIndex] != null) {
                     // replica owner is removed and no one will own this replica
                     trace("partitionId=%d, New address is null at index: %d", partitionId, currentIndex);
-                    callback.migrate(state[currentIndex], currentIndex, -1, null, -1, -1);
+                    callback.migrate(state[currentIndex], currentIndex, -1, null, -1, -1, REMOVE);
                     state[currentIndex] = null;
                 }
                 currentIndex++;
@@ -108,7 +123,7 @@ class MigrationPlanner {
                 if (i == -1) {
                     // fresh replica copy is needed, so COPY replica to newReplicas[currentIndex] from partition owner
                     trace("partitionId=%d, COPY %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
-                    callback.migrate(null, -1, -1, newReplicas[currentIndex], -1, currentIndex);
+                    callback.migrate(null, -1, -1, newReplicas[currentIndex], -1, currentIndex, COPY);
                     state[currentIndex] = newReplicas[currentIndex];
                     currentIndex++;
                     continue;
@@ -118,7 +133,7 @@ class MigrationPlanner {
                     // SHIFT UP replica from i to currentIndex, copy data from partition owner
                     trace("partitionId=%d, SHIFT UP-2 %s from old addresses index: %d to index: %d", partitionId,
                             state[i], i, currentIndex);
-                    callback.migrate(null, -1, -1, state[i], i, currentIndex);
+                    callback.migrate(null, -1, -1, state[i], i, currentIndex, SHIFT_UP_2);
                     state[currentIndex] = state[i];
                     state[i] = null;
                     continue;
@@ -139,7 +154,7 @@ class MigrationPlanner {
                     && getReplicaIndex(state, newReplicas[currentIndex]) == -1) {
                 // MOVE partition replica from its old owner to new owner
                 trace("partitionId=%d, MOVE %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
-                callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex);
+                callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex, MOVE);
                 state[currentIndex] = newReplicas[currentIndex];
                 currentIndex++;
                 continue;
@@ -152,16 +167,17 @@ class MigrationPlanner {
                         + Arrays.toString(oldReplicas) + ", CURRENT: " + Arrays.toString(state)
                         + ", FINAL: " + Arrays.toString(newReplicas);
 
-                if (state[newIndex] == null) {
+                // todo: rethink commenting out these lines. It seems that checking for null here is wrong
+//                if (state[newIndex] == null) {
                     // it is a SHIFT DOWN
                     trace("partitionId=%d, SHIFT DOWN %s to index: %d, COPY %s to index: %d", partitionId, state[currentIndex],
                             newIndex, newReplicas[currentIndex], currentIndex);
-                    callback.migrate(state[currentIndex], currentIndex, newIndex, newReplicas[currentIndex], -1, currentIndex);
+                    callback.migrate(state[currentIndex], currentIndex, newIndex, newReplicas[currentIndex], -1, currentIndex, SHIFT_DN);
                     state[newIndex] = state[currentIndex];
-                } else {
-                    trace("partitionId=%d, MOVE-3 %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
-                    callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex);
-                }
+//                } else {
+//                    trace("partitionId=%d, MOVE-3 %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
+//                    callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex, MOVE_3);
+//                }
 
                 state[currentIndex] = newReplicas[currentIndex];
                 currentIndex++;
@@ -188,14 +204,14 @@ class MigrationPlanner {
                 if (state[currentIndex] == null) {
                     trace("partitionId=%d, SHIFT UP %s from old addresses index: %d to index: %d", partitionId,
                             state[targetIndex], targetIndex, currentIndex);
-                    callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex);
+                    callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex, SHIFT_UP_1);
                     state[currentIndex] = state[targetIndex];
                 } else {
                     int newIndex = getReplicaIndex(newReplicas, state[currentIndex]);
                     if (newIndex == -1) {
                         trace("partitionId=%d, SHIFT UP %s from old addresses index: %d to index: %d with source: %s",
                                 partitionId, state[targetIndex], targetIndex, currentIndex, state[currentIndex]);
-                        callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex);
+                        callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex, SHIFT_UP_3);
                         state[currentIndex] = state[targetIndex];
                     } else if (state[newIndex] == null) {
                         // SHIFT UP + SHIFT DOWN
@@ -203,7 +219,7 @@ class MigrationPlanner {
                                         + "and SHIFT DOWN %s to index: %d",
                                 partitionId, state[targetIndex], targetIndex, currentIndex, state[currentIndex], newIndex);
                         callback.migrate(state[currentIndex], currentIndex, newIndex, state[targetIndex], targetIndex,
-                                currentIndex);
+                                currentIndex, SHIFT_UP_AND_DN);
                         state[newIndex] = state[currentIndex];
                         state[currentIndex] = state[targetIndex];
                     } else {
@@ -211,7 +227,7 @@ class MigrationPlanner {
                         trace("partitionId=%d, SHIFT UP %s from old addresses index: %d to index: %d with source: %s will get "
                                         + "another MOVE migration to index: %d", partitionId, state[targetIndex],
                                 targetIndex, currentIndex, state[currentIndex], newIndex);
-                        callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex);
+                        callback.migrate(state[currentIndex], currentIndex, -1, state[targetIndex], targetIndex, currentIndex, SHIFT_UP_AND_MOVE_OTHER);
                         state[currentIndex] = state[targetIndex];
                     }
                 }
@@ -220,7 +236,7 @@ class MigrationPlanner {
             } else if (getReplicaIndex(state, newReplicas[targetIndex]) == -1) {
                 // MOVE partition replica from its old owner to new owner
                 trace("partitionId=%d, MOVE-2 %s  to index: %d", partitionId, newReplicas[targetIndex], targetIndex);
-                callback.migrate(state[targetIndex], targetIndex, -1, newReplicas[targetIndex], -1, targetIndex);
+                callback.migrate(state[targetIndex], targetIndex, -1, newReplicas[targetIndex], -1, targetIndex, MOVE_2);
                 state[targetIndex] = newReplicas[targetIndex];
                 break;
             } else {

@@ -131,7 +131,7 @@ public abstract class AbstractMigrationCorrectnessTest extends PartitionCorrectn
     }
 
     @Override
-    Config getConfig(boolean withService, boolean antiEntropyEnabled) {
+    protected Config getConfig(boolean withService, boolean antiEntropyEnabled) {
         Config config = super.getConfig(withService, antiEntropyEnabled);
         config.setProperty(ClusterProperty.PARTITION_FRAGMENTED_MIGRATION_ENABLED.getName(), String.valueOf(fragmentedMigrationEnabled));
         return config;
