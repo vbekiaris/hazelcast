@@ -26,6 +26,7 @@ import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
 import com.hazelcast.internal.util.ThreadUtil;
+import com.hazelcast.logging.Logger;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapDataSerializerHook;
 import com.hazelcast.map.impl.PartitionContainer;
@@ -290,6 +291,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                 throw ExceptionUtil.rethrow(e);
             }
         }, operation.getReplicaIndex() != 0, true);
+        Logger.getLogger(MapReplicationStateHolder.class).info("Full partition sync for "
+                + operation.getPartitionId()
+                + " transferred " + recordStore.size() + " records");
     }
 
     protected static SerializationService getSerializationService(MapContainer mapContainer) {
