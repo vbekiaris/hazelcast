@@ -354,8 +354,14 @@ public class PartitionStateManager {
         for (int partitionId = 0; partitionId < partitionCount; partitionId++) {
             System.arraycopy(partitions[partitionId].getReplicas(), 0,
                     toReturn[partitionId], 0, InternalPartition.MAX_REPLICA_COUNT);
+            for (int i = 0; i < toReturn[partitionId].length; i++) {
+                if (!contains(presentMembers, toReturn[partitionId][i])) {
+                    toReturn[partitionId][i] = null;
+                }
+            }
             PartitionReplica[] replicas = snapshot.getReplicas(partitionId);
             for (int i = 0; i < replicas.length; i++) {
+                logger.finest("Contains(presentMembers, replicas[i]) : ");
                 if (contains(presentMembers, replicas[i]) && !isAlreadyUsed(replicas[i], toReturn[partitionId], i)) {
                     toReturn[partitionId][i] = replicas[i];
                 }
