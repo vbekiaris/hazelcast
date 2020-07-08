@@ -1302,10 +1302,10 @@ public class MigrationManager {
                 return;
             }
 
-            logger.finest("Repairing partition table, original is: \n" + dumpPartitionTable());
+            logger.info("Repairing partition table, original is: \n" + dumpPartitionTable());
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);
-            logger.finest("After backup promotions partition table is: \n" + dumpPartitionTable());
+            logger.info("After backup promotions partition table is: \n" + dumpPartitionTable());
             partitionServiceLock.lock();
             try {
                 if (success) {
