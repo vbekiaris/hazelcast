@@ -168,16 +168,16 @@ class MigrationPlanner {
                         + ", FINAL: " + Arrays.toString(newReplicas);
 
                 // todo: rethink commenting out these lines. It seems that checking for null here is wrong
-//                if (state[newIndex] == null) {
+                if (state[newIndex] == null) {
                     // it is a SHIFT DOWN
                     trace("partitionId=%d, SHIFT DOWN %s to index: %d, COPY %s to index: %d", partitionId, state[currentIndex],
                             newIndex, newReplicas[currentIndex], currentIndex);
                     callback.migrate(state[currentIndex], currentIndex, newIndex, newReplicas[currentIndex], -1, currentIndex, SHIFT_DN);
                     state[newIndex] = state[currentIndex];
-//                } else {
-//                    trace("partitionId=%d, MOVE-3 %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
-//                    callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex, MOVE_3);
-//                }
+                } else {
+                    trace("partitionId=%d, MOVE-3 %s to index: %d", partitionId, newReplicas[currentIndex], currentIndex);
+                    callback.migrate(state[currentIndex], currentIndex, -1, newReplicas[currentIndex], -1, currentIndex, MOVE_3);
+                }
 
                 state[currentIndex] = newReplicas[currentIndex];
                 currentIndex++;
