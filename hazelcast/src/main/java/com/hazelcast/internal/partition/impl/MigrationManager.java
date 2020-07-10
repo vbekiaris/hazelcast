@@ -727,9 +727,9 @@ public class MigrationManager {
         }
 
         private PartitionReplica[][] restoreFromSnapshot() {
-            logger.finest("Before restore \n" + dumpPartitionTable());
+            logger.fine("Before restore \n" + dumpPartitionTable());
             PartitionReplica[][] newState = partitionStateManager.attemptRestoreFromSnapshot(shutdownRequestedMembers, null);
-            logger.finest("After restore \n" + dumpPartitionTable(newState));
+            logger.fine("After restore \n" + dumpPartitionTable(newState));
             return newState;
         }
 

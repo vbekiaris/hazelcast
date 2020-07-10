@@ -324,9 +324,9 @@ public class PartitionStateManager {
         PartitionReplica[][] newState = partitionStateGenerator.arrange(memberGroups, partitions, partitionInclusionSet);
 
         if (newState == null) {
-            if (logger.isFinestEnabled()) {
-                logger.finest("Partition rearrangement failed. Number of member groups: " + memberGroups.size());
-            }
+//            if (logger.isFinestEnabled()) {
+                logger.info("Partition rearrangement failed. Number of member groups: " + memberGroups.size());
+//            }
         }
 
         return newState;
@@ -373,6 +373,20 @@ public class PartitionStateManager {
                         ((toReturn[partitionId][i+1] != null))) {
                     toReturn[partitionId][i] = toReturn[partitionId][i+1];
                     toReturn[partitionId][i+1] = null;
+                }
+            }
+        }
+        for (int i = 0; i < toReturn.length; i++) {
+            PartitionReplica previous = toReturn[i][0];
+            boolean seenNull = (previous == null);
+            for (int replicaIndex = 1; replicaIndex < toReturn[i].length; replicaIndex++) {
+                if (toReturn[i][replicaIndex] != null && seenNull) {
+                    logger.info("Partition " + i + " has null replica at index " + replicaIndex + ". "
+                            + Arrays.toString(toReturn[i]));
+                    break;
+                } else {
+                    previous = toReturn[i][replicaIndex];
+                    seenNull = (previous == null);
                 }
             }
         }
