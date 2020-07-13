@@ -1023,8 +1023,10 @@ public class MembershipManager {
 
     private void removeFromMissingMembers(MemberImpl... members) {
         Map<Object, MemberImpl> m = new HashMap<>(missingMembersRef.get());
+        logger.fine("Attempting to remove from missing members " + m.values() + " members " + members);
         if (isHotRestartEnabled()) {
             for (MemberImpl member : members) {
+                logger.fine("Removing with UUID " + member.getUuid());
                 m.remove(member.getUuid());
             }
         } else {
@@ -1044,13 +1046,16 @@ public class MembershipManager {
         try {
             Map<Object, MemberImpl> m = missingMembersRef.get();
             if (m.isEmpty()) {
+                logger.finest("Missing members was empty, returning plain member set " + getMemberSet());
                 return getMemberSet();
             }
 
             Collection<MemberImpl> removedMembers = m.values();
             Collection<MemberImpl> members = memberMapRef.get().getMembers();
 
-            Collection<Member> allMembers = new ArrayList<>(members.size() + removedMembers.size());
+            logger.finest("getActiveAndMissingMembers returns " + removedMembers + " / " + members);
+
+            Set<Member> allMembers = new HashSet<>(members.size() + removedMembers.size());
             allMembers.addAll(members);
             allMembers.addAll(removedMembers);
 
