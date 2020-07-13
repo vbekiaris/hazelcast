@@ -69,6 +69,10 @@ public class PartitionTableView {
         return Arrays.copyOf(a, a.length);
     }
 
+    public PartitionReplica[][] getReplicas() {
+        return replicas;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

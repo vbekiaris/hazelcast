@@ -1640,7 +1640,7 @@ public class MigrationManager {
         return sb.toString();
     }
 
-    private String dumpPartitionTable(PartitionReplica[][] replicas) {
+    public static String dumpPartitionTable(PartitionReplica[][] replicas) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < replicas.length; i++) {
             sb.append(i).append(" -> [")
