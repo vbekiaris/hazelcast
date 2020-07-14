@@ -361,7 +361,6 @@ public class PartitionStateManager {
             }
             PartitionReplica[] replicas = snapshot.getReplicas(partitionId);
             for (int i = 0; i < replicas.length; i++) {
-                logger.finest("Contains(presentMembers, replicas[i]) : ");
                 if (contains(presentMembers, replicas[i]) && !isAlreadyUsed(replicas[i], toReturn[partitionId], i)) {
                     toReturn[partitionId][i] = replicas[i];
                 }
