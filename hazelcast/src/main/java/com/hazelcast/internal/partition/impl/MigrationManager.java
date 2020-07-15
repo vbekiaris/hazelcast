@@ -1087,6 +1087,7 @@ public class MigrationManager {
                 triggerRepartitioningAfterMigrationFailure();
                 return null;
             }
+            logger.fine("Partition owner for " + migrationInfo + " was found to be: " + partitionOwner);
             return partitionOwner;
         }
 

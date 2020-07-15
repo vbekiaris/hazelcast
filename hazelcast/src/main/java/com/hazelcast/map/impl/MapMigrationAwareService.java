@@ -325,7 +325,7 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService {
         GLOBAL, NON_GLOBAL
     }
 
-    private static boolean isLocalPromotion(PartitionMigrationEvent event) {
+    public static boolean isLocalPromotion(PartitionMigrationEvent event) {
         return event.getMigrationEndpoint() == DESTINATION && event.getCurrentReplicaIndex() > 0
                 && event.getNewReplicaIndex() == 0;
     }

@@ -143,7 +143,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
             Set<ServiceNamespace> namespaces = migrationState != null
                     ? migrationState.getNamespaceVersionMap().keySet() : emptySet();
             logger.finest("Invoking MigrationOperation for namespaces " + namespaces + " and " + migrationInfo
-                    + ", lastFragment: " + lastFragment);
+                    + ", firstFragment: " + firstFragment + ", lastFragment: " + lastFragment);
         }
 
         NodeEngine nodeEngine = getNodeEngine();
