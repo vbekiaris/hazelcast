@@ -303,12 +303,18 @@ public class MigrationInfo implements IdentifiedDataSerializable {
             sourceCurrentReplicaIndex = -1;
             sourceNewReplicaIndex = -1;
         } else {
-            destination = this.source;
-            destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
-            destinationNewReplicaIndex = sourceNewReplicaIndex;
-            this.source = null;
-            sourceCurrentReplicaIndex = -1;
-            sourceNewReplicaIndex = -1;
+            if (sourceNewReplicaIndex == -1) {
+                this.destination = null;
+                destinationCurrentReplicaIndex = -1;
+                destinationNewReplicaIndex = 1;
+            } else {
+                destination = this.source;
+                destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
+                destinationNewReplicaIndex = sourceNewReplicaIndex;
+                this.source = null;
+                sourceCurrentReplicaIndex = -1;
+                sourceNewReplicaIndex = -1;
+            }
         }
         // recalculate partition version increment
         partitionVersionIncrement = 0;

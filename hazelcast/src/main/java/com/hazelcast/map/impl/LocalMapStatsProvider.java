@@ -249,6 +249,7 @@ public class LocalMapStatsProvider {
             int partitionId = recordStore.getPartitionId();
             Address replicaAddress = getReplicaAddress(partitionId, replicaNumber, totalBackupCount);
             if (!isReplicaAvailable(replicaAddress, totalBackupCount)) {
+                logger.warning("Partition " + partitionId + " is : " + partitionService.getPartition(partitionId));
                 printWarning(partitionId, replicaNumber);
                 continue;
             }

@@ -606,7 +606,8 @@ public class MigrationManager {
     /** Mutates the partition state and applies the migration. */
     static void applyMigration(InternalPartitionImpl partition, MigrationInfo migrationInfo) {
         final PartitionReplica[] members = Arrays.copyOf(partition.getReplicas(), InternalPartition.MAX_REPLICA_COUNT);
-        if (migrationInfo.getSourceCurrentReplicaIndex() > -1) {
+        if (migrationInfo.getSourceCurrentReplicaIndex() > -1
+                && migrationInfo.getSourceCurrentReplicaIndex() > migrationInfo.getSourceNewReplicaIndex()) {
             members[migrationInfo.getSourceCurrentReplicaIndex()] = null;
         }
         if (migrationInfo.getDestinationCurrentReplicaIndex() > -1
