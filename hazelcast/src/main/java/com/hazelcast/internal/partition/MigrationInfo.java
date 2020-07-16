@@ -16,13 +16,13 @@
 
 package com.hazelcast.internal.partition;
 
-import com.hazelcast.internal.util.UUIDSerializationUtil;
-import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
 import com.hazelcast.cluster.Address;
+import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
+import com.hazelcast.internal.util.UUIDSerializationUtil;
+import com.hazelcast.internal.util.UuidUtil;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
-import com.hazelcast.internal.util.UuidUtil;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -284,6 +284,35 @@ public class MigrationInfo implements IdentifiedDataSerializable {
     @Override
     public int getClassId() {
         return ClusterDataSerializerHook.MIGRATION_INFO;
+    }
+
+    public void setNewRepicaIndex(int newReplicaIndex, boolean source) {
+        if (source) {
+            sourceNewReplicaIndex = newReplicaIndex;
+        } else {
+            destinationNewReplicaIndex = newReplicaIndex;
+        }
+        // recalculate partition version increment
+        partitionVersionIncrement = 0;
+        getPartitionVersionIncrement();
+    }
+
+    public void cancelMove(boolean source) {
+        if (source) {
+            this.source = null;
+            sourceCurrentReplicaIndex = -1;
+            sourceNewReplicaIndex = -1;
+        } else {
+            destination = this.source;
+            destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
+            destinationNewReplicaIndex = sourceNewReplicaIndex;
+            this.source = null;
+            sourceCurrentReplicaIndex = -1;
+            sourceNewReplicaIndex = -1;
+        }
+        // recalculate partition version increment
+        partitionVersionIncrement = 0;
+        getPartitionVersionIncrement();
     }
 
     /**

@@ -609,7 +609,8 @@ public class MigrationManager {
         if (migrationInfo.getSourceCurrentReplicaIndex() > -1) {
             members[migrationInfo.getSourceCurrentReplicaIndex()] = null;
         }
-        if (migrationInfo.getDestinationCurrentReplicaIndex() > -1) {
+        if (migrationInfo.getDestinationCurrentReplicaIndex() > -1
+            && migrationInfo.getDestinationCurrentReplicaIndex() > migrationInfo.getDestinationNewReplicaIndex()) {
             members[migrationInfo.getDestinationCurrentReplicaIndex()] = null;
         }
         members[migrationInfo.getDestinationNewReplicaIndex()] = migrationInfo.getDestination();
@@ -828,6 +829,7 @@ public class MigrationManager {
                             + ", New replicas: " + Arrays.toString(newReplicas));
                 }
                 migrationPlanner.planMigrations(partitionId, currentReplicas, newReplicas, migrationCollector);
+                migrationCollector.optimize();
                 migrationPlanner.prioritizeCopiesAndShiftUps(migrationCollector.migrations);
                 if (migrationCollector.lostPartitionDestination != null) {
                     lostPartitions.put(partitionId, migrationCollector.lostPartitionDestination);
@@ -947,6 +949,72 @@ public class MigrationManager {
 
             public String dumpPartitionTypes() {
                 return dumpMigrationTypes(thisMigrationsPerType);
+            }
+
+            // todo disturbingly inefficient
+            void optimize() {
+                if (STABLE_CLUSTER.equals(node.clusterService.getClusterState()) && migrations.size() > 1) {
+                    Set<MigrationOptimizationHint> hints = trackRemovalsAndRestorations();
+                    for (MigrationOptimizationHint hint : hints) {
+                        logger.fine("Optimizing " + hint);
+                        hint.removed.setNewRepicaIndex(hint.restoredInReplicaIndex, hint.removedAsSource);
+                        hint.restored.cancelMove(hint.restoredAsSource);
+                        logger.fine("Optimized " + hint);
+                    }
+                }
+            }
+
+            private Set<MigrationOptimizationHint> trackRemovalsAndRestorations() {
+                Map<PartitionReplica, MigrationOptimizationHint> replicasRemoved = replicasRemoved();
+                for (MigrationInfo migrationInfo : migrations) {
+                    if (replicasRemoved.keySet().contains(migrationInfo.getSource())
+                            && migrationInfo.getSourceCurrentReplicaIndex() == -1
+                            && migrationInfo.getSourceNewReplicaIndex() != -1) {
+                        // in another migration we restore the data
+                        MigrationOptimizationHint hint = replicasRemoved.get(migrationInfo.getSource());
+                        hint.restored = migrationInfo;
+                        hint.restoredAsSource = true;
+                        hint.restoredInReplicaIndex = migrationInfo.getSourceNewReplicaIndex();
+                    }
+                    if (replicasRemoved.keySet().contains(migrationInfo.getDestination())
+                            && migrationInfo.getDestinationCurrentReplicaIndex() == -1
+                            && migrationInfo.getDestinationNewReplicaIndex() != -1) {
+                        // in another migration we restore the data
+                        MigrationOptimizationHint hint = replicasRemoved.get(migrationInfo.getDestination());
+                        hint.restored = migrationInfo;
+                        hint.restoredAsSource = false;
+                        hint.restoredInReplicaIndex = migrationInfo.getDestinationNewReplicaIndex();
+                    }
+                }
+                if (replicasRemoved.isEmpty()) {
+                    return Collections.emptySet();
+                } else {
+                    return replicasRemoved.values().stream().filter(
+                            migrationInfo -> migrationInfo.removed != null && migrationInfo.restored != null
+                    ).collect(Collectors.toSet());
+                }
+            }
+
+            // find PartitionReplicas which have a current replica but are removed
+            private Map<PartitionReplica, MigrationOptimizationHint> replicasRemoved() {
+                Map<PartitionReplica, MigrationOptimizationHint> replicasRemoved = new HashMap<>();
+                for (MigrationInfo migrationInfo : migrations) {
+                    if (migrationInfo.getSource() != null
+                            && migrationInfo.getSourceCurrentReplicaIndex() > -1
+                            && migrationInfo.getSourceNewReplicaIndex() == -1) {
+                        replicasRemoved.put(migrationInfo.getSource(),
+                                new MigrationOptimizationHint(migrationInfo.getSource(),
+                                    migrationInfo, true, migrationInfo.getSourceCurrentReplicaIndex()));
+                    }
+                    if (migrationInfo.getDestination() != null
+                        && migrationInfo.getDestinationCurrentReplicaIndex() > -1
+                        && migrationInfo.getDestinationNewReplicaIndex() == -1) {
+                        replicasRemoved.put(migrationInfo.getDestination(),
+                                new MigrationOptimizationHint(migrationInfo.getDestination(),
+                                    migrationInfo, false, migrationInfo.getDestinationCurrentReplicaIndex()));
+                    }
+                }
+                return replicasRemoved;
             }
         }
 
@@ -1654,5 +1722,32 @@ public class MigrationManager {
         return migrationsPerType.entrySet().stream()
                                 .map(e -> e.getKey() + " -> " + e.getValue())
                                 .collect(Collectors.joining("\n"));
+    }
+
+    static class MigrationOptimizationHint {
+        // which partition replica
+        public PartitionReplica replica;
+        // removed (new index == -1) in this migration
+        public MigrationInfo removed;
+        public boolean removedAsSource;
+        public int removedFromReplicaIndex;
+        // restored (current index == -1 && new index > -1)
+        public MigrationInfo restored;
+        public boolean restoredAsSource;
+        public int restoredInReplicaIndex;
+
+        public MigrationOptimizationHint(PartitionReplica replica, MigrationInfo removed, boolean removedAsSource,
+                                         int removedFromReplicaIndex) {
+            this.replica = replica;
+            this.removed = removed;
+            this.removedAsSource = removedAsSource;
+        }
+
+        @Override
+        public String toString() {
+            return "MigrationOptimizationHint{" + "replica=" + replica + ", removed=" + removed + ", removedAsSource="
+                    + removedAsSource + ", removedFromReplicaIndex=" + removedFromReplicaIndex + ", restored=" + restored
+                    + ", restoredAsSource=" + restoredAsSource + ", restoredInReplicaIndex=" + restoredInReplicaIndex + '}';
+        }
     }
 }
