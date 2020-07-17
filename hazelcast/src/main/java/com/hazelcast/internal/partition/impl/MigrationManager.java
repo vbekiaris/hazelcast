@@ -988,6 +988,8 @@ public class MigrationManager {
                         } else {
                             logger.warning("Missed optimization opportunity due to validation issues. Original migrations:\n" + hint.removed
                                     + "\n" + hint.restored + "\nNot applied optimizations: \n" + copyOfRemoved + "\n" + copyOfRestored);
+                            // let's see if just this helps
+                            hint.removed.setNewReplicaIndex(hint.restoredInReplicaIndex, hint.removedAsSource);
                         }
                     }
                 }
