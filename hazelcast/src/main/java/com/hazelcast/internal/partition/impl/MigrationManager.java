@@ -816,14 +816,12 @@ public class MigrationManager {
             List<Queue<MigrationInfo>> migrations = new ArrayList<>(newState.length);
             Int2ObjectHashMap<PartitionReplica> lostPartitions = new Int2ObjectHashMap<>();
 
-            Map<String, AtomicInteger> migrationsPerType = new ConcurrentHashMap<>();
-
             for (int partitionId = 0; partitionId < newState.length; partitionId++) {
                 InternalPartitionImpl currentPartition = partitionStateManager.getPartitionImpl(partitionId);
                 PartitionReplica[] currentReplicas = currentPartition.getReplicas();
                 PartitionReplica[] newReplicas = newState[partitionId];
 
-                StatsTrackingCollector migrationCollector = new StatsTrackingCollector(currentPartition, migrationsPerType);
+                MigrationCollector migrationCollector = new MigrationCollector(currentPartition);
                 if (logger.isFinestEnabled()) {
                     logger.finest("Planning migrations for partitionId=" + partitionId
                             + ". Current replicas: " + Arrays.toString(currentReplicas)
@@ -839,10 +837,7 @@ public class MigrationManager {
                     migrations.add(migrationCollector.migrations);
                     migrationCount += migrationCollector.migrations.size();
                 }
-                logger.info("Migrations for partition " + partitionId + ": " + migrationCollector.dumpPartitionTypes());
             }
-
-            logger.info("Planned migrations per type: " + dumpMigrationTypes(migrationsPerType));
 
             stats.markNewRepartition(migrationCount);
             if (migrationCount > 0) {
@@ -914,42 +909,56 @@ public class MigrationManager {
             return false;
         }
 
-        class StatsTrackingCollector extends MigrationCollector {
-            private final Map<String, AtomicInteger> migrationsPerType;
-            private final Map<String, AtomicInteger> thisMigrationsPerType;
+        private class MigrationCollector implements MigrationDecisionCallback {
+            final InternalPartitionImpl partition;
+            final LinkedList<MigrationInfo> migrations = new LinkedList<>();
+            PartitionReplica lostPartitionDestination;
 
-            public StatsTrackingCollector(InternalPartitionImpl partition, Map<String, AtomicInteger> migrationsPerType) {
-                super(partition);
-                this.migrationsPerType = migrationsPerType;
-                thisMigrationsPerType = new ConcurrentHashMap<>();
+            MigrationCollector(InternalPartitionImpl partition) {
+                this.partition = partition;
             }
 
             @Override
             public void migrate(PartitionReplica source, int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
-                                PartitionReplica destination, int destinationCurrentReplicaIndex,
-                                int destinationNewReplicaIndex, String migrationType) {
-                migrationsPerType.compute(migrationType, (k, v) -> {
-                    if (v == null) {
-                        return new AtomicInteger(1);
-                    } else {
-                        v.incrementAndGet();
-                        return v;
-                    }
-                });
-                thisMigrationsPerType.compute(migrationType, (k, v) -> {
-                    if (v == null) {
-                        return new AtomicInteger(1);
-                    } else {
-                        v.incrementAndGet();
-                        return v;
-                    }
-                });
-                super.migrate(source, sourceCurrentReplicaIndex, sourceNewReplicaIndex, destination,
-                        destinationCurrentReplicaIndex, destinationNewReplicaIndex, migrationType);
-            }
+                    PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex) {
 
-            public String dumpPartitionTypes() {
-                return dumpMigrationTypes(thisMigrationsPerType);
+                int partitionId = partition.getPartitionId();
+                if (logger.isFineEnabled()) {
+                    logger.fine("Planned migration -> partitionId=" + partitionId
+                            + ", source=" + source + ", sourceCurrentReplicaIndex=" + sourceCurrentReplicaIndex
+                            + ", sourceNewReplicaIndex=" + sourceNewReplicaIndex + ", destination=" + destination
+                            + ", destinationCurrentReplicaIndex=" + destinationCurrentReplicaIndex
+                            + ", destinationNewReplicaIndex=" + destinationNewReplicaIndex);
+                }
+
+                if (source == null && destinationCurrentReplicaIndex == -1 && destinationNewReplicaIndex == 0) {
+                    assert destination != null : "partitionId=" + partitionId + " destination is null";
+                    assert sourceCurrentReplicaIndex == -1
+                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
+                    assert sourceNewReplicaIndex == -1
+                            : "partitionId=" + partitionId + " invalid index: " + sourceNewReplicaIndex;
+
+                    assert lostPartitionDestination == null : "Current: " + lostPartitionDestination + ", New: " + destination;
+                    lostPartitionDestination = destination;
+
+                } else if (destination == null && sourceNewReplicaIndex == -1) {
+                    assert source != null : "partitionId=" + partitionId + " source is null";
+                    assert sourceCurrentReplicaIndex != -1
+                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
+                    assert sourceCurrentReplicaIndex != 0
+                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
+                    PartitionReplica currentSource = partition.getReplica(sourceCurrentReplicaIndex);
+                    assert source.equals(currentSource)
+                            : "partitionId=" + partitionId + " current source="
+                            + source + " is different than expected source=" + source;
+
+                    partition.setReplica(sourceCurrentReplicaIndex, null);
+                } else {
+                    MigrationInfo migration = new MigrationInfo(partitionId, source, destination,
+                            sourceCurrentReplicaIndex, sourceNewReplicaIndex,
+                            destinationCurrentReplicaIndex, destinationNewReplicaIndex);
+                    migrations.add(migration);
+                }
             }
 
             // todo disturbingly inefficient
@@ -1005,71 +1014,17 @@ public class MigrationManager {
                             && migrationInfo.getSourceNewReplicaIndex() == -1) {
                         replicasRemoved.put(migrationInfo.getSource(),
                                 new MigrationOptimizationHint(migrationInfo.getSource(),
-                                    migrationInfo, true, migrationInfo.getSourceCurrentReplicaIndex()));
+                                        migrationInfo, true, migrationInfo.getSourceCurrentReplicaIndex()));
                     }
                     if (migrationInfo.getDestination() != null
-                        && migrationInfo.getDestinationCurrentReplicaIndex() > -1
-                        && migrationInfo.getDestinationNewReplicaIndex() == -1) {
+                            && migrationInfo.getDestinationCurrentReplicaIndex() > -1
+                            && migrationInfo.getDestinationNewReplicaIndex() == -1) {
                         replicasRemoved.put(migrationInfo.getDestination(),
                                 new MigrationOptimizationHint(migrationInfo.getDestination(),
-                                    migrationInfo, false, migrationInfo.getDestinationCurrentReplicaIndex()));
+                                        migrationInfo, false, migrationInfo.getDestinationCurrentReplicaIndex()));
                     }
                 }
                 return replicasRemoved;
-            }
-        }
-
-        private class MigrationCollector implements MigrationDecisionCallback {
-            final InternalPartitionImpl partition;
-            final LinkedList<MigrationInfo> migrations = new LinkedList<>();
-            PartitionReplica lostPartitionDestination;
-
-            MigrationCollector(InternalPartitionImpl partition) {
-                this.partition = partition;
-            }
-
-            @Override
-            public void migrate(PartitionReplica source, int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
-                    PartitionReplica destination, int destinationCurrentReplicaIndex, int destinationNewReplicaIndex,
-                                String migrationType) {
-
-                int partitionId = partition.getPartitionId();
-                if (logger.isFineEnabled()) {
-                    logger.fine("Planned migration -> partitionId=" + partitionId
-                            + ", source=" + source + ", sourceCurrentReplicaIndex=" + sourceCurrentReplicaIndex
-                            + ", sourceNewReplicaIndex=" + sourceNewReplicaIndex + ", destination=" + destination
-                            + ", destinationCurrentReplicaIndex=" + destinationCurrentReplicaIndex
-                            + ", destinationNewReplicaIndex=" + destinationNewReplicaIndex);
-                }
-
-                if (source == null && destinationCurrentReplicaIndex == -1 && destinationNewReplicaIndex == 0) {
-                    assert destination != null : "partitionId=" + partitionId + " destination is null";
-                    assert sourceCurrentReplicaIndex == -1
-                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
-                    assert sourceNewReplicaIndex == -1
-                            : "partitionId=" + partitionId + " invalid index: " + sourceNewReplicaIndex;
-
-                    assert lostPartitionDestination == null : "Current: " + lostPartitionDestination + ", New: " + destination;
-                    lostPartitionDestination = destination;
-
-                } else if (destination == null && sourceNewReplicaIndex == -1) {
-                    assert source != null : "partitionId=" + partitionId + " source is null";
-                    assert sourceCurrentReplicaIndex != -1
-                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
-                    assert sourceCurrentReplicaIndex != 0
-                            : "partitionId=" + partitionId + " invalid index: " + sourceCurrentReplicaIndex;
-                    PartitionReplica currentSource = partition.getReplica(sourceCurrentReplicaIndex);
-                    assert source.equals(currentSource)
-                            : "partitionId=" + partitionId + " current source="
-                            + source + " is different than expected source=" + source;
-
-                    partition.setReplica(sourceCurrentReplicaIndex, null);
-                } else {
-                    MigrationInfo migration = new MigrationInfo(partitionId, source, destination,
-                            sourceCurrentReplicaIndex, sourceNewReplicaIndex,
-                            destinationCurrentReplicaIndex, destinationNewReplicaIndex);
-                    migrations.add(migration);
-                }
             }
         }
 
