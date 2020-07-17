@@ -87,6 +87,22 @@ public class MigrationInfo implements IdentifiedDataSerializable {
     public MigrationInfo() {
     }
 
+    public MigrationInfo(MigrationInfo other) {
+        this.destination = other.destination;
+        this.destinationCurrentReplicaIndex = other.destinationCurrentReplicaIndex;
+        this.destinationNewReplicaIndex = other.destinationNewReplicaIndex;
+        this.source = other.source;
+        this.sourceCurrentReplicaIndex = other.sourceCurrentReplicaIndex;
+        this.sourceNewReplicaIndex = other.sourceNewReplicaIndex;
+        this.uuid = other.uuid;
+        this.partitionId = other.partitionId;
+        this.master = other.master;
+        this.initialPartitionVersion = other.initialPartitionVersion;
+        this.partitionVersionIncrement = other.partitionVersionIncrement;
+        this.status = other.status;
+        this.processing.set(other.processing.get());
+    }
+
     public MigrationInfo(int partitionId, PartitionReplica source, PartitionReplica destination,
             int sourceCurrentReplicaIndex, int sourceNewReplicaIndex,
             int destinationCurrentReplicaIndex, int destinationNewReplicaIndex) {
@@ -286,7 +302,7 @@ public class MigrationInfo implements IdentifiedDataSerializable {
         return ClusterDataSerializerHook.MIGRATION_INFO;
     }
 
-    public void setNewRepicaIndex(int newReplicaIndex, boolean source) {
+    public void setNewReplicaIndex(int newReplicaIndex, boolean source) {
         if (source) {
             sourceNewReplicaIndex = newReplicaIndex;
         } else {

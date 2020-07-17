@@ -962,16 +962,49 @@ public class MigrationManager {
             }
 
             // todo disturbingly inefficient
+            // may remove unnecessary full partition sync over the network steps
+            // example: replicas 0, 1, 2 are [A, B, null] and need to be transitioned to [C, A, B] as C joins the cluster
+            // planner produces two MigrationInfo's:
+            //  (1) {src=A, curr=0, new=-1}, {dst=C, curr=-1, new=0} <- partition data are deleted from A
+            //  (2) {src=B, curr=1, new=2}, {dst=A, curr=-1, new=1} <- full partition is restored into A
+            // optimize changes these migrations to:
+            //  (1) {src=A, curr=0, new=1}, {dst=C, curr=-1, new0}
+            //  (2) {src=B, curr=1, new=2}, {dst=null, curr=-1, new=-1}
+            // However there are some rules that may block these optimizations from taking place
             void optimize() {
                 if (STABLE_CLUSTER.equals(node.clusterService.getClusterState()) && migrations.size() > 1) {
                     Set<MigrationOptimizationHint> hints = trackRemovalsAndRestorations();
                     for (MigrationOptimizationHint hint : hints) {
-                        logger.fine("Optimizing " + hint);
-                        hint.removed.setNewRepicaIndex(hint.restoredInReplicaIndex, hint.removedAsSource);
-                        hint.restored.cancelMove(hint.restoredAsSource);
-                        logger.fine("Optimized " + hint);
+                        logger.info("Optimizing " + hint);
+                        // execute the optimization and check for problems
+                        MigrationInfo copyOfRemoved = new MigrationInfo(hint.removed);
+                        MigrationInfo copyOfRestored = new MigrationInfo(hint.restored);
+                        copyOfRemoved.setNewReplicaIndex(hint.restoredInReplicaIndex, hint.removedAsSource);
+                        copyOfRestored.cancelMove(hint.restoredAsSource);
+                        if (validateOptimizations(copyOfRemoved) && validateOptimizations(copyOfRestored)) {
+                            hint.removed.setNewReplicaIndex(hint.restoredInReplicaIndex, hint.removedAsSource);
+                            hint.restored.cancelMove(hint.restoredAsSource);
+                            logger.info("Optimized " + hint);
+                        } else {
+                            logger.warning("Missed optimization opportunity due to validation issues. Original migrations:\n" + hint.removed
+                                    + "\n" + hint.restored + "\nNot applied optimizations: \n" + copyOfRemoved + "\n" + copyOfRestored);
+                        }
                     }
                 }
+            }
+
+            private boolean validateOptimizations(MigrationInfo migrationInfo) {
+                if (migrationInfo.getSource() == null
+                    && migrationInfo.getDestinationCurrentReplicaIndex() > 0
+                    && migrationInfo.getDestinationNewReplicaIndex() == 0) {
+                    logger.info("Failed optimization validation because it is a promotion: " + migrationInfo);
+                    return false;
+                }
+                if (migrationInfo.getDestination() == null) {
+                    logger.info("Destination was null: " + migrationInfo);
+                    return false;
+                }
+                return true;
             }
 
             private Set<MigrationOptimizationHint> trackRemovalsAndRestorations() {
@@ -1049,8 +1082,10 @@ public class MigrationManager {
             }
             if (migrationInfo.getSource() == null
                     && migrationInfo.getDestinationCurrentReplicaIndex() > 0
-                    && migrationInfo.getDestinationNewReplicaIndex() == 0) {
+                    && migrationInfo.getDestinationNewReplicaIndex() == 0
+                    && STABLE_CLUSTER != nodeEngine.getClusterService().getClusterState()) {
 
+                // sometimes the optimization in STABLE_CLUSTER may result in promotions
                 throw new AssertionError("Promotion migrations should be handled by "
                         + RepairPartitionTableTask.class.getSimpleName() + "! -> " + migrationInfo);
             }
