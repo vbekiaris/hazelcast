@@ -67,7 +67,11 @@ public class PartitionEventManager {
         PartitionReplica sourceReplica = migrationInfo.getSource();
         PartitionReplica destReplica = migrationInfo.getDestination();
         Member source = sourceReplica != null ? clusterService.getMember(sourceReplica.address(), sourceReplica.uuid()) : null;
-        Member destination = clusterService.getMember(destReplica.address(), destReplica.uuid());
+        Member destination = destReplica != null ? clusterService.getMember(destReplica.address(), destReplica.uuid()) : null;
+
+        if (destination == null) {
+            return;
+        }
 
         int partitionId = migrationInfo.getPartitionId();
         int replicaIndex = migrationInfo.getDestinationNewReplicaIndex();

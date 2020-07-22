@@ -606,19 +606,23 @@ public class MigrationManager {
     /** Mutates the partition state and applies the migration. */
     static void applyMigration(InternalPartitionImpl partition, MigrationInfo migrationInfo) {
         final PartitionReplica[] members = Arrays.copyOf(partition.getReplicas(), InternalPartition.MAX_REPLICA_COUNT);
+        System.out.println(">> Applying MigrationInfo " + migrationInfo + ", original is " + Arrays.toString(members));
         if (migrationInfo.getSourceCurrentReplicaIndex() > -1
-                && migrationInfo.getSourceCurrentReplicaIndex() > migrationInfo.getSourceNewReplicaIndex()) {
+            && members[migrationInfo.getSourceCurrentReplicaIndex()].equals(migrationInfo.getSource())) {
             members[migrationInfo.getSourceCurrentReplicaIndex()] = null;
         }
-        if (migrationInfo.getDestinationCurrentReplicaIndex() > -1
-            && migrationInfo.getDestinationCurrentReplicaIndex() > migrationInfo.getDestinationNewReplicaIndex()) {
-            members[migrationInfo.getDestinationCurrentReplicaIndex()] = null;
-        }
-        members[migrationInfo.getDestinationNewReplicaIndex()] = migrationInfo.getDestination();
         if (migrationInfo.getSourceNewReplicaIndex() > -1) {
             members[migrationInfo.getSourceNewReplicaIndex()] = migrationInfo.getSource();
         }
+        if (migrationInfo.getDestinationCurrentReplicaIndex() > -1
+            && members[migrationInfo.getDestinationCurrentReplicaIndex()].equals(migrationInfo.getDestination())) {
+            members[migrationInfo.getDestinationCurrentReplicaIndex()] = null;
+        }
+        if (migrationInfo.getDestinationNewReplicaIndex() > -1) {
+            members[migrationInfo.getDestinationNewReplicaIndex()] = migrationInfo.getDestination();
+        }
         partition.setReplicas(members);
+        System.out.println(">> Applied MigrationInfo " + migrationInfo + ", members: " + Arrays.toString(members));
     }
 
     Set<Member> getShutdownRequestedMembers() {
