@@ -319,10 +319,11 @@ public class MigrationInfo implements IdentifiedDataSerializable {
             sourceCurrentReplicaIndex = -1;
             sourceNewReplicaIndex = -1;
         } else {
-            if (sourceNewReplicaIndex == -1) {
+            if (this.source == null) {
+                // this MigrationInfo shouldn't exist at all
                 this.destination = null;
                 destinationCurrentReplicaIndex = -1;
-                destinationNewReplicaIndex = 1;
+                destinationNewReplicaIndex = -1;
             } else {
                 destination = this.source;
                 destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
