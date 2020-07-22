@@ -103,6 +103,7 @@ public class MigrationManager {
 
     private static final int MIGRATION_PAUSE_DURATION_SECONDS_ON_MIGRATION_FAILURE = 3;
     private static final int PUBLISH_COMPLETED_MIGRATIONS_BATCH_SIZE = 10;
+    private static final boolean OPTIMIZE = Boolean.parseBoolean(System.getProperty("com.hazelcast.migration.optimize", "true"));
 
     final long partitionMigrationInterval;
     private final Node node;
@@ -832,7 +833,9 @@ public class MigrationManager {
                             + ", New replicas: " + Arrays.toString(newReplicas));
                 }
                 migrationPlanner.planMigrations(partitionId, currentReplicas, newReplicas, migrationCollector);
-                migrationCollector.optimize();
+                if (OPTIMIZE) {
+                    migrationCollector.optimize();
+                }
                 migrationPlanner.prioritizeCopiesAndShiftUps(migrationCollector.migrations);
                 if (migrationCollector.lostPartitionDestination != null) {
                     lostPartitions.put(partitionId, migrationCollector.lostPartitionDestination);
