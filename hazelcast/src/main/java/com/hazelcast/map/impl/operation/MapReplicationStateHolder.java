@@ -18,6 +18,7 @@ package com.hazelcast.map.impl.operation;
 
 import com.hazelcast.config.IndexConfig;
 import com.hazelcast.config.MapConfig;
+import com.hazelcast.internal.monitor.impl.LocalMapStatsImpl;
 import com.hazelcast.internal.nio.IOUtil;
 import com.hazelcast.internal.serialization.Data;
 import com.hazelcast.internal.serialization.SerializationService;
@@ -52,6 +53,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.hazelcast.internal.util.MapUtil.createHashMap;
 import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
@@ -63,6 +65,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
     // holds recordStore-references of this partitions' maps
     protected transient Map<String, RecordStore<Record>> storesByMapName;
+
+    protected transient Map<String, LocalMapStatsImpl> statsByMapName = new ConcurrentHashMap<>();
 
     // data for each map
     protected transient Map<String, List> data;
@@ -123,6 +127,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
 
             loaded.put(mapName, recordStore.isLoaded());
             storesByMapName.put(mapName, recordStore);
+            statsByMapName.put(mapName,
+                    mapContainer.getMapServiceContext().getLocalMapStatsProvider().getLocalMapStatsImpl(mapName));
 
             Set<IndexConfig> indexConfigs = new HashSet<>();
             if (mapContainer.isGlobalIndexEnabled()) {
@@ -294,6 +300,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
         Logger.getLogger(MapReplicationStateHolder.class).info("Full partition sync for "
                 + operation.getPartitionId()
                 + " transferred " + recordStore.size() + " records");
+        statsByMapName.get(recordStore.getName()).incrementFullPartitionReplicationRecordsCount(recordStore.size());
     }
 
     protected static SerializationService getSerializationService(MapContainer mapContainer) {

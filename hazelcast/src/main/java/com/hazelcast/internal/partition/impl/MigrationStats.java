@@ -33,9 +33,11 @@ import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_LAST_REPARTITION_TIME;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_PLANNED_MIGRATIONS;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_COMPLETED_MIGRATIONS;
+import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_DIFF_PARTITION_SYNCS;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_ELAPSED_DESTINATION_COMMIT_TIME;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_ELAPSED_MIGRATION_OPERATION_TIME;
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_ELAPSED_MIGRATION_TIME;
+import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION_METRIC_TOTAL_FULL_PARTITION_SYNCS;
 import static com.hazelcast.internal.metrics.ProbeUnit.MS;
 import static com.hazelcast.internal.metrics.ProbeUnit.NS;
 
@@ -73,6 +75,12 @@ public class MigrationStats {
 
     @Probe(name = MIGRATION_METRIC_TOTAL_ELAPSED_MIGRATION_TIME, unit = NS)
     private final AtomicLong totalElapsedMigrationTime = new AtomicLong();
+
+    @Probe(name = MIGRATION_METRIC_TOTAL_FULL_PARTITION_SYNCS)
+    private final AtomicLong totalFullPartitionSyncs = new AtomicLong();
+
+    @Probe(name = MIGRATION_METRIC_TOTAL_DIFF_PARTITION_SYNCS)
+    private final AtomicLong totalDiffPartitionSyncs = new AtomicLong();
 
     /**
      * Marks start of new repartitioning.

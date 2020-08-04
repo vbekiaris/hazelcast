@@ -242,6 +242,12 @@ public final class MetricDescriptorConstants {
     public static final String MAP_METRIC_INDEX_REMOVE_COUNT = "removeCount";
     public static final String MAP_METRIC_INDEX_TOTAL_REMOVE_LATENCY = "totalRemoveLatency";
     public static final String MAP_METRIC_INDEX_MEMORY_COST = "memoryCost";
+    public static final String MAP_METRIC_FULL_PARTITION_REPLICATION_COUNT = "totalFullPartitionReplicationCount";
+    public static final String MAP_METRIC_DIFF_PARTITION_REPLICATION_COUNT = "totalDifferentialPartitionReplicationCount";
+    public static final String MAP_METRIC_FULL_PARTITION_REPLICATION_RECORDS_COUNT
+            = "totalFullPartitionReplicationRecordsCount";
+    public static final String MAP_METRIC_DIFF_PARTITION_REPLICATION_RECORDS_COUNT
+            = "totalDifferentialPartitionReplicationRecordsCount";
     // ===[/MAP]========================================================
 
     // ===[MEMORY]======================================================
@@ -277,6 +283,8 @@ public final class MetricDescriptorConstants {
     public static final String MIGRATION_METRIC_TOTAL_ELAPSED_MIGRATION_OPERATION_TIME = "totalElapsedMigrationOperationTime";
     public static final String MIGRATION_METRIC_TOTAL_ELAPSED_DESTINATION_COMMIT_TIME = "totalElapsedDestinationCommitTime";
     public static final String MIGRATION_METRIC_TOTAL_ELAPSED_MIGRATION_TIME = "totalElapsedMigrationTime";
+    public static final String MIGRATION_METRIC_TOTAL_FULL_PARTITION_SYNCS = "totalFullPartitionSyncs";
+    public static final String MIGRATION_METRIC_TOTAL_DIFF_PARTITION_SYNCS = "totalDiffPartitionSyncs";
     // ===[/MIGRATION]==================================================
 
     // ===[MULTIMAP]====================================================
