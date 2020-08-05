@@ -325,12 +325,21 @@ public class MigrationInfo implements IdentifiedDataSerializable {
                 destinationCurrentReplicaIndex = -1;
                 destinationNewReplicaIndex = -1;
             } else {
-                destination = this.source;
-                destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
-                destinationNewReplicaIndex = sourceNewReplicaIndex;
-                this.source = null;
-                sourceCurrentReplicaIndex = -1;
-                sourceNewReplicaIndex = -1;
+                if (sourceNewReplicaIndex > -1) {
+                    // in general destination shouldn't be null
+                    // also destinationNewReplicaIndex shouldn't be -1
+                    destination = this.source;
+                    destinationCurrentReplicaIndex = sourceCurrentReplicaIndex;
+                    destinationNewReplicaIndex = sourceNewReplicaIndex;
+                    this.source = null;
+                    sourceCurrentReplicaIndex = -1;
+                    sourceNewReplicaIndex = -1;
+                } else {
+                    // leave source as is, make destination null
+                    destination = null;
+                    destinationNewReplicaIndex = -1;
+                    destinationCurrentReplicaIndex = -1;
+                }
             }
         }
         // recalculate partition version increment
