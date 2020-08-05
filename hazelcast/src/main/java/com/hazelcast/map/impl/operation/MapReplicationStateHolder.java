@@ -297,7 +297,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable {
                 throw ExceptionUtil.rethrow(e);
             }
         }, operation.getReplicaIndex() != 0, true);
-        Logger.getLogger(MapReplicationStateHolder.class).info("Full partition sync for "
+        Logger.getLogger(MapReplicationStateHolder.class).fine("Full partition sync for "
                 + operation.getPartitionId()
                 + " transferred " + recordStore.size() + " records");
         statsByMapName.get(recordStore.getName()).incrementFullPartitionReplicationRecordsCount(recordStore.size());

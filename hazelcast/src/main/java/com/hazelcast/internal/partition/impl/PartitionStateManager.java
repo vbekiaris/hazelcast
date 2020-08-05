@@ -337,7 +337,7 @@ public class PartitionStateManager {
             return null;
         }
 
-        logger.info("Attempting restore with excluded members: " + excludedMembers);
+        logger.fine("Attempting restore with excluded members: " + excludedMembers);
 
         final PartitionTableView snapshot = getPartitionTableSnapshot();
 
@@ -348,7 +348,7 @@ public class PartitionStateManager {
         }
 
         Collection<Member> presentMembers = getDataMembersExcluding(excludedMembers);
-        logger.info("Attempting restore present members: " + Arrays.toString(presentMembers.toArray()));
+        logger.fine("Attempting restore present members: " + Arrays.toString(presentMembers.toArray()));
         PartitionReplica[][] toReturn = new PartitionReplica[partitionCount][InternalPartition.MAX_REPLICA_COUNT];
 
         for (int partitionId = 0; partitionId < partitionCount; partitionId++) {
