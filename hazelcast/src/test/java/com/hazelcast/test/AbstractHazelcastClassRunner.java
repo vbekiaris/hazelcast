@@ -52,8 +52,8 @@ import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.cache.jsr.JsrTestUtil.clearCachingProviderRegistry;
 import static com.hazelcast.cache.jsr.JsrTestUtil.getCachingProviderRegistrySize;
-import static com.hazelcast.test.TestEnvironment.isRunningCompatibilityTest;
 import static com.hazelcast.internal.util.EmptyStatement.ignore;
+import static com.hazelcast.test.TestEnvironment.isRunningCompatibilityTest;
 import static java.lang.Integer.getInteger;
 
 /**
@@ -292,6 +292,10 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
         return testRules;
     }
 
+    private boolean isParallelClassRunner() {
+        return this instanceof HazelcastParallelClassRunner;
+    }
+
     @Override
     protected Statement withAfterClasses(Statement statement) {
         final Statement originalStatement = super.withAfterClasses(statement);
@@ -308,7 +312,10 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
                     throw new IllegalStateException(message);
                 }
 
-                // check for leftover JMX beans
+                // check for leftover JMX beans -- only makes sense when running tests serially
+                if (!isParallelClassRunner()) {
+                    JsrTestUtil.assertNoMBeanLeftovers();
+                }
                 JmxLeakHelper.checkJmxBeans();
 
                 // check for leftover CachingProvider instances
