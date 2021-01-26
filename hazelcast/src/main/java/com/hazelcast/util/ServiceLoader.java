@@ -258,6 +258,9 @@ public final class ServiceLoader {
             if (uri != null ? !uri.equals(that.uri) : that.uri != null) {
                 return false;
             }
+            if (classLoader != null ? !classLoader.equals(that.classLoader) : that.classLoader != null) {
+                return false;
+            }
             return true;
         }
 
