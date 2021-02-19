@@ -107,11 +107,12 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
         // initialization, which will not create the correct one without these System properties
         // (this was done via the pom.xml before for most test profiles, so this does no harm)
         JsrTestUtil.setSystemProperties();
-
+        System.setProperty("hazelcast.local.localAddress", "127.0.0.1");
         if (isRunningCompatibilityTest()) {
             System.out.println("Running compatibility tests.");
             // Mock network cannot be used for compatibility testing
             System.setProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK, "true");
+            System.clearProperty("hazelcast.local.localAddress");
         } else {
             TestLoggingUtils.initializeLogging();
             if (System.getProperty(TestEnvironment.HAZELCAST_TEST_USE_NETWORK) == null) {
@@ -120,7 +121,6 @@ public abstract class AbstractHazelcastClassRunner extends AbstractParameterized
         }
         System.setProperty("hazelcast.phone.home.enabled", "false");
         System.setProperty("hazelcast.wait.seconds.before.join", "1");
-        System.setProperty("hazelcast.local.localAddress", "127.0.0.1");
         System.setProperty("java.net.preferIPv4Stack", "true");
     }
 
