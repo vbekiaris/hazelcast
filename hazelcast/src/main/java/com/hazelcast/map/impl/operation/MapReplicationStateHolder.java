@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hazelcast.internal.util.MapUtil.createHashMap;
 import static com.hazelcast.internal.util.MapUtil.isNullOrEmpty;
@@ -244,6 +245,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
     @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         out.writeInt(storesByMapName.size());
+        AtomicInteger counter = new AtomicInteger();
 
         for (Map.Entry<String, RecordStore<Record>> entry : storesByMapName.entrySet()) {
             String mapName = entry.getKey();
@@ -258,6 +260,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                     IOUtil.writeData(out, dataKey);
                     Records.writeRecord(out, record, ss.toData(record.getValue()),
                             recordStore.getExpirySystem().getExpiredMetadata(dataKey));
+                    counter.getAndIncrement();
                 } catch (IOException e) {
                     throw ExceptionUtil.rethrow(e);
                 }
@@ -266,6 +269,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
             if (out.getVersion().isGreaterOrEqual(Versions.V4_2)) {
                 recordStore.getStats().writeData(out);
             }
+            System.out.println(">> writeData " + counter.get() + " records");
         }
 
         out.writeInt(loaded.size());
@@ -290,6 +294,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         int size = in.readInt();
         data = createHashMap(size);
         recordStoreStatsPerMapName = createHashMap(size);
+        int counter = 0;
 
         for (int i = 0; i < size; i++) {
             String name = in.readString();
@@ -299,6 +304,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 Data dataKey = IOUtil.readData(in);
                 ExpiryMetadata expiryMetadata = new ExpiryMetadataImpl();
                 Record record = Records.readRecord(in, expiryMetadata);
+                counter++;
 
                 keyRecordExpiry.add(dataKey);
                 keyRecordExpiry.add(record);
@@ -324,6 +330,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
             MapIndexInfo mapIndexInfo = in.readObject();
             mapIndexInfos.add(mapIndexInfo);
         }
+
+        System.out.println(">> readData " + counter + " records");
     }
 
     @Override
