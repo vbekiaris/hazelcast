@@ -234,10 +234,7 @@ public class MigrationManager {
                 } else {
                     operationService.execute(op);
                 }
-
-                // We remove active migration in the end of the FinalizeMigrationOperation to make sure
-                // the cluster comes to a SAFE state only when indexes on partitions being populated
-                // completely.
+                removeActiveMigration(migrationInfo);
             } else {
                 PartitionReplica partitionOwner = partitionStateManager.getPartitionImpl(partitionId).getOwnerReplicaOrNull();
                 if (localReplica.equals(partitionOwner)) {
@@ -295,6 +292,22 @@ public class MigrationManager {
 
     public MigrationInfo getActiveMigration() {
         return activeMigrationInfo;
+    }
+
+    /**
+     * Removes the current {@code activeMigration} if the {@code migration} is the same
+     * and returns {@code true} if removed.
+     * @param migration migration
+     */
+    private boolean removeActiveMigration(MigrationInfo migration) {
+        if (activeMigrationInfo.equals(migration)) {
+            activeMigrationInfo = null;
+            return true;
+        } else {
+            logger.warning("Active migration could not be removed! "
+                    + "Current migration=" + migration + ", active migration=" + activeMigrationInfo);
+            return false;
+        }
     }
 
     /**
