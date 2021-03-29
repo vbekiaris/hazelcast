@@ -19,19 +19,23 @@ package com.hazelcast.instance.impl;
 import com.hazelcast.config.EndpointConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.core.HazelcastException;
-import com.hazelcast.logging.ILogger;
 import com.hazelcast.internal.nio.IOUtil;
+import com.hazelcast.logging.ILogger;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.SocketAddress;
+import java.net.StandardProtocolFamily;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.internal.server.ServerContext.KILO_BYTE;
 
-final class ServerSocketHelper {
+public final class ServerSocketHelper {
 
     private static final int SOCKET_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(1);
     private static final int SOCKET_BACKLOG_LENGTH = 100;
@@ -85,6 +89,30 @@ final class ServerSocketHelper {
         }
     }
 
+    /** Creates a server socket channel using a Unix Domain Socket for the given Path */
+    static ServerSocketChannel createServerSocketChannel(ILogger logger, EndpointConfig endpointConfig, Path address,
+                                                         int port, int portCount, boolean isPortAutoIncrement,
+                                                         boolean isReuseAddress, boolean bindAny) {
+        logger.finest("inet reuseAddress:" + isReuseAddress);
+
+        if (port == 0) {
+            logger.info("No explicit port is given, system will pick up an ephemeral port.");
+        }
+        int portTrialCount = port > 0 && isPortAutoIncrement ? portCount : 1;
+
+        try {
+            return tryOpenServerSocketChannel(endpointConfig, address, logger);
+        } catch (IOException e) {
+            String message = "Cannot bind to a given address: " + address + ". Hazelcast cannot start. ";
+            if (isPortAutoIncrement) {
+                message += "Config-port: " + port + ", latest-port: " + (port + portTrialCount - 1);
+            } else {
+                message += "Port [" + port + "] is already in use and auto-increment is disabled.";
+            }
+            throw new HazelcastException(message, e);
+        }
+    }
+
     private static ServerSocketChannel tryOpenServerSocketChannel(EndpointConfig endpointConfig, InetAddress bindAddress,
                                                           int initialPort, boolean isReuseAddress,  int portTrialCount,
                                                           boolean bindAny, ILogger logger)
@@ -106,10 +134,17 @@ final class ServerSocketHelper {
         throw error;
     }
 
-    private static ServerSocketChannel openServerSocketChannel(EndpointConfig endpointConfig, InetSocketAddress socketBindAddress,
+    public static ServerSocketChannel tryOpenServerSocketChannel(EndpointConfig endpointConfig, Path address,
+                                                                  ILogger logger)
+            throws IOException {
+        UnixDomainSocketAddress socketBindAddress = UnixDomainSocketAddress.of(address);
+        return openServerSocketChannel(endpointConfig, socketBindAddress, true, logger);
+    }
+
+    private static ServerSocketChannel openServerSocketChannel(EndpointConfig endpointConfig, SocketAddress socketBindAddress,
                                                         boolean reuseAddress, ILogger logger)
             throws IOException {
-
+        final boolean unixDomainSocket = socketBindAddress instanceof UnixDomainSocketAddress;
         ServerSocket serverSocket = null;
         ServerSocketChannel serverSocketChannel = null;
         try {
@@ -120,20 +155,30 @@ final class ServerSocketHelper {
              * find any free port at all (no matter if there are more than enough free ports available). We have
              * seen this happening on Linux and Windows environments.
              */
-            serverSocketChannel = ServerSocketChannel.open();
-            serverSocket = serverSocketChannel.socket();
-            serverSocket.setReuseAddress(reuseAddress);
-            serverSocket.setSoTimeout(SOCKET_TIMEOUT_MILLIS);
+            serverSocketChannel = unixDomainSocket
+                    ? ServerSocketChannel.open(StandardProtocolFamily.UNIX)
+                    : ServerSocketChannel.open();
+            if (!unixDomainSocket) {
+                serverSocket = serverSocketChannel.socket();
+                serverSocket.setReuseAddress(reuseAddress);
+                serverSocket.setSoTimeout(SOCKET_TIMEOUT_MILLIS);
 
-            if (endpointConfig != null) {
-                serverSocket.setReceiveBufferSize(endpointConfig.getSocketRcvBufferSizeKb() * KILO_BYTE);
+                if (endpointConfig != null) {
+                    serverSocket.setReceiveBufferSize(endpointConfig.getSocketRcvBufferSizeKb() * KILO_BYTE);
+                }
             }
 
             logger.fine("Trying to bind inet socket address: " + socketBindAddress);
-            serverSocket.bind(socketBindAddress, SOCKET_BACKLOG_LENGTH);
-            logger.fine("Bind successful to inet socket address: " + serverSocket.getLocalSocketAddress());
+            if (socketBindAddress instanceof InetSocketAddress) {
+                serverSocketChannel.bind(socketBindAddress, SOCKET_BACKLOG_LENGTH);
+            } else if (socketBindAddress instanceof UnixDomainSocketAddress) {
+                serverSocketChannel.bind(socketBindAddress);
+                ((UnixDomainSocketAddress) socketBindAddress).getPath().toFile().deleteOnExit();
 
-            serverSocketChannel.configureBlocking(false);
+            }
+            logger.fine("Bind successful to inet socket address: " + serverSocketChannel.getLocalAddress());
+
+//            serverSocketChannel.configureBlocking(false);
             return serverSocketChannel;
         } catch (IOException e) {
             IOUtil.close(serverSocket);
