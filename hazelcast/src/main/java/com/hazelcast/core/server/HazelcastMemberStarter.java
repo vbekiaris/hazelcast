@@ -16,6 +16,8 @@
 
 package com.hazelcast.core.server;
 
+import com.hazelcast.config.Config;
+import com.hazelcast.config.ServerSocketEndpointConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -44,7 +46,14 @@ public final class HazelcastMemberStarter {
      */
     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
         System.setProperty("hazelcast.tracking.server", "true");
-        HazelcastInstance hz = Hazelcast.newHazelcastInstance();
+        Config config = new Config();
+        config.getAdvancedNetworkConfig()
+              .setEnabled(true);
+        // issue with advanced networking + no ClIENT endpoint
+        config.getAdvancedNetworkConfig().setClientEndpointConfig(
+                new ServerSocketEndpointConfig().setPort(5555)
+        );
+        HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
         printMemberPort(hz);
     }
 

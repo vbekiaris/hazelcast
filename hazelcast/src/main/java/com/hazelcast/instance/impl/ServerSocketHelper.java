@@ -178,7 +178,7 @@ public final class ServerSocketHelper {
             }
             logger.fine("Bind successful to inet socket address: " + serverSocketChannel.getLocalAddress());
 
-//            serverSocketChannel.configureBlocking(false);
+            serverSocketChannel.configureBlocking(false);
             return serverSocketChannel;
         } catch (IOException e) {
             IOUtil.close(serverSocket);

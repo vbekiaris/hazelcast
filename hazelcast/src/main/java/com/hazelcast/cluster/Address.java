@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.UnixDomainSocketAddress;
 import java.net.UnknownHostException;
 
 import static com.hazelcast.internal.util.Preconditions.checkNotNull;
@@ -37,6 +39,7 @@ public final class Address implements IdentifiedDataSerializable {
 
     private static final byte IPV4 = 4;
     private static final byte IPV6 = 6;
+    private static final byte UNIX = 1;
 
     private int port = -1;
     private String host;
@@ -44,6 +47,8 @@ public final class Address implements IdentifiedDataSerializable {
 
     private String scopeId;
     private boolean hostSet;
+    private boolean isUnixSocketAddress;
+    private UnixDomainSocketAddress unixDomainSocketAddress;
 
     public Address() {
     }
@@ -68,7 +73,22 @@ public final class Address implements IdentifiedDataSerializable {
         this(resolve(inetSocketAddress), inetSocketAddress.getPort());
     }
 
+    public Address(SocketAddress socketAddress) {
+        if (socketAddress instanceof InetSocketAddress) {
+            InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
+            construct(null, resolve(inetSocketAddress), inetSocketAddress.getPort());
+            hostSet = false;
+        } else if (socketAddress instanceof UnixDomainSocketAddress) {
+            isUnixSocketAddress = true;
+            unixDomainSocketAddress = (UnixDomainSocketAddress) socketAddress;
+        }
+    }
+
     public Address(String hostname, InetAddress inetAddress, int port) {
+        construct(hostname, inetAddress, port);
+    }
+
+    private void construct(String hostname, InetAddress inetAddress, int port) {
         checkNotNull(inetAddress, "inetAddress can't be null");
 
         type = (inetAddress instanceof Inet4Address) ? IPV4 : IPV6;
@@ -90,11 +110,13 @@ public final class Address implements IdentifiedDataSerializable {
     }
 
     public String getHost() {
-        return host;
+        return isUnixSocketAddress
+                ? unixDomainSocketAddress.toString()
+                : host;
     }
 
     public int getPort() {
-        return port;
+        return isUnixSocketAddress ? 5701 : port;
     }
 
     public InetAddress getInetAddress() throws UnknownHostException {
@@ -161,19 +183,28 @@ public final class Address implements IdentifiedDataSerializable {
             return false;
         }
         final Address address = (Address) o;
-        return port == address.port && this.type == address.type && this.host.equals(address.host);
+
+        return isUnixSocketAddress
+                ? unixDomainSocketAddress.equals(((Address) o).unixDomainSocketAddress)
+                : port == address.port && this.type == address.type && this.host.equals(address.host);
     }
 
     @Override
     public int hashCode() {
-        int result = port;
-        result = 31 * result + host.hashCode();
-        return result;
+        if (isUnixSocketAddress) {
+            return unixDomainSocketAddress.hashCode();
+        } else {
+            int result = port;
+            result = 31 * result + host.hashCode();
+            return result;
+        }
     }
 
     @Override
     public String toString() {
-        return '[' + host + "]:" + port;
+        return isUnixSocketAddress
+                ? unixDomainSocketAddress.toString()
+                : '[' + host + "]:" + port;
     }
 
     private static InetAddress resolve(InetSocketAddress inetSocketAddress) {

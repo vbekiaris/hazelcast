@@ -29,6 +29,7 @@ import com.hazelcast.spi.MemberAddressProvider;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,9 +45,9 @@ import static com.hazelcast.instance.impl.ServerSocketHelper.createServerSocketC
 final class DelegatingAddressPicker
         implements AddressPicker {
 
-    private final Map<EndpointQualifier, InetSocketAddress> bindAddresses = new ConcurrentHashMap<>();
+    private final Map<EndpointQualifier, SocketAddress> bindAddresses = new ConcurrentHashMap<>();
 
-    private final Map<EndpointQualifier, InetSocketAddress> publicAddresses = new ConcurrentHashMap<>();
+    private final Map<EndpointQualifier, SocketAddress> publicAddresses = new ConcurrentHashMap<>();
 
     private final Map<EndpointQualifier, ServerSocketChannel> serverSocketChannels = new ConcurrentHashMap<>();
 
@@ -192,7 +193,7 @@ final class DelegatingAddressPicker
     @Override
     public Map<EndpointQualifier, Address> getPublicAddressMap() {
         Map<EndpointQualifier, Address> mappings = new HashMap<>(publicAddresses.size());
-        for (Map.Entry<EndpointQualifier, InetSocketAddress> entry : publicAddresses.entrySet()) {
+        for (Map.Entry<EndpointQualifier, SocketAddress> entry : publicAddresses.entrySet()) {
             mappings.put(entry.getKey(), new Address(entry.getValue()));
         }
 

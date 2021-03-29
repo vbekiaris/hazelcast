@@ -23,6 +23,7 @@ import com.hazelcast.config.InterfacesConfig;
 import com.hazelcast.config.TcpIpConfig;
 import com.hazelcast.instance.AddressPicker;
 import com.hazelcast.instance.EndpointQualifier;
+import com.hazelcast.instance.ProtocolType;
 import com.hazelcast.internal.cluster.impl.TcpIpJoiner;
 import com.hazelcast.internal.util.AddressUtil;
 import com.hazelcast.logging.ILogger;
@@ -30,6 +31,7 @@ import com.hazelcast.spi.properties.ClusterProperty;
 import com.hazelcast.spi.properties.HazelcastProperties;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -37,6 +39,7 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -113,6 +116,22 @@ class DefaultAddressPicker
 
     @Override
     public void pickAddress() throws Exception {
+        if (endpointQualifier != null && endpointQualifier.getType().equals(ProtocolType.MEMBER)) {
+            // bind server socket channel to ${hazelcast.unix.socket.dir}/0, 1, 2...
+            int count = 0;
+            while (true) {
+                try {
+                    serverSocketChannel = ServerSocketHelper.tryOpenServerSocketChannel(new EndpointConfig(), // doesn't matter
+                            Path.of(System.getProperty("hazelcast.unix.socket.dir", "/Users/vb/tmp/socket"), "" + count),
+                            logger);
+                    publicAddress = new Address(serverSocketChannel.getLocalAddress());
+                    bindAddress = publicAddress;
+                    return;
+                } catch (BindException e) {
+                    count++;
+                }
+            }
+        }
         if (publicAddress != null || bindAddress != null) {
             return;
         }

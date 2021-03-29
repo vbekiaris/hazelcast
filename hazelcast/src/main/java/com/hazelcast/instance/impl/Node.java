@@ -839,8 +839,8 @@ public class Node {
     }
 
     public boolean shouldUseMulticastJoiner(JoinConfig join) {
-        return join.getMulticastConfig().isEnabled()
-                || (join.isAutoDetectionEnabled() && isEmptyDiscoveryStrategies());
+        // never use multicast discovery
+        return false;
     }
 
     private boolean isEmptyDiscoveryStrategies() {
