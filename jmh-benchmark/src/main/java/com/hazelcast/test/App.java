@@ -41,11 +41,6 @@ public class App {
             } catch (Exception e) {
                 isUnixSocketSupported = false;
             }
-            tempDir = Files.createTempDirectory("jmh-sockets-");
-            System.setProperty("hazelcast.unix.socket.dir", tempDir.toAbsolutePath().toString());
-            Hazelcast.newHazelcastInstance(createConfig(isUnixSocketSupported));
-            Hazelcast.newHazelcastInstance(createConfig(isUnixSocketSupported));
-            Hazelcast.newHazelcastInstance(createConfig(isUnixSocketSupported));
 
             Config liteConfig = createConfig(isUnixSocketSupported).setLiteMember(true);
             hz = Hazelcast.newHazelcastInstance(liteConfig);
@@ -66,7 +61,7 @@ public class App {
             } else {
                 joinConfig.getAutoDetectionConfig().setEnabled(false);
                 joinConfig.getMulticastConfig().setEnabled(false);
-                joinConfig.getTcpIpConfig().setEnabled(true).addMember("127.0.0.1:5701");
+                joinConfig.getTcpIpConfig().setEnabled(true).addMember("172.17.0.2:5701");
             }
             return config;
         }
@@ -76,16 +71,6 @@ public class App {
             hz.getMap("test").destroy();
             map = hz.getMap("test");
             map.put("key", "value");
-        }
-
-        @TearDown(Level.Trial)
-        public void tearDown() {
-            hz.getCluster().shutdown();
-            try {
-                Runtime.getRuntime().exec("rm -rf '" + tempDir.toAbsolutePath() + "'");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 
