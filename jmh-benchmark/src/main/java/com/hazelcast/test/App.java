@@ -1,8 +1,6 @@
 package com.hazelcast.test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -10,7 +8,6 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.config.DiscoveryStrategyConfig;
@@ -30,7 +27,6 @@ public class App {
     public static class ExecutionPlan {
 
         public HazelcastInstance hz;
-        public Path tempDir;
         IMap<String, String> map;
 
         @Setup(Level.Trial)
@@ -56,7 +52,7 @@ public class App {
             if (isUnixSocketSupported) {
                 joinConfig.getDiscoveryConfig().addDiscoveryStrategyConfig(
                         new DiscoveryStrategyConfig("com.hazelcast.spi.discovery.uds.UDSDiscoveryStrategy",
-                                Map.of("hazelcast.disco.udsDirectory", tempDir.toString())));
+                                Map.of("hazelcast.disco.udsDirectory", System.getProperty("hazelcast.unix.socket.dir","/mnt"))));
                 config.setProperty(ClusterProperty.DISCOVERY_SPI_ENABLED.getName(), "true");
             } else {
                 joinConfig.getAutoDetectionConfig().setEnabled(false);
