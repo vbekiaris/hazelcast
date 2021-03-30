@@ -29,8 +29,11 @@
     <url>http://www.hazelcast.com/</url>
 
     <modules>
+    <!-- 
         <module>extensions</module>
+     -->
         <module>hazelcast</module>
+<!-- 
         <module>hazelcast-jet-sql</module>
         <module>hazelcast-spring</module>
         <module>hazelcast-spring-tests</module>
@@ -39,6 +42,7 @@
         <module>hazelcast-sql</module>
         <module>hazelcast-all</module>
         <module>distribution</module>
+ -->
     </modules>
 
     <properties>
@@ -57,7 +61,7 @@
         <!-- Not using 3.1 at the moment since it recompiles all classes every time -->
         <!-- https://issues.apache.org/jira/browse/MCOMPILER-205 -->
         <!--<maven.compiler.plugin.version>3.1</maven.compiler.plugin.version>-->
-        <maven.compiler.plugin.version>2.5.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
         <maven.jar.plugin.version>2.4</maven.jar.plugin.version>
         <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.2.0</maven.javadoc.plugin.version>
@@ -889,9 +893,11 @@
                     </plugin>
                 </plugins>
             </build>
+<!--
             <modules>
                 <module>hazelcast-all</module>
             </modules>
+-->
         </profile>
 
         <!-- unfortunately it isn't possible to chain profiles, so we need to duplicate the javadoc plugin -->
@@ -900,9 +906,11 @@
             <properties>
                 <javadoc>true</javadoc>
             </properties>
+<!--
             <modules>
                 <module>hazelcast-all</module>
             </modules>
+-->            
             <build>
                 <plugins>
                     <plugin>
@@ -928,9 +936,11 @@
 
         <profile>
             <id>zip</id>
+<!--
             <modules>
                 <module>hazelcast-all</module>
             </modules>
+-->
         </profile>
 
         <profile>
@@ -1094,9 +1104,11 @@
                     --illegal-access=warn
                 </javaModuleArgs>
             </properties>
+<!--
             <modules>
                 <module>modulepath-tests</module>
             </modules>
+-->
         </profile>
 
         <profile>
