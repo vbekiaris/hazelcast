@@ -62,7 +62,7 @@ public final class HazelcastMemberStarter {
         config.getAdvancedNetworkConfig().getJoin().getDiscoveryConfig()
               .addDiscoveryStrategyConfig(
                       new DiscoveryStrategyConfig("com.hazelcast.spi.discovery.uds.UDSDiscoveryStrategy",
-                              Map.of(UDS_SOCKET_DIRECTORY, System.getProperty("hazelcast.disco.socket.directory",
+                              Map.of(UDS_SOCKET_DIRECTORY, System.getProperty("hazelcast.unix.socket.dir",
                                       "/Users/vb/tmp/socket"))));
         config.setProperty(ClusterProperty.DISCOVERY_SPI_ENABLED.getName(), "true");
         HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
