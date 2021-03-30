@@ -50,7 +50,6 @@ public final class HazelcastMemberStarter {
      */
     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
         System.setProperty("hazelcast.tracking.server", "true");
-        System.setProperty("hazelcast.logging.type", "log4j2");
 
         Config config = new Config();
         config.getMetricsConfig().setEnabled(false);
@@ -63,7 +62,8 @@ public final class HazelcastMemberStarter {
         config.getAdvancedNetworkConfig().getJoin().getDiscoveryConfig()
               .addDiscoveryStrategyConfig(
                       new DiscoveryStrategyConfig("com.hazelcast.spi.discovery.uds.UDSDiscoveryStrategy",
-                              Map.of(UDS_SOCKET_DIRECTORY, "/Users/vb/tmp/socket")));
+                              Map.of(UDS_SOCKET_DIRECTORY, System.getProperty("hazelcast.disco.socket.directory",
+                                      "/Users/vb/tmp/socket"))));
         config.setProperty(ClusterProperty.DISCOVERY_SPI_ENABLED.getName(), "true");
         HazelcastInstance hz = Hazelcast.newHazelcastInstance(config);
         printMemberPort(hz);
