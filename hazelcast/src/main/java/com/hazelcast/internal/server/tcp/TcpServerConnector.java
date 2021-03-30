@@ -28,8 +28,11 @@ import java.io.IOException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ProtocolFamily;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.StandardProtocolFamily;
+import java.net.UnixDomainSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.util.Collection;
@@ -135,7 +138,11 @@ class TcpServerConnector {
                     tryToConnect(new InetSocketAddress(inetAddress, remoteAddress.getPort()),
                             serverContext.getSocketConnectTimeoutSeconds(
                                     connectionManager.getEndpointQualifier()) * MILLIS_PER_SECOND);
-                } else {
+                } else if (remoteAddress.isUnixSocketAddress()) {
+                    // remote is UnixDomainSocketAddress
+                    tryToConnect(remoteAddress.getUnixDomainSocketAddress(), serverContext.getSocketConnectTimeoutSeconds(
+                            connectionManager.getEndpointQualifier()) * MILLIS_PER_SECOND);
+                }else {
                     // remote is IPv6 and this is either IPv4 or a global IPv6.
                     // find possible remote inet6 addresses and try each one to connect...
                     tryConnectToIPv6();
@@ -197,6 +204,47 @@ class TcpServerConnector {
                     channel.connect(socketAddress, timeout);
 
                     serverContext.interceptSocket(connectionManager.getEndpointQualifier(), socketChannel.socket(), false);
+
+                    connection = connectionManager.newConnection(channel, remoteAddress);
+                    new SendMemberHandshakeTask(logger, serverContext, connection,
+                            remoteAddress, true, planeIndex, planeCount).run();
+                } catch (Exception e) {
+                    closeConnection(connection, e);
+                    closeSocket(socketChannel);
+                    logger.log(level, "Could not connect to: " + socketAddress + ". Reason: " + e.getClass().getSimpleName()
+                            + "[" + e.getMessage() + "]");
+                    throw e;
+                }
+            } finally {
+                connectionManager.removeAcceptedChannel(channel);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private void tryToConnect(UnixDomainSocketAddress socketAddress, int timeout) throws Exception {
+            SocketChannel socketChannel = SocketChannel.open(StandardProtocolFamily.UNIX);
+
+            TcpServerConnection connection = null;
+            Channel channel = connectionManager.newChannel(socketChannel, true);
+            channel.attributeMap().put(Address.class, remoteAddress);
+            try {
+                // no client-side binding
+//                if (socketClientBind) {
+//                    bindSocket(socketChannel);
+//                }
+
+                Level level = silent ? Level.FINEST : Level.INFO;
+                if (logger.isLoggable(level)) {
+                    logger.log(level, "Connecting to " + socketAddress + ", timeout: " + timeout
+                            + ", bind-any: " + socketClientBindAny);
+                }
+
+                try {
+                    // do not use connect with timeout for UDS
+                    channel.connect(socketAddress, 0);
+
+                    // no socket interceptors
+//                    serverContext.interceptSocket(connectionManager.getEndpointQualifier(), socketChannel.socket(), false);
 
                     connection = connectionManager.newConnection(channel, remoteAddress);
                     new SendMemberHandshakeTask(logger, serverContext, connection,

@@ -30,6 +30,7 @@ import com.hazelcast.internal.util.counters.SwCounter;
 import com.hazelcast.logging.ILogger;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -303,14 +304,19 @@ public class TcpServerAcceptor implements DynamicMetricsProvider {
         }
 
         private void newConnection0(TcpServerConnectionManager connectionManager, Channel channel) {
+            Socket socket;
             try {
-                serverContext.interceptSocket(connectionManager.getEndpointQualifier(), channel.socket(), true);
-                connectionManager.newConnection(channel, null);
+                socket = channel.socket();
+                serverContext.interceptSocket(connectionManager.getEndpointQualifier(), socket, true);
+            } catch (UnsupportedOperationException e) {
+                // ignore
             } catch (Exception e) {
                 exceptionCount.inc();
                 logger.warning(e.getClass().getName() + ": " + e.getMessage(), e);
                 closeResource(channel);
+                return;
             }
+            connectionManager.newConnection(channel, null);
         }
     }
 }

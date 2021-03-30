@@ -16,3 +16,4 @@
 
 
 com.hazelcast.spi.discovery.multicast.MulticastDiscoveryStrategyFactory
+com.hazelcast.spi.discovery.uds.UDSDiscoveryStrategyFactory

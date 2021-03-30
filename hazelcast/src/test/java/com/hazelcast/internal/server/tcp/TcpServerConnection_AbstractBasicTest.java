@@ -21,6 +21,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -175,7 +176,7 @@ public abstract class TcpServerConnection_AbstractBasicTest extends TcpServerCon
     public void getRemoteSocketAddress() {
         TcpServerConnection c = connect(tcpServerA, addressB);
 
-        InetSocketAddress result = c.getRemoteSocketAddress();
+        SocketAddress result = c.getRemoteSocketAddress();
 
         assertEquals(new InetSocketAddress(addressB.getHost(), addressB.getPort()), result);
     }

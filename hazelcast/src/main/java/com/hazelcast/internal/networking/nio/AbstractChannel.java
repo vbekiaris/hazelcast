@@ -16,6 +16,7 @@
 
 package com.hazelcast.internal.networking.nio;
 
+import com.hazelcast.core.HazelcastException;
 import com.hazelcast.internal.networking.Channel;
 import com.hazelcast.internal.networking.ChannelCloseListener;
 import com.hazelcast.logging.ILogger;
@@ -23,7 +24,6 @@ import com.hazelcast.logging.Logger;
 import com.hazelcast.internal.nio.IOUtil;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -96,9 +96,17 @@ public abstract class AbstractChannel implements Channel {
     @Override
     public SocketAddress remoteSocketAddress() {
         if (remoteAddress == null) {
-            Socket socket = socket();
-            if (socket != null) {
-                REMOTE_ADDRESS.compareAndSet(this, null, socket.getRemoteSocketAddress());
+            try {
+                Socket socket = socket();
+                if (socket != null) {
+                    REMOTE_ADDRESS.compareAndSet(this, null, socket.getRemoteSocketAddress());
+                }
+            } catch (UnsupportedOperationException e) {
+                try {
+                    REMOTE_ADDRESS.compareAndSet(this, null, socketChannel.getRemoteAddress());
+                } catch (IOException ioException) {
+                    throw new HazelcastException(ioException);
+                }
             }
         }
         return remoteAddress;
@@ -106,17 +114,26 @@ public abstract class AbstractChannel implements Channel {
 
     @Override
     public SocketAddress localSocketAddress() {
+        // todo unsupported for UDS
         if (localAddress == null) {
-            Socket socket = socket();
-            if (socket != null) {
-                LOCAL_ADDRESS.compareAndSet(this, null, socket().getLocalSocketAddress());
+            try {
+                Socket socket = socket();
+                if (socket != null) {
+                    LOCAL_ADDRESS.compareAndSet(this, null, socket().getLocalSocketAddress());
+                }
+            } catch (UnsupportedOperationException e) {
+                try {
+                    LOCAL_ADDRESS.compareAndSet(this, null, socketChannel.getLocalAddress());
+                } catch (IOException ioException) {
+                    throw new HazelcastException(ioException);
+                }
             }
         }
         return localAddress;
     }
 
     @Override
-    public void connect(InetSocketAddress address, int timeoutMillis) throws IOException {
+    public void connect(SocketAddress address, int timeoutMillis) throws IOException {
         try {
             if (!clientMode) {
                 throw new IllegalStateException("Can't call connect on a Channel that isn't in clientMode");

@@ -24,7 +24,7 @@ import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -110,7 +110,7 @@ class DroppingServerConnection implements ServerConnection {
     }
 
     @Override
-    public InetSocketAddress getRemoteSocketAddress() {
+    public SocketAddress getRemoteSocketAddress() {
         try {
             return remoteAddress.getInetSocketAddress();
         } catch (UnknownHostException e) {

@@ -26,7 +26,7 @@ import com.hazelcast.internal.util.concurrent.ThreadFactoryImpl;
 
 import javax.annotation.Nonnull;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -348,7 +348,7 @@ public class FirewallingServer
         }
 
         @Override
-        public InetSocketAddress getRemoteSocketAddress() {
+        public SocketAddress getRemoteSocketAddress() {
             return delegate.getRemoteSocketAddress();
         }
 

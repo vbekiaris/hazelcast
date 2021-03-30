@@ -41,6 +41,7 @@ import com.hazelcast.test.mocknetwork.TestNodeRegistry;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -269,7 +270,7 @@ class TestClientRegistry {
         }
 
         @Override
-        public InetSocketAddress getRemoteSocketAddress() {
+        public SocketAddress getRemoteSocketAddress() {
             try {
                 return remoteAddress.getInetSocketAddress();
             } catch (UnknownHostException e) {

@@ -65,7 +65,7 @@ import com.hazelcast.transaction.TransactionManagerService;
 
 import javax.annotation.Nonnull;
 import javax.security.auth.login.LoginException;
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -308,7 +308,7 @@ public class ClientEngineImpl implements ClientEngine, CoreService,
 
         ServerConnection conn = endpoint.getConnection();
         if (conn != null) {
-            InetSocketAddress socketAddress = conn.getRemoteSocketAddress();
+            SocketAddress socketAddress = conn.getRemoteSocketAddress();
             //socket address can be null if connection closed before bind
             if (socketAddress != null) {
                 conn.setRemoteAddress(new Address(socketAddress));

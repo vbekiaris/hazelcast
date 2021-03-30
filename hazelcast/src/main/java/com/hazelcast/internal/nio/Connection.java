@@ -20,7 +20,7 @@ import com.hazelcast.cluster.Address;
 import com.hazelcast.internal.networking.OutboundFrame;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -76,7 +76,7 @@ public interface Connection {
      * <p>
      * todo: do we really need this method because we have getInetAddress, InetSocketAddress and getEndPoint.
      */
-    InetSocketAddress getRemoteSocketAddress();
+    SocketAddress getRemoteSocketAddress();
 
     /**
      * Gets the {@link Address} of the other side of this Connection.

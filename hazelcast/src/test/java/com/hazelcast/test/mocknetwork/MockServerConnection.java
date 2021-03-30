@@ -28,6 +28,7 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -180,7 +181,7 @@ public class MockServerConnection implements ServerConnection {
         return ConnectionType.MEMBER;
     }
 
-    public InetSocketAddress getRemoteSocketAddress() {
+    public SocketAddress getRemoteSocketAddress() {
         InetAddress inetAddress;
         try {
             inetAddress = localAddress.getInetAddress();

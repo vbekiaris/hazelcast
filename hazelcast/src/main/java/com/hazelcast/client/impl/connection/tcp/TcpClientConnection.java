@@ -34,6 +34,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.channels.CancelledKeyException;
 import java.util.Collections;
 import java.util.Map;
@@ -162,7 +163,7 @@ public class TcpClientConnection implements ClientConnection {
     }
 
     @Override
-    public InetSocketAddress getRemoteSocketAddress() {
+    public SocketAddress getRemoteSocketAddress() {
         return (InetSocketAddress) channel.remoteSocketAddress();
     }
 

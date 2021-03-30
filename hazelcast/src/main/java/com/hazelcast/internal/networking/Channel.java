@@ -19,7 +19,6 @@ package com.hazelcast.internal.networking;
 import javax.net.ssl.SSLEngine;
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.concurrent.ConcurrentMap;
@@ -163,7 +162,7 @@ public interface Channel extends Closeable {
     /**
      * Starts the Channel.
      *
-     * In case of a client-mode channel, the {@link #connect(InetSocketAddress, int)}
+     * In case of a client-mode channel, the {@link #connect(SocketAddress, int)}
      * should be called before start is called.
      *
      * When the Channel is started, the {@link ChannelInitializer} will be called to
@@ -195,7 +194,7 @@ public interface Channel extends Closeable {
      * @throws IllegalStateException if the connection is not in clientMode.
      * @throws IOException if connecting fails.
      */
-    void connect(InetSocketAddress address, int timeoutMillis) throws IOException;
+    void connect(SocketAddress address, int timeoutMillis) throws IOException;
 
     /**
      * Closes the Channel.

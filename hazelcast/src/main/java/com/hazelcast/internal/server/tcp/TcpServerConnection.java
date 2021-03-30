@@ -32,6 +32,7 @@ import com.hazelcast.logging.ILogger;
 import java.io.EOFException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.channels.CancelledKeyException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
@@ -146,8 +147,8 @@ public class TcpServerConnection implements ServerConnection {
     }
 
     @Override
-    public InetSocketAddress getRemoteSocketAddress() {
-        return (InetSocketAddress) channel.remoteSocketAddress();
+    public SocketAddress getRemoteSocketAddress() {
+        return channel.remoteSocketAddress();
     }
 
     @Override

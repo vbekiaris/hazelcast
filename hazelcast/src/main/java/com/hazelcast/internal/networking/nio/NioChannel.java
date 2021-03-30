@@ -18,10 +18,13 @@ package com.hazelcast.internal.networking.nio;
 
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.internal.networking.ChannelInitializer;
+import com.hazelcast.internal.networking.ChannelOptions;
 import com.hazelcast.internal.networking.OutboundFrame;
+import com.hazelcast.internal.networking.uds.NoopChannelOptions;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.Executor;
@@ -40,7 +43,7 @@ public final class NioChannel extends AbstractChannel {
 
     private final Executor closeListenerExecutor;
     private final ChannelInitializer channelInitializer;
-    private final NioChannelOptions config;
+    private final ChannelOptions config;
 
     public NioChannel(SocketChannel socketChannel,
                       boolean clientMode,
@@ -49,11 +52,17 @@ public final class NioChannel extends AbstractChannel {
         super(socketChannel, clientMode);
         this.channelInitializer = channelInitializer;
         this.closeListenerExecutor = closeListenerExecutor;
-        this.config = new NioChannelOptions(socketChannel.socket());
+        ChannelOptions opts;
+        try {
+            opts = new NioChannelOptions(socketChannel.socket());
+        } catch (UnsupportedOperationException e) {
+            opts = new NoopChannelOptions();
+        }
+        this.config = opts;
     }
 
     @Override
-    public NioChannelOptions options() {
+    public ChannelOptions options() {
         return config;
     }
 
@@ -145,9 +154,17 @@ public final class NioChannel extends AbstractChannel {
         return outboundPipeline.bytesWritten();
     }
 
+//    @Override
+//    public String toString() {
+//        return "NioChannel{" + localSocketAddress() + "->" + remoteSocketAddress() + '}';
+//    }
     @Override
-    public String toString() {
-        return "NioChannel{" + localSocketAddress() + "->" + remoteSocketAddress() + '}';
+      public String toString() {
+        try {
+            return "NioChannel{" + socketChannel.getLocalAddress() + "->" + socketChannel.getRemoteAddress() + '}';
+        } catch (IOException e) {
+            return "NioChannel{}";
+        }
     }
 
     //  this toString implementation is very useful for debugging. Please don't remove it.

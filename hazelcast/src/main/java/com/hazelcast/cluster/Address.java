@@ -37,9 +37,9 @@ import static com.hazelcast.internal.util.Preconditions.checkNotNull;
  */
 public final class Address implements IdentifiedDataSerializable {
 
+    private static final byte UNIX = 0;
     private static final byte IPV4 = 4;
     private static final byte IPV6 = 6;
-    private static final byte UNIX = 1;
 
     private int port = -1;
     private String host;
@@ -80,7 +80,11 @@ public final class Address implements IdentifiedDataSerializable {
             hostSet = false;
         } else if (socketAddress instanceof UnixDomainSocketAddress) {
             isUnixSocketAddress = true;
+            type = UNIX;
             unixDomainSocketAddress = (UnixDomainSocketAddress) socketAddress;
+            host = unixDomainSocketAddress.getPath().toString();
+            port = 5701;
+            hostSet = true;
         }
     }
 
@@ -116,7 +120,7 @@ public final class Address implements IdentifiedDataSerializable {
     }
 
     public int getPort() {
-        return isUnixSocketAddress ? 5701 : port;
+        return port;
     }
 
     public InetAddress getInetAddress() throws UnknownHostException {
@@ -133,6 +137,14 @@ public final class Address implements IdentifiedDataSerializable {
 
     public boolean isIPv6() {
         return type == IPV6;
+    }
+
+    public boolean isUnixSocketAddress() {
+        return isUnixSocketAddress;
+    }
+
+    public UnixDomainSocketAddress getUnixDomainSocketAddress() {
+        return unixDomainSocketAddress;
     }
 
     public String getScopeId() {
@@ -184,20 +196,14 @@ public final class Address implements IdentifiedDataSerializable {
         }
         final Address address = (Address) o;
 
-        return isUnixSocketAddress
-                ? unixDomainSocketAddress.equals(((Address) o).unixDomainSocketAddress)
-                : port == address.port && this.type == address.type && this.host.equals(address.host);
+        return port == address.port && this.type == address.type && this.host.equals(address.host);
     }
 
     @Override
     public int hashCode() {
-        if (isUnixSocketAddress) {
-            return unixDomainSocketAddress.hashCode();
-        } else {
-            int result = port;
-            result = 31 * result + host.hashCode();
-            return result;
-        }
+        int result = port;
+        result = 31 * result + host.hashCode();
+        return result;
     }
 
     @Override
