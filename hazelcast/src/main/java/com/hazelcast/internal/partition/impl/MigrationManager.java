@@ -88,6 +88,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -102,6 +103,8 @@ import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.PARTITIONS_PREFIX;
 import static com.hazelcast.internal.metrics.ProbeUnit.BOOLEAN;
 import static com.hazelcast.internal.partition.IPartitionService.SERVICE_NAME;
+import static com.hazelcast.internal.util.Preconditions.checkNotNegative;
+import static com.hazelcast.spi.properties.ClusterProperty.PARTITION_REBALANCE_DELAY_SECONDS;
 
 /**
  * Maintains migration system state and manages migration operations performed within the cluster.
@@ -144,6 +147,14 @@ public class MigrationManager {
     private final AtomicInteger migrationCount = new AtomicInteger();
     private final Set<MigrationInfo> finalizingMigrationsRegistry = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+    /**
+     * the positive number of seconds to delay triggering rebalancing
+     * or 0 when no delay should be applied
+     */
+    private final int autoRebalanceDelaySeconds;
+    private volatile boolean delayNextRepartitioningExecution;
+    private volatile ScheduledFuture<Void> scheduledControlTaskFuture;
+
     MigrationManager(Node node, InternalPartitionServiceImpl service, Lock partitionServiceLock) {
         this.node = node;
         this.nodeEngine = node.getNodeEngine();
@@ -166,6 +177,9 @@ public class MigrationManager {
                 executionService, migrationPauseDelayMs, 2 * migrationPauseDelayMs, this::resumeMigration);
         this.memberHeartbeatTimeoutMillis = properties.getMillis(ClusterProperty.MAX_NO_HEARTBEAT_SECONDS);
         nodeEngine.getMetricsRegistry().registerStaticMetrics(stats, PARTITIONS_PREFIX);
+        this.autoRebalanceDelaySeconds = properties.getInteger(PARTITION_REBALANCE_DELAY_SECONDS);
+        checkNotNegative(autoRebalanceDelaySeconds,
+                PARTITION_REBALANCE_DELAY_SECONDS.getName() + " must be not negative");
     }
 
     @Probe(name = MIGRATION_METRIC_MIGRATION_MANAGER_MIGRATION_ACTIVE, unit = BOOLEAN)
@@ -614,6 +628,13 @@ public class MigrationManager {
         }
     }
 
+    public void triggerControlTaskWithDelay() {
+        if (autoRebalanceDelaySeconds > 0) {
+            delayNextRepartitioningExecution = true;
+        }
+        triggerControlTask();
+    }
+
     MigrationInterceptor getMigrationInterceptor() {
         return migrationInterceptor;
     }
@@ -690,6 +711,13 @@ public class MigrationManager {
     }
 
     void reset() {
+        try {
+            if (scheduledControlTaskFuture != null) {
+                scheduledControlTaskFuture.cancel(true);
+            }
+        } catch (Throwable t) {
+            logger.fine("Cancelling a scheduled control task threw an exception", t);
+        }
         migrationQueue.clear();
         migrationCount.set(0);
         activeMigrations.clear();
@@ -1602,6 +1630,18 @@ public class MigrationManager {
 
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);
+            if (delayNextRepartitioningExecution) {
+                System.out.println(">>> delayNextRepartitioningExecution was true");
+                ExecutionService executionService = nodeEngine.getExecutionService();
+                // schedule a complete execution of the control task, to ensure migration queue
+                // is cleared before triggering partition rebalancing
+                scheduledControlTaskFuture = (ScheduledFuture<Void>) executionService.schedule(() -> triggerControlTask(),
+                        autoRebalanceDelaySeconds, TimeUnit.SECONDS);
+                delayNextRepartitioningExecution = false;
+                return;
+            } else {
+                System.out.println(">>> delayNextRepartitioningExecution was false");
+            }
             partitionServiceLock.lock();
             try {
                 if (success) {

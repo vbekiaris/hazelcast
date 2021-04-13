@@ -388,7 +388,7 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
                     shouldFetchPartitionTables = true;
                 }
                 if (isMaster) {
-                    migrationManager.triggerControlTask();
+                    migrationManager.triggerControlTaskWithDelay();
                 }
             }
 
