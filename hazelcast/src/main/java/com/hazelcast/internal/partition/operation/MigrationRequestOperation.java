@@ -20,6 +20,7 @@ import com.hazelcast.cluster.Address;
 import com.hazelcast.core.MemberLeftException;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.InternalPartitionService;
+import com.hazelcast.internal.partition.MigrationCycleOperation;
 import com.hazelcast.internal.partition.MigrationEndpoint;
 import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.NonFragmentedServiceNamespace;
@@ -36,14 +37,15 @@ import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.NodeEngineImpl;
-import com.hazelcast.spi.impl.PartitionSpecificRunnable;
+import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.operationservice.CallStatus;
 import com.hazelcast.spi.impl.operationservice.Offload;
 import com.hazelcast.spi.impl.operationservice.Operation;
+import com.hazelcast.spi.impl.operationservice.OperationResponseHandler;
 import com.hazelcast.spi.impl.operationservice.OperationService;
-import com.hazelcast.spi.impl.operationservice.UrgentSystemOperation;
 import com.hazelcast.spi.impl.servicemanager.ServiceInfo;
 
 import java.io.IOException;
@@ -133,7 +135,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
             Set<ServiceNamespace> namespaces = migrationState != null
                     ? migrationState.getNamespaceVersionMap().keySet() : emptySet();
             logger.finest("Invoking MigrationOperation for namespaces " + namespaces + " and " + migrationInfo
-                    + ", lastFragment: " + lastFragment);
+                    + ", firstFragment: " + firstFragment + ", lastFragment: " + lastFragment);
         }
 
         NodeEngine nodeEngine = getNodeEngine();
@@ -162,6 +164,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
             }
 
             ReplicaFragmentMigrationState migrationState = createNextReplicaFragmentMigrationState();
+            // todo maybe serialize replication operations on partition thread?
             if (migrationState != null) {
                 invokeMigrationOperation(migrationState, false);
             } else {
@@ -252,7 +255,8 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
     }
 
     private PartitionReplicationEvent getPartitionReplicationEvent() {
-        return new PartitionReplicationEvent(migrationInfo.getPartitionId(), migrationInfo.getDestinationNewReplicaIndex());
+        return new PartitionReplicationEvent(migrationInfo.getDestinationAddress(),
+                migrationInfo.getPartitionId(), migrationInfo.getDestinationNewReplicaIndex());
     }
 
     private void completeMigration(boolean result) {
@@ -308,7 +312,8 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
                 completeMigration(false);
             } else if (Boolean.TRUE.equals(result)) {
                 OperationService operationService = getNodeEngine().getOperationService();
-                operationService.execute(new SendNewMigrationFragmentRunnable());
+                operationService.execute(new SendNewMigrationFragmentOperation()
+                        .setOperationResponseHandler(OperationResponseHandler.NO_OP_RESPONSE_HANDLER));
             } else {
                 ILogger logger = getLogger();
                 if (logger.isFineEnabled()) {
@@ -319,18 +324,58 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         }
     }
 
-    private final class SendNewMigrationFragmentRunnable implements PartitionSpecificRunnable, UrgentSystemOperation {
+    // todo: consider if we need to offload just replication op preparation
+    //  and get back on the partition thread when invoking the migration operations
+    //  so that serialization (=partition data traversal) occurs on the partition thread
+    private final class SendNewMigrationFragmentOperation
+            extends Operation implements MigrationCycleOperation,
+                                         IdentifiedDataSerializable {
 
-        @Override
-        public int getPartitionId() {
-            return MigrationRequestOperation.this.getPartitionId();
+        public SendNewMigrationFragmentOperation() {
+            setPartitionId(MigrationRequestOperation.this.getPartitionId());
         }
 
         @Override
-        public void run() {
-            trySendNewFragment();
+        public CallStatus call()
+                throws Exception {
+            return new SendNewFragmentOffloadable(this);
         }
 
+        @Override
+        public int getFactoryId() {
+            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
+        }
+
+        @Override
+        public int getClassId() {
+            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
+        }
+
+        @Override
+        protected void writeInternal(ObjectDataOutput out)
+                throws IOException {
+            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
+        }
+
+        @Override
+        protected void readInternal(ObjectDataInput in)
+                throws IOException {
+            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
+        }
+    }
+
+    private final class SendNewFragmentOffloadable extends Offload {
+
+        public SendNewFragmentOffloadable(Operation offloadedOperation) {
+            super(offloadedOperation);
+        }
+
+        @Override
+        public void start()
+                throws Exception {
+            getNodeEngine().getExecutionService().submit(ExecutionService.OFFLOADABLE_EXECUTOR,
+                    () -> trySendNewFragment());
+        }
     }
 
     private static class ServiceNamespacesContext {

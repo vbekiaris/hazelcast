@@ -92,11 +92,11 @@ import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MAP_TAG_I
  */
 @SuppressWarnings({"checkstyle:ClassFanOutComplexity", "checkstyle:MethodCount"})
 public class MapService implements ManagedService, FragmentedMigrationAwareService, TransactionalService, RemoteService,
-        EventPublishingService<Object, ListenerAdapter>, PostJoinAwareService,
-        SplitBrainHandlerService, WanSupportingService, StatisticsAwareService<LocalMapStats>,
-        PartitionAwareService, ClientAwareService, SplitBrainProtectionAwareService,
-        NotifiableEventListener, ClusterStateListener, LockInterceptorService<Data>,
-        DynamicMetricsProvider, TenantContextAwareService {
+                                   EventPublishingService<Object, ListenerAdapter>, PostJoinAwareService,
+                                   SplitBrainHandlerService, WanSupportingService, StatisticsAwareService<LocalMapStats>,
+                                   PartitionAwareService, ClientAwareService, SplitBrainProtectionAwareService,
+                                   NotifiableEventListener, ClusterStateListener, LockInterceptorService<Data>,
+                                   DynamicMetricsProvider, TenantContextAwareService {
 
     public static final String SERVICE_NAME = "hz:impl:mapService";
 

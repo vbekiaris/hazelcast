@@ -24,6 +24,9 @@ package com.hazelcast.spi.impl.operationservice;
  */
 public interface OperationResponseHandler<O extends Operation> {
 
+    OperationResponseHandler<? extends Operation> NO_OP_RESPONSE_HANDLER = (op, response) -> {
+    };
+
     /**
      * Sends a response.
      *
