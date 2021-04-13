@@ -155,6 +155,7 @@ public class MigrationManager {
     private volatile boolean delayNextRepartitioningExecution;
     private volatile ScheduledFuture<Void> scheduledControlTaskFuture;
 
+    @SuppressWarnings("checkstyle:executablestatementcount")
     MigrationManager(Node node, InternalPartitionServiceImpl service, Lock partitionServiceLock) {
         this.node = node;
         this.nodeEngine = node.getNodeEngine();
