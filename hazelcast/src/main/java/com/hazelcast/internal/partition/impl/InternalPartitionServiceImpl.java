@@ -366,6 +366,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         }
     }
 
+    // react to member leaving unexpectedly -- members leaving with graceful shutdown
+    // have had their migrations already done before removal
+    // todo this is called from various paths including hot restart excluded members
+    //  need to validate all usages
     @Override
     public void memberRemoved(Member member) {
         logger.fine("Removing " + member);
@@ -388,6 +392,8 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
                     shouldFetchPartitionTables = true;
                 }
                 if (isMaster) {
+                    // keep partition table snapshot as member leaves
+                    partitionStateManager.storeSnapshot(member.getUuid());
                     migrationManager.triggerControlTaskWithDelay();
                 }
             }
@@ -1216,6 +1222,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         }
     }
 
+    public PartitionTableView getCrashedMemberSnapshot(UUID uuid) {
+        return partitionStateManager.getSnapshot(uuid);
+    }
+
     /**
      * Returns true only if local member is the last known master by
      * {@code InternalPartitionServiceImpl}.
@@ -1305,7 +1315,6 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
             lock.unlock();
         }
     }
-
 
     /**
      * Invoked on a node when it becomes master. It will receive partition states from all members and consolidate them into one.

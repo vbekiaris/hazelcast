@@ -371,9 +371,9 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         int[] diffNodeOrder = in.readIntArray();
         // todo check if length 0 indicates something special and we need that array
         //  in merkleTreeDiffByMapName
-//        if (diffNodeOrder.length > 0) {
+        if (diffNodeOrder.length > 0) {
             merkleTreeDiffByMapName.put(mapName, diffNodeOrder);
-//        }
+        }
         readRecordStoreData(mapName, in);
     }
 
