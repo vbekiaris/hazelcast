@@ -36,6 +36,7 @@ import com.hazelcast.internal.cluster.impl.operations.MembersUpdateOp;
 import com.hazelcast.internal.cluster.impl.operations.OnJoinOp;
 import com.hazelcast.internal.cluster.impl.operations.WhoisMasterOp;
 import com.hazelcast.internal.hotrestart.InternalHotRestartService;
+import com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO;
 import com.hazelcast.internal.nio.Connection;
 import com.hazelcast.internal.nio.Packet;
 import com.hazelcast.internal.server.ServerConnection;
@@ -69,6 +70,8 @@ import static com.hazelcast.internal.cluster.impl.MemberMap.SINGLETON_MEMBER_LIS
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.CANNOT_MERGE;
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.LOCAL_NODE_SHOULD_MERGE;
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.REMOTE_NODE_SHOULD_MERGE;
+import static com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO.ClusterHotRestartStatus.FAILED;
+import static com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO.ClusterHotRestartStatus.SUCCEEDED;
 import static com.hazelcast.internal.util.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -99,6 +102,19 @@ public class ClusterJoinManager {
 
     private final Map<Address, MemberInfo> joiningMembers = new LinkedHashMap<>();
     private final Map<UUID, Long> recentlyJoinedMemberUuids = new HashMap<>();
+
+    /**
+     * Recently crashed member UUIDs: when a recently crashed member is joining,
+     * typically it will have Hot Restart enabled (otherwise it will restart
+     * probably on the same address but definitely with a new random UUID).
+     * In order to support crashed members recovery with Hot Restart, partition
+     * table validation does not expect an identical partition table.
+     *
+     * Always accessed under cluster service lock.
+     *
+     * not a good name, it is not necessarily crashed
+     */
+    private final Map<UUID, Long> recentlyCrashedMemberUuids = new HashMap<>();
     private final long maxWaitMillisBeforeJoin;
     private final long waitMillisBeforeJoin;
     private final long staleJoinPreventionDuration;
@@ -277,6 +293,17 @@ public class ClusterJoinManager {
         }
 
         final InternalHotRestartService hotRestartService = node.getNodeExtension().getInternalHotRestartService();
+        final ClusterHotRestartStatusDTO.ClusterHotRestartStatus hotRestartStatus =
+                hotRestartService.getCurrentClusterHotRestartStatus().getHotRestartStatus();
+        // todo maybe here is a good place to check that this node (master) is already running with HR loading done,
+        //  while another member is asking to join -> handle differently vs cluster-restart??
+        if (isCrashedMember(joinRequest.getUuid())
+            && (hotRestartStatus == FAILED || hotRestartStatus == SUCCEEDED)) {
+            // this cluster is already running with hot restart enabled and a member
+            // that left unexpectedly is attempting to rejoin
+
+        }
+
         Address target = joinRequest.getAddress();
         UUID targetUuid = joinRequest.getUuid();
 
@@ -711,6 +738,9 @@ public class ClusterJoinManager {
         }
     }
 
+    /**
+     * Starts join process on master member.
+     */
     private void startJoin() {
         logger.fine("Starting join...");
         clusterServiceLock.lock();
@@ -739,8 +769,13 @@ public class ClusterJoinManager {
                 OnJoinOp preJoinOp = preparePreJoinOps();
                 OnJoinOp postJoinOp = preparePostJoinOp();
 
+                // this is the current partition assignment state, not taking into account the
+                // currently joining members
                 PartitionRuntimeState partitionRuntimeState = partitionService.createPartitionState();
                 for (MemberInfo member : joiningMembers.values()) {
+                    if (isCrashedMember(member.getUuid())) {
+                        logger.warning("Recently crashed member " + member + " is rejoining the cluster");
+                    }
                     long startTime = clusterClock.getClusterStartTime();
                     Operation op = new FinalizeJoinOp(member.getUuid(), newMembersView, preJoinOp, postJoinOp, time,
                             clusterService.getClusterId(), startTime, clusterStateManager.getState(),
@@ -954,5 +989,15 @@ public class ClusterJoinManager {
 
     void removeJoin(Address address) {
         joiningMembers.remove(address);
+    }
+
+    /** not a good name, it is not necessarily crashed */
+    void addCrashedMember(Member member) {
+        recentlyCrashedMemberUuids.put(member.getUuid(), Clock.currentTimeMillis());
+    }
+
+    /** not a good name, it is not necessarily crashed */
+    public boolean isCrashedMember(UUID memberUuid) {
+        return recentlyCrashedMemberUuids.containsKey(memberUuid);
     }
 }
