@@ -391,9 +391,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
                     assert !shouldFetchPartitionTables;
                     shouldFetchPartitionTables = true;
                 }
+                // keep partition table snapshot as member leaves
+                logger.fine("Storing partition assignments snapshot from memberRemoved");
+                partitionStateManager.storeSnapshot(member.getUuid());
                 if (isMaster) {
-                    // keep partition table snapshot as member leaves
-                    partitionStateManager.storeSnapshot(member.getUuid());
                     migrationManager.triggerControlTaskWithDelay();
                 }
             }

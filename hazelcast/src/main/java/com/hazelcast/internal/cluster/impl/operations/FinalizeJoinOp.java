@@ -149,8 +149,14 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
             return;
         }
 
+        final boolean shouldExecutePostJoinOp = preparePostOp(postJoinOp);
+        if (deferApplyPartitionTable) {
+            getInternalHotRestartService().deferPostJoinOps(postJoinOp);
+            return;
+        }
+
         sendPostJoinOperationsBackToMaster();
-        if (preparePostOp(postJoinOp)) {
+        if (shouldExecutePostJoinOp) {
             getNodeEngine().getOperationService().run(postJoinOp);
         }
     }

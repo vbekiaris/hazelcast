@@ -448,10 +448,12 @@ public class PartitionStateManager {
         return new PartitionTableView(getPartitionsCopy(true));
     }
 
+    // todo need cleanup also
     void storeSnapshot(UUID crashedMemberUuid) {
         logger.info("Storing snapshot of partition assignments while removing UUID " + crashedMemberUuid);
-        snapshotOnRemove.putIfAbsent(crashedMemberUuid, getPartitionTable());
+        snapshotOnRemove.put(crashedMemberUuid, getPartitionTable());
     }
+
     PartitionTableView getSnapshot(UUID crashedMemberUuid) {
         return snapshotOnRemove.get(crashedMemberUuid);
     }

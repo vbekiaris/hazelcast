@@ -691,6 +691,8 @@ public class MembershipManager {
                 .addParameter("address", address)
                 .addParameter("reason", reason)
                 .log();
+            logger.info("Adding crashed member " + suspectedMember);
+            clusterService.getClusterJoinManager().addCrashedMember(suspectedMember);
         }
 
         if (shouldCloseConn) {
