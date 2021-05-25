@@ -223,6 +223,7 @@ abstract class BaseMigrationOperation extends AbstractPartitionOperation
 
     /** Sets the active migration and the partition migration flag. */
     void setActiveMigration() {
+        getLogger().info("setting active migration " + migrationInfo + " on partition " + getPartitionId());
         InternalPartitionServiceImpl partitionService = getService();
         MigrationManager migrationManager = partitionService.getMigrationManager();
         MigrationInfo currentActiveMigration = migrationManager.addActiveMigration(migrationInfo);
