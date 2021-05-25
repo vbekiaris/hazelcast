@@ -20,6 +20,7 @@ import com.hazelcast.config.CacheDeserializedValues;
 import com.hazelcast.internal.nearcache.impl.invalidation.MetaDataGenerator;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.MigrationEndpoint;
+import com.hazelcast.internal.partition.OffloadedReplicationPreparation;
 import com.hazelcast.internal.partition.PartitionMigrationEvent;
 import com.hazelcast.internal.partition.PartitionReplicationEvent;
 import com.hazelcast.internal.serialization.SerializationService;
@@ -55,7 +56,7 @@ import static com.hazelcast.map.impl.querycache.publisher.AccumulatorSweeper.sen
  *
  * @see MapService
  */
-class MapMigrationAwareService implements FragmentedMigrationAwareService {
+class MapMigrationAwareService implements FragmentedMigrationAwareService, OffloadedReplicationPreparation {
 
     protected final PartitionContainer[] containers;
     protected final MapServiceContext mapServiceContext;

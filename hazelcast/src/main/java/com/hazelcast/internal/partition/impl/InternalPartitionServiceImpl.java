@@ -604,12 +604,18 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
      * @return {@code true} if the partition state was applied
      */
     public boolean processPartitionRuntimeState(PartitionRuntimeState partitionState) {
-        Address sender = partitionState.getMaster();
+        // todo handle partition table received while hot-restarting???
         if (!node.getNodeExtension().isStartCompleted()) {
-            logger.warning("Ignoring received partition table, startup is not completed yet. Sender: " + sender);
+            logger.warning("Ignoring received partition table, startup is not completed yet. Sender: "
+                    + partitionState.getMaster());
             return false;
         }
 
+        return applyPartitionRuntimeState(partitionState);
+    }
+
+    public boolean applyPartitionRuntimeState(PartitionRuntimeState partitionState) {
+        Address sender = partitionState.getMaster();
         if (!validateSenderIsMaster(sender, "partition table update")) {
             return false;
         }
