@@ -39,9 +39,9 @@ import com.hazelcast.internal.hotrestart.InternalHotRestartService;
 import com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO;
 import com.hazelcast.internal.nio.Connection;
 import com.hazelcast.internal.nio.Packet;
-import com.hazelcast.internal.server.ServerConnection;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.internal.partition.PartitionRuntimeState;
+import com.hazelcast.internal.server.ServerConnection;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.UuidUtil;
 import com.hazelcast.logging.ILogger;
@@ -70,8 +70,6 @@ import static com.hazelcast.internal.cluster.impl.MemberMap.SINGLETON_MEMBER_LIS
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.CANNOT_MERGE;
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.LOCAL_NODE_SHOULD_MERGE;
 import static com.hazelcast.internal.cluster.impl.SplitBrainJoinMessage.SplitBrainMergeCheckResult.REMOTE_NODE_SHOULD_MERGE;
-import static com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO.ClusterHotRestartStatus.FAILED;
-import static com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO.ClusterHotRestartStatus.SUCCEEDED;
 import static com.hazelcast.internal.util.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
@@ -297,12 +295,12 @@ public class ClusterJoinManager {
                 hotRestartService.getCurrentClusterHotRestartStatus().getHotRestartStatus();
         // todo maybe here is a good place to check that this node (master) is already running with HR loading done,
         //  while another member is asking to join -> handle differently vs cluster-restart??
-        if (isCrashedMember(joinRequest.getUuid())
-            && (hotRestartStatus == FAILED || hotRestartStatus == SUCCEEDED)) {
-            // this cluster is already running with hot restart enabled and a member
-            // that left unexpectedly is attempting to rejoin
-
-        }
+//        if (isCrashedMember(joinRequest.getUuid())
+//            && (hotRestartStatus == FAILED || hotRestartStatus == SUCCEEDED)) {
+//            // this cluster is already running with hot restart enabled and a member
+//            // that left unexpectedly is attempting to rejoin
+//            System.out.println("todo");
+//        }
 
         Address target = joinRequest.getAddress();
         UUID targetUuid = joinRequest.getUuid();
@@ -746,6 +744,7 @@ public class ClusterJoinManager {
         clusterServiceLock.lock();
         try {
             InternalPartitionService partitionService = node.getPartitionService();
+            boolean shouldTriggerRepartition = true;
             try {
                 joinInProgress = true;
 
@@ -775,11 +774,18 @@ public class ClusterJoinManager {
                 for (MemberInfo member : joiningMembers.values()) {
                     if (isCrashedMember(member.getUuid())) {
                         logger.warning("Recently crashed member " + member + " is rejoining the cluster");
+                        // todo check if crashed member is starting with hot-restart
+                        if (member.getAttributes().get("hot-restart").equals("true")) {
+                            // do not trigger repartition immediately, wait for joining member to load hot-restart data
+                            logger.warning("Recently crashed member " + member + " -- deferring repartitioning until"
+                                    + " it is done loading hot-restart data");
+                            shouldTriggerRepartition = false;
+                        }
                     }
                     long startTime = clusterClock.getClusterStartTime();
                     Operation op = new FinalizeJoinOp(member.getUuid(), newMembersView, preJoinOp, postJoinOp, time,
                             clusterService.getClusterId(), startTime, clusterStateManager.getState(),
-                            clusterService.getClusterVersion(), partitionRuntimeState);
+                            clusterService.getClusterVersion(), partitionRuntimeState, !shouldTriggerRepartition);
                     op.setCallerUuid(thisUuid);
                     invokeClusterOp(op, member.getAddress());
                 }
@@ -794,7 +800,9 @@ public class ClusterJoinManager {
 
             } finally {
                 reset();
-                partitionService.resumeMigration();
+                if (shouldTriggerRepartition) {
+                    partitionService.resumeMigration();
+                }
             }
         } finally {
             clusterServiceLock.unlock();

@@ -18,9 +18,9 @@ package com.hazelcast.internal.partition.operation;
 
 import com.hazelcast.cluster.Address;
 import com.hazelcast.core.MemberLeftException;
+import com.hazelcast.internal.cluster.Versions;
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.InternalPartitionService;
-import com.hazelcast.internal.partition.MigrationCycleOperation;
 import com.hazelcast.internal.partition.MigrationEndpoint;
 import com.hazelcast.internal.partition.MigrationInfo;
 import com.hazelcast.internal.partition.NonFragmentedServiceNamespace;
@@ -37,15 +37,16 @@ import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.executionservice.ExecutionService;
+import com.hazelcast.spi.impl.operationexecutor.impl.PartitionOperationThread;
 import com.hazelcast.spi.impl.operationservice.CallStatus;
 import com.hazelcast.spi.impl.operationservice.Offload;
 import com.hazelcast.spi.impl.operationservice.Operation;
-import com.hazelcast.spi.impl.operationservice.OperationResponseHandler;
 import com.hazelcast.spi.impl.operationservice.OperationService;
+import com.hazelcast.spi.impl.operationservice.UrgentSystemOperation;
 import com.hazelcast.spi.impl.servicemanager.ServiceInfo;
 
 import java.io.IOException;
@@ -58,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 
@@ -125,6 +127,8 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
      * Invokes the {@link MigrationOperation} on the migration destination.
      */
     private void invokeMigrationOperation(ReplicaFragmentMigrationState migrationState, boolean firstFragment) {
+        assert (Thread.currentThread() instanceof PartitionOperationThread)
+                : "Migration operations must be invoked from a partition thread";
         boolean lastFragment = !namespacesContext.hasNext();
         Operation operation = new MigrationOperation(migrationInfo,
                 firstFragment ? completedMigrations : Collections.emptyList(),
@@ -140,6 +144,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
 
         NodeEngine nodeEngine = getNodeEngine();
         InternalPartitionServiceImpl partitionService = getService();
+        ExecutorService asyncExecutor = getNodeEngine().getExecutionService().getExecutor(ExecutionService.ASYNC_EXECUTOR);
 
         Address target = migrationInfo.getDestinationAddress();
         nodeEngine.getOperationService()
@@ -147,7 +152,34 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
                 .setResultDeserialized(true)
                 .setCallTimeout(partitionService.getPartitionMigrationTimeout())
                 .invoke()
-                .whenCompleteAsync(new MigrationCallback());
+                .whenCompleteAsync(new MigrationCallback(), asyncExecutor);
+    }
+
+    private void trySendNewFragmentV42() {
+        try {
+            verifyMaster();
+            verifyExistingDestination();
+
+            InternalPartitionServiceImpl partitionService = getService();
+            MigrationManager migrationManager = partitionService.getMigrationManager();
+            MigrationInfo currentActiveMigration = migrationManager.addActiveMigration(migrationInfo);
+            if (!migrationInfo.equals(currentActiveMigration)) {
+                throw new IllegalStateException("Current active migration " + currentActiveMigration
+                        + " is different than expected: " + migrationInfo);
+            }
+
+            ReplicaFragmentMigrationState migrationState = createNextReplicaFragmentMigrationState();
+
+            if (migrationState != null) {
+                invokeMigrationOperation(migrationState, false);
+            } else {
+                getLogger().finest("All migration fragments done for " + migrationInfo);
+                completeMigration(true);
+            }
+        } catch (Throwable e) {
+            logThrowable(e);
+            completeMigration(false);
+        }
     }
 
     private void trySendNewFragment() {
@@ -163,10 +195,19 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
                         + " is different than expected: " + migrationInfo);
             }
 
+            // replication operation preparation may to happen on partition thread or not
             ReplicaFragmentMigrationState migrationState = createNextReplicaFragmentMigrationState();
-            // todo maybe serialize replication operations on partition thread?
+
+            // migration invocation must always happen on partition thread
             if (migrationState != null) {
-                invokeMigrationOperation(migrationState, false);
+                // RU_COMPAT_4_2
+                if (getNodeEngine().getClusterService().getClusterVersion().isLessThan(Versions.V5_0)) {
+                    invokeMigrationOperation(migrationState, false);
+                } else {
+                    // this is executed in async pool thread
+                    // migration ops must be serialized and invoked from partition threads
+                    getNodeEngine().getOperationService().execute(new InvokeMigrationOps(migrationState, getPartitionId()));
+                }
             } else {
                 getLogger().finest("All migration fragments done for " + migrationInfo);
                 completeMigration(true);
@@ -174,6 +215,32 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         } catch (Throwable e) {
             logThrowable(e);
             completeMigration(false);
+        }
+    }
+
+    private final class InvokeMigrationOps implements PartitionSpecificRunnable, UrgentSystemOperation {
+
+        private final ReplicaFragmentMigrationState migrationState;
+        private final int partitionId;
+
+        InvokeMigrationOps(ReplicaFragmentMigrationState migrationState, int partitionId) {
+            this.migrationState = migrationState;
+            this.partitionId = partitionId;
+        }
+
+        @Override
+        public int getPartitionId() {
+            return partitionId;
+        }
+
+        @Override
+        public void run() {
+            try {
+                invokeMigrationOperation(migrationState, false);
+            } catch (Throwable t) {
+                logThrowable(t);
+                completeMigration(false);
+            }
         }
     }
 
@@ -311,9 +378,19 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
                 logThrowable(throwable);
                 completeMigration(false);
             } else if (Boolean.TRUE.equals(result)) {
-                OperationService operationService = getNodeEngine().getOperationService();
-                operationService.execute(new SendNewMigrationFragmentOperation()
-                        .setOperationResponseHandler(OperationResponseHandler.NO_OP_RESPONSE_HANDLER));
+                // RU_COMPAT_4_2
+                if (getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0)) {
+                    // todo consider which execution service to use. ASYNC seems a good choice because it
+                    //  is of CONCRETE type (=does not share threads with other executors) and is never used
+                    //  for user-supplied code. SYSTEM_EXECUTOR sounds like a good choice also, but it is
+                    //  CACHED type -> shares threads with (at least) the OFFLOADABLE executor which executes
+                    //  user code.
+                    getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR,
+                            () -> trySendNewFragment());
+                } else {
+                    OperationService operationService = getNodeEngine().getOperationService();
+                    operationService.execute(new SendNewMigrationFragmentRunnableV42());
+                }
             } else {
                 ILogger logger = getLogger();
                 if (logger.isFineEnabled()) {
@@ -324,58 +401,19 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         }
     }
 
-    // todo: consider if we need to offload just replication op preparation
-    //  and get back on the partition thread when invoking the migration operations
-    //  so that serialization (=partition data traversal) occurs on the partition thread
-    private final class SendNewMigrationFragmentOperation
-            extends Operation implements MigrationCycleOperation,
-                                         IdentifiedDataSerializable {
+    // RU_COMPAT_4_2
+    private final class SendNewMigrationFragmentRunnableV42 implements PartitionSpecificRunnable, UrgentSystemOperation {
 
-        public SendNewMigrationFragmentOperation() {
-            setPartitionId(MigrationRequestOperation.this.getPartitionId());
+        @Override
+        public int getPartitionId() {
+            return MigrationRequestOperation.this.getPartitionId();
         }
 
         @Override
-        public CallStatus call()
-                throws Exception {
-            return new SendNewFragmentOffloadable(this);
+        public void run() {
+            trySendNewFragmentV42();
         }
 
-        @Override
-        public int getFactoryId() {
-            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
-        }
-
-        @Override
-        public int getClassId() {
-            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
-        }
-
-        @Override
-        protected void writeInternal(ObjectDataOutput out)
-                throws IOException {
-            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
-        }
-
-        @Override
-        protected void readInternal(ObjectDataInput in)
-                throws IOException {
-            throw new UnsupportedOperationException("SendNewMigrationFragmentRunnable is local only");
-        }
-    }
-
-    private final class SendNewFragmentOffloadable extends Offload {
-
-        public SendNewFragmentOffloadable(Operation offloadedOperation) {
-            super(offloadedOperation);
-        }
-
-        @Override
-        public void start()
-                throws Exception {
-            getNodeEngine().getExecutionService().submit(ExecutionService.OFFLOADABLE_EXECUTOR,
-                    () -> trySendNewFragment());
-        }
     }
 
     private static class ServiceNamespacesContext {

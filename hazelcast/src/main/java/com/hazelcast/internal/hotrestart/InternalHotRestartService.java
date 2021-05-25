@@ -19,6 +19,7 @@ package com.hazelcast.internal.hotrestart;
 import com.hazelcast.config.HotRestartPersistenceConfig;
 import com.hazelcast.internal.management.dto.ClusterHotRestartStatusDTO;
 import com.hazelcast.cluster.Address;
+import com.hazelcast.internal.partition.PartitionRuntimeState;
 
 import java.util.Set;
 import java.util.UUID;
@@ -112,4 +113,14 @@ public interface InternalHotRestartService {
      * @throws IllegalStateException when timeout happens or a member leaves the cluster while waiting
      */
     void waitPartitionReplicaSyncOnCluster(long timeout, TimeUnit unit);
+
+    /**
+     * Apply given {@link PartitionRuntimeState} after recovery is successfully completed.
+     * Used to defer application of a partition table that is not compatible with the
+     * persisted one, as a member recovers from a crash.
+     *
+     * todo does this belong here? or in partition service?
+     * @param partitionRuntimeState
+     */
+    void deferApplyPartitionState(PartitionRuntimeState partitionRuntimeState);
 }
