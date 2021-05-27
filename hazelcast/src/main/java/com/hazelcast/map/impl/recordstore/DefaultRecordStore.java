@@ -205,11 +205,11 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
 
     @Override
     public void removeReplicatedRecord(Data dataKey) {
-        long now = getNow();
-        Record record = getRecordOrNull(dataKey, now, false);
+        Record record = storage.get(dataKey);
         if (record != null) {
-            storage.removeRecord(dataKey, record);
             mutationObserver.onRemoveRecord(dataKey, record);
+            removeKeyFromExpirySystem(dataKey);
+            storage.removeRecord(dataKey, record);
         }
     }
 

@@ -32,12 +32,15 @@ import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.operationexecutor.impl.PartitionOperationThread;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.servicemanager.ServiceInfo;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
@@ -78,8 +81,28 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return operations;
     }
 
-    final Collection<Operation> createFragmentReplicationOperations(PartitionReplicationEvent event, ServiceNamespace ns,
-            Collection<String> serviceNames) {
+    // for invocation within partition thread; prepares replication operations within partition thread
+    // does not support differential sync
+    final Collection<Operation> createFragmentReplicationOperations(PartitionReplicationEvent event, ServiceNamespace ns) {
+        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
+
+        Collection<Operation> operations = emptySet();
+        NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
+        Collection<ServiceInfo> services = nodeEngine.getServiceInfos(FragmentedMigrationAwareService.class);
+
+        for (ServiceInfo serviceInfo : services) {
+            FragmentedMigrationAwareService service = serviceInfo.getService();
+            if (!service.isKnownServiceNamespace(ns)) {
+                continue;
+            }
+
+            operations = prepareAndAppendReplicationOperation(event, ns, service, serviceInfo.getName(), operations);
+        }
+        return operations;
+    }
+
+    final Collection<Operation> createFragmentReplicationOperationsOffload(PartitionReplicationEvent event, ServiceNamespace ns,
+                                                                           Collection<String> serviceNames) {
         assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
 
         final boolean runsOnPartitionThread = Thread.currentThread() instanceof PartitionOperationThread;
@@ -95,8 +118,8 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return operations;
     }
 
-    // todo RU_COMPAT_4_2
-    final Collection<Operation> createFragmentReplicationOperations(PartitionReplicationEvent event, ServiceNamespace ns) {
+    // todo RU_COMPAT_4_2 -- to be used by PartitionReplicaSyncRequest for offloaded replication op preparation
+    final Collection<Operation> createFragmentReplicationOperationsOffload(PartitionReplicationEvent event, ServiceNamespace ns) {
         assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
 
         final boolean runsOnPartitionThread = Thread.currentThread() instanceof PartitionOperationThread;
@@ -140,14 +163,17 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
             } else {
                 // execute on async executor
                 Collection<Operation> mutableOps = new ArrayList<>();
-                CompletableFuture<Void> future = (CompletableFuture<Void>)
+                Future<?> future =
                         getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR,
                         () -> prepareAndAppendReplicationOperationMutable(event, ns, service, serviceName, mutableOps));
                 try {
-                    future.join();
+                    future.get();
                     operations = postProcessOperations(operations, mutableOps);
-                } catch (CompletionException e) {
+                } catch (ExecutionException | CancellationException e) {
                     ExceptionUtil.rethrow(e.getCause());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    ExceptionUtil.rethrow(e);
                 }
             }
         } else {

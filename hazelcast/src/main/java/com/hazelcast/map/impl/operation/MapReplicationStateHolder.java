@@ -87,7 +87,10 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
     // operations, which meant that the index did not include some data.
     protected transient List<MapIndexInfo> mapIndexInfos;
 
-    protected transient Map<String, int[]> merkleTreeDiffByMapName;
+    // mapName -> null = full sync required
+    // mapName -> int[0] = no difference
+    // mapName -> int[2*n] =
+    protected Map<String, int[]> merkleTreeDiffByMapName;
 
     protected Set<String> mapNamesWithDifferentialReplication;
 
@@ -169,6 +172,12 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
             for (Map.Entry<String, List> dataEntry : data.entrySet()) {
                 String mapName = dataEntry.getKey();
                 List keyRecordExpiry = dataEntry.getValue();
+                if (mapNamesWithDifferentialReplication.contains(mapName)
+                    ^ merkleTreeDiffByMapName.containsKey(mapName)) {
+                    throw new IllegalStateException("MapName issue " + mapName
+                            + " maps " + mapNamesWithDifferentialReplication + ", "
+                            + " merkle diffs " + merkleTreeDiffByMapName.keySet());
+                }
                 RecordStore recordStore = operation.getRecordStore(mapName);
                 initializeRecordStore(mapName, recordStore);
                 recordStore.setPreMigrationLoadedStatus(loaded.get(mapName));
@@ -371,9 +380,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         int[] diffNodeOrder = in.readIntArray();
         // todo check if length 0 indicates something special and we need that array
         //  in merkleTreeDiffByMapName
-        if (diffNodeOrder.length > 0) {
-            merkleTreeDiffByMapName.put(mapName, diffNodeOrder);
-        }
+        merkleTreeDiffByMapName.put(mapName, diffNodeOrder);
         readRecordStoreData(mapName, in);
     }
 

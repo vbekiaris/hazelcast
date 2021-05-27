@@ -87,6 +87,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
@@ -1550,6 +1551,7 @@ public class MigrationManager {
             migrationInterceptor.onMigrationComplete(MigrationParticipant.MASTER, migration, true);
             long start = System.nanoTime();
 
+            Executor executor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
             CompletionStage<Boolean> f = commitMigrationToDestinationAsync(migration);
             f = f.thenApplyAsync(commitSuccessful -> {
                 stats.recordDestinationCommitTime(System.nanoTime() - start);
@@ -1601,7 +1603,7 @@ public class MigrationManager {
                     partitionServiceLock.unlock();
                 }
                 return commitSuccessful;
-            });
+            }, executor);
             return f;
         }
     }

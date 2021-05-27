@@ -772,14 +772,18 @@ public class ClusterJoinManager {
                 // currently joining members
                 PartitionRuntimeState partitionRuntimeState = partitionService.createPartitionState();
                 for (MemberInfo member : joiningMembers.values()) {
-                    if (isCrashedMember(member.getUuid())) {
-                        logger.warning("Recently crashed member " + member + " is rejoining the cluster");
-                        // todo check if crashed member is starting with hot-restart
-                        if (member.getAttributes().get("hot-restart").equals("true")) {
+                    boolean shouldForceStart = false;
+                    if (member.getAttributes().get("hot-restart") != null
+                            && member.getAttributes().get("hot-restart").equals("true")) {
+                        if (isCrashedMember(member.getUuid())) {
+                            logger.warning("Recently crashed member " + member + " is rejoining the cluster");
                             // do not trigger repartition immediately, wait for joining member to load hot-restart data
                             logger.warning("Recently crashed member " + member + " -- deferring repartitioning until"
                                     + " it is done loading hot-restart data");
                             shouldTriggerRepartition = false;
+                        } else {
+                            // todo
+                            shouldForceStart = true;
                         }
                     }
                     long startTime = clusterClock.getClusterStartTime();
