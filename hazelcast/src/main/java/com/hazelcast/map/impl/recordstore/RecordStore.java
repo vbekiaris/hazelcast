@@ -294,6 +294,11 @@ public interface RecordStore<R extends Record> {
     R putReplicatedRecord(Data dataKey, R record, ExpiryMetadata expiryMetadata,
                           boolean indexesMustBePopulated, long now);
 
+    /**
+     * Remove record for given key. Does not load from MapLoader,
+     * does not perform expiry / eviction checks.
+     * @param dataKey
+     */
     void removeReplicatedRecord(Data dataKey);
 
     void forEach(BiConsumer<Data, R> consumer, boolean backup);

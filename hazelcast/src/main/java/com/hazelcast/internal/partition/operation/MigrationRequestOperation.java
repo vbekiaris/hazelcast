@@ -101,8 +101,6 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         public void start() {
             NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
             try {
-                getLogger().info("beforeMigrations partition " + getPartitionId() + " is migrating: "
-                        + getPartition().isMigrating());
                 executeBeforeMigrations();
                 namespacesContext = new ServiceNamespacesContext(nodeEngine, getPartitionReplicationEvent());
                 invokeMigrationOperation(initialReplicaFragmentMigrationState(), true);
@@ -287,7 +285,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
         PartitionReplicationEvent event = getPartitionReplicationEvent();
         Collection<String> serviceNames = namespacesContext.getServiceNames(ns);
 
-        Collection<Operation> operations = createFragmentReplicationOperations(event, ns, serviceNames);
+        Collection<Operation> operations = createFragmentReplicationOperationsOffload(event, ns, serviceNames);
         return createReplicaFragmentMigrationState(singleton(ns), operations);
     }
 

@@ -16,27 +16,27 @@
 
 package com.hazelcast.internal.partition.operation;
 
+import com.hazelcast.cluster.Address;
 import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.internal.partition.MigrationCycleOperation;
 import com.hazelcast.internal.partition.NonFragmentedServiceNamespace;
 import com.hazelcast.internal.partition.PartitionReplica;
 import com.hazelcast.internal.partition.PartitionReplicaVersionManager;
+import com.hazelcast.internal.partition.PartitionReplicationEvent;
 import com.hazelcast.internal.partition.ReplicaErrorLogger;
 import com.hazelcast.internal.partition.impl.InternalPartitionImpl;
 import com.hazelcast.internal.partition.impl.InternalPartitionServiceImpl;
 import com.hazelcast.internal.partition.impl.PartitionDataSerializerHook;
 import com.hazelcast.internal.partition.impl.PartitionStateManager;
+import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.logging.ILogger;
-import com.hazelcast.cluster.Address;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
-import com.hazelcast.internal.partition.PartitionReplicationEvent;
 import com.hazelcast.spi.impl.operationservice.PartitionAwareOperation;
-import com.hazelcast.internal.services.ServiceNamespace;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -107,12 +107,31 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
         }
 
         sendOperationsForNamespaces(permits);
-
         // send retry response for remaining namespaces
         if (!namespaces.isEmpty()) {
             logNotEnoughPermits();
             sendRetryResponse();
         }
+
+//        int partitionId = getPartitionId();
+//        PartitionStateManager partitionStateManager = partitionService.getPartitionStateManager();
+//        if (!partitionStateManager.trySetMigratingFlag(partitionId)) {
+//            throw new RetryableHazelcastException("Cannot set migrating flag, "
+//                    + "probably previous migration's finalization is not completed yet.");
+//        }
+//        getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR, () -> {
+//            try {
+//                sendOperationsForNamespaces(permits);
+//            } finally {
+//                partitionStateManager.clearMigratingFlag(partitionId);
+//            }
+//            // send retry response for remaining namespaces
+//            if (!namespaces.isEmpty()) {
+//                logNotEnoughPermits();
+//                sendRetryResponse();
+//            }
+//
+//        });
     }
 
     private void logNotEnoughPermits() {
@@ -138,6 +157,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
                 if (NonFragmentedServiceNamespace.INSTANCE.equals(namespace)) {
                     operations = createNonFragmentedReplicationOperations(event);
                 } else {
+                    // todo may decide to use offloaded version
                     operations = createFragmentReplicationOperations(event, namespace);
                 }
                 sendOperations(operations, namespace);
