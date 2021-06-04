@@ -87,6 +87,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -102,6 +103,7 @@ import static com.hazelcast.internal.metrics.MetricDescriptorConstants.MIGRATION
 import static com.hazelcast.internal.metrics.MetricDescriptorConstants.PARTITIONS_PREFIX;
 import static com.hazelcast.internal.metrics.ProbeUnit.BOOLEAN;
 import static com.hazelcast.internal.partition.IPartitionService.SERVICE_NAME;
+import static com.hazelcast.spi.impl.executionservice.ExecutionService.ASYNC_EXECUTOR;
 
 /**
  * Maintains migration system state and manages migration operations performed within the cluster.
@@ -1133,7 +1135,7 @@ public class MigrationManager {
             waitOngoingMigrations();
 
             if (failed || aborted) {
-                logger.info("Rebalance process was " + (failed ? " failed" : "aborted")
+                logger.info("Rebalance process was " + (failed ? "failed" : "aborted")
                         + ". Ignoring remaining migrations. Will recalculate the new migration plan. ("
                         + stats.formatToString(logger.isFineEnabled()) + ")");
                 migrationCount.set(0);
@@ -1392,7 +1394,9 @@ public class MigrationManager {
                 future = InternalCompletableFuture.completedExceptionally(t);
             }
 
-            return future.handle((done, t) -> {
+            ExecutorService asyncExecutor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
+
+            return future.handleAsync((done, t) -> {
                 stats.recordMigrationOperationTime(Timer.nanosElapsed(start));
                 logger.fine("Migration operation response received -> " + migration + ", success: " + done + ", failure: " + t);
 
@@ -1407,7 +1411,7 @@ public class MigrationManager {
                     return Boolean.FALSE;
                 }
                 return done;
-            }).thenComposeAsync(result -> {
+            }, asyncExecutor).thenComposeAsync(result -> {
                 if (result) {
                     if (logger.isFineEnabled()) {
                         logger.fine("Finished Migration: " + migration);
@@ -1421,7 +1425,7 @@ public class MigrationManager {
                     migrationOperationFailed(fromMember);
                     return CompletableFuture.completedFuture(false);
                 }
-            }).handle((result, t) -> {
+            }, asyncExecutor).handleAsync((result, t) -> {
                 long elapsed = Timer.nanosElapsed(start);
                 stats.recordMigrationTaskTime(elapsed);
 
@@ -1435,7 +1439,7 @@ public class MigrationManager {
                     return false;
                 }
                 return result;
-            });
+            }, asyncExecutor);
         }
 
         /**
@@ -1599,6 +1603,13 @@ public class MigrationManager {
                         + "Cluster state does not allow to modify partition table.");
                 return;
             }
+
+            // todo: do not promote backups -- partial availability loss
+//            if (delayNextRepartitioningExecution) {
+//                System.out.println(">>> delayNextRepartitioningExecution was true");
+//                delayNextRepartitioningExecution = false;
+//                return;
+//            }
 
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);

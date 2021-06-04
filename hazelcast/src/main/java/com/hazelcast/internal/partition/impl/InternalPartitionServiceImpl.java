@@ -366,6 +366,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         }
     }
 
+    // react to member leaving unexpectedly -- members leaving with graceful shutdown
+    // have had their migrations already done before removal
+    // todo this is called from various paths including hot restart excluded members
+    //  need to validate all usages
     @Override
     public void memberRemoved(Member member) {
         logger.fine("Removing " + member);
@@ -388,6 +392,8 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
                     shouldFetchPartitionTables = true;
                 }
                 if (isMaster) {
+                    // keep partition table snapshot as member leaves
+                    partitionStateManager.storeSnapshot(member.getUuid());
                     migrationManager.triggerControlTask();
                 }
             }
@@ -598,12 +604,18 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
      * @return {@code true} if the partition state was applied
      */
     public boolean processPartitionRuntimeState(PartitionRuntimeState partitionState) {
-        Address sender = partitionState.getMaster();
+        // todo handle partition table received while hot-restarting???
         if (!node.getNodeExtension().isStartCompleted()) {
-            logger.warning("Ignoring received partition table, startup is not completed yet. Sender: " + sender);
+            logger.warning("Ignoring received partition table, startup is not completed yet. Sender: "
+                    + partitionState.getMaster());
             return false;
         }
 
+        return applyPartitionRuntimeState(partitionState);
+    }
+
+    public boolean applyPartitionRuntimeState(PartitionRuntimeState partitionState) {
+        Address sender = partitionState.getMaster();
         if (!validateSenderIsMaster(sender, "partition table update")) {
             return false;
         }
@@ -1216,6 +1228,10 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
         }
     }
 
+    public PartitionTableView getCrashedMemberSnapshot(UUID uuid) {
+        return partitionStateManager.getSnapshot(uuid);
+    }
+
     /**
      * Returns true only if local member is the last known master by
      * {@code InternalPartitionServiceImpl}.
@@ -1305,7 +1321,6 @@ public class InternalPartitionServiceImpl implements InternalPartitionService,
             lock.unlock();
         }
     }
-
 
     /**
      * Invoked on a node when it becomes master. It will receive partition states from all members and consolidate them into one.
