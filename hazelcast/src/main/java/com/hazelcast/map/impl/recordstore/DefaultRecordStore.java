@@ -940,6 +940,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
                     ttl, maxIdle, now, transactionId);
         }
 
+        // this is where map.set hits storage
         storage.updateRecordValue(key, record, newValue);
         expirySystem.addKeyIfExpirable(key, ttl, maxIdle, expiryTime, now);
         mutationObserver.onUpdateRecord(key, record, oldValue, newValue, backup);

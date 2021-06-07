@@ -21,11 +21,30 @@ import com.hazelcast.instance.impl.HazelcastInstanceFactory;
 import com.hazelcast.instance.impl.OutOfMemoryErrorDispatcher;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Factory for {@link HazelcastInstance}'s, a node in a cluster.
  */
 public final class Hazelcast {
+
+    public static final ConcurrentSkipListSet<Long> REMOVED_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+    // prefix -> key addresses that are put. Cleared by RecordStore#clear (<- reset() <- from MapReplStateHolder#applyState)
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PUT_KEY_ADDRESSES = new ConcurrentHashMap<>();
+    public static final ConcurrentSkipListSet<Long> MISSING_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+
+    public static void addKeyPut(long prefix, long address) {
+        PUT_KEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).add(address);
+    }
+
+    public static boolean containsKeyPut(long prefix, long address) {
+        return PUT_KEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).contains(address);
+    }
+
+    public static void clearPutPrefix(long prefix) {
+        PUT_KEY_ADDRESSES.put(prefix, new ConcurrentSkipListSet<>());
+    }
 
     private Hazelcast() {
     }
