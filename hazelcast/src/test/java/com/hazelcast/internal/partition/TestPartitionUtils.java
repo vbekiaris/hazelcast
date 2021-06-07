@@ -226,4 +226,13 @@ public final class TestPartitionUtils {
             return replicaVersions;
         }
     }
+
+    public static String dumpPartitionTable(PartitionTableView partitionTableView) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < partitionTableView.length(); i++) {
+            sb.append(i).append(" -> [")
+              .append(Arrays.toString(partitionTableView.getReplicas(i))).append("]\n");
+        }
+        return sb.toString();
+    }
 }
