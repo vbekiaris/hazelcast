@@ -20,30 +20,187 @@ import com.hazelcast.config.Config;
 import com.hazelcast.instance.impl.HazelcastInstanceFactory;
 import com.hazelcast.instance.impl.OutOfMemoryErrorDispatcher;
 
+import javax.annotation.Nonnull;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Factory for {@link HazelcastInstance}'s, a node in a cluster.
  */
 public final class Hazelcast {
 
+    public static final class DasKey implements Comparable<DasKey> {
+        public final long prefix;
+        public final long address;
+        public final long seq;
+
+        public DasKey(long prefix, long address, long seq) {
+            this.prefix = prefix;
+            this.address = address;
+            this.seq = seq;
+        }
+
+        @Override
+        public String toString() {
+            return "DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + '}';
+        }
+
+        @Override
+        public int compareTo(@Nonnull DasKey o) {
+            if (prefix < o.prefix) {
+                return -1;
+            } else if (prefix > o.prefix) {
+                return 1;
+            } else {
+                if (address < o.address) {
+                    return -1;
+                } else if (address > o.address) {
+                    return 1;
+                } else {
+                    if (seq < o.seq) {
+                        return -1;
+                    } else if (seq > o.seq) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            DasKey dasKey = (DasKey) o;
+            return prefix == dasKey.prefix && address == dasKey.address && seq == dasKey.seq;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(prefix, address, seq);
+        }
+    }
+
+    public static final AtomicBoolean GC_FAILED = new AtomicBoolean();
+    public static final AtomicReference<DasKey> FAILED_KEY_HANDLE = new AtomicReference();
+
+    public static void setDasKey(long prefix, long address, long rawSeqValue) {
+        FAILED_KEY_HANDLE.compareAndSet(null, new Hazelcast.DasKey(prefix, address, rawSeqValue));
+    }
+
+//    public static final ConcurrentSkipListSet<DasKey> KEY_HANDLES_ON_REPLACE_ACTIVE_CHUNK = new ConcurrentSkipListSet<>();
+//
+//    public static void addKHOnReplace(long address, long rawSeqValue) {
+//        KEY_HANDLES_ON_REPLACE_ACTIVE_CHUNK.add(new DasKey(address, rawSeqValue));
+//    }
+
     public static final ConcurrentSkipListSet<Long> REMOVED_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+
     // prefix -> key addresses that are put. Cleared by RecordStore#clear (<- reset() <- from MapReplStateHolder#applyState)
     public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PUT_KEY_ADDRESSES = new ConcurrentHashMap<>();
-    public static final ConcurrentSkipListSet<Long> MISSING_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> PUT_DASKEY_ADDRESSES = new ConcurrentHashMap<>();
 
-    public static void addKeyPut(long prefix, long address) {
+    public static void addKeyPut(long prefix, long address, long seq) {
         PUT_KEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).add(address);
+        PUT_DASKEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).add(new DasKey(prefix, address, seq));
     }
 
     public static boolean containsKeyPut(long prefix, long address) {
         return PUT_KEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).contains(address);
     }
 
+    public static void dumpSeqsOfPuts(long prefix, long address) {
+        System.out.println("Looking for PUTs of " + prefix + ", " + address);
+        ConcurrentSkipListSet<DasKey> keys = PUT_DASKEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>());
+        for (DasKey key : keys) {
+            if (key.prefix == prefix && key.address == address) {
+                System.out.println("\twas put with seq " + key.seq);
+            }
+        }
+    }
+
+    public static void dumpSeqsOfPuts(long address) {
+        System.out.println("Looking for PUTs of " + address);
+        for (ConcurrentSkipListSet<DasKey> keys : PUT_DASKEY_ADDRESSES.values()) {
+            for (DasKey key : keys) {
+                if (key.address == address) {
+                    System.out.println("\twas put in prefix " + key.prefix + " with seq " + key.seq);
+                }
+            }
+        }
+    }
+
+    public static boolean containsKeyPut(long prefix, long address, long seq) {
+        return PUT_DASKEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).contains(
+                new DasKey(prefix, address, seq));
+    }
+
     public static void clearPutPrefix(long prefix) {
         PUT_KEY_ADDRESSES.put(prefix, new ConcurrentSkipListSet<>());
+        PUT_DASKEY_ADDRESSES.put(prefix, new ConcurrentSkipListSet<>());
+    }
+
+
+    public static final ConcurrentSkipListSet<Long> MISSING_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PREFIX_TOMBSTONES_APPLIED = new ConcurrentHashMap<>();
+    // prefix -> <address -> message>
+    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TOMBSTONE_NOT_APPLIED = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TRACKER_REMOVED = new ConcurrentHashMap<>();
+
+    public static void addTrackerRemoved(long prefix, long address) {
+        PREFIX_TRACKER_REMOVED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).put(address, "-");
+    }
+
+    public static void addTrackerRemoved(long prefix, long address, String message) {
+        PREFIX_TRACKER_REMOVED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).put(address, message);
+    }
+
+    public static String containsTrackerRemoved(long prefix, long address) {
+        return PREFIX_TRACKER_REMOVED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).get(address);
+    }
+
+    public static void clearTrackerRemoved(long[] prefixes) {
+        for (long prefix : prefixes) {
+            PREFIX_TRACKER_REMOVED.put(prefix, new ConcurrentHashMap<>());
+        }
+    }
+
+    public static void addPrefixTmbsAppliedOn(long prefix, long address) {
+        PREFIX_TOMBSTONES_APPLIED.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).add(address);
+    }
+
+    public static void clearTmbsPrefixes(long[] prefixes) {
+        for (long prefix : prefixes) {
+            PREFIX_TOMBSTONES_APPLIED.put(prefix, new ConcurrentSkipListSet<>());
+        }
+    }
+
+    public static boolean containsTmbsPrefixAppliedFor(long prefix, long address) {
+        return PREFIX_TOMBSTONES_APPLIED.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).contains(address);
+    }
+
+    public static void addPrefixTmbsNotAppliedOn(long prefix, long address, String message) {
+        PREFIX_TOMBSTONE_NOT_APPLIED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).put(address, message);
+    }
+
+    public static void clearTmbsPrefixNotApplied(long[] prefixes) {
+        for (long prefix : prefixes) {
+            PREFIX_TOMBSTONE_NOT_APPLIED.put(prefix, new ConcurrentHashMap<>());
+        }
+    }
+
+    public static String getTmbsPrefixNotAppliedFor(long prefix, long address) {
+        return PREFIX_TOMBSTONE_NOT_APPLIED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).get(address);
     }
 
     private Hazelcast() {

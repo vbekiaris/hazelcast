@@ -86,4 +86,8 @@ public final class ThreadUtil {
     public static void assertRunningOnPartitionThread() {
         assert Thread.currentThread().getName().contains("partition-operation");
     }
+
+    public static void assertRunningOnThread(String threadNameFragment) {
+        assert Thread.currentThread().getName().contains(threadNameFragment);
+    }
 }
