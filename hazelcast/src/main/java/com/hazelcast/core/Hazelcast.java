@@ -35,9 +35,41 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class Hazelcast {
 
-    // address -> lookups with prefix & seq
+    /** address -> lookups with prefix & seq */
     public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> ADDRESS_LOOKUPS = new ConcurrentHashMap<>();
+    /** address -> insertions with prefix & seq */
     public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> ADDRESS_INSERTIONS = new ConcurrentHashMap<>();
+
+    /** checkstyle comment */
+    public static final AtomicBoolean GC_FAILED = new AtomicBoolean();
+    /** checkstyle comment */
+    public static final AtomicReference<DasKey> FAILED_KEY_HANDLE = new AtomicReference();
+
+    /** checkstyle comment */
+    public static final ConcurrentSkipListSet<Long> REMOVED_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+
+    /** checkstyle comment */
+    // prefix -> key addresses that are put. Cleared by RecordStore#clear (<- reset() <- from MapReplStateHolder#applyState)
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PUT_KEY_ADDRESSES = new ConcurrentHashMap<>();
+    /** checkstyle comment */
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> PUT_DASKEY_ADDRESSES = new ConcurrentHashMap<>();
+
+    /** checkstyle comment */
+    public static final ConcurrentSkipListSet<Long> MISSING_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
+
+    /** checkstyle comment */
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PREFIX_TOMBSTONES_APPLIED
+            = new ConcurrentHashMap<>();
+    /** checkstyle comment */
+    // prefix -> <address -> message>
+    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TOMBSTONE_NOT_APPLIED
+            = new ConcurrentHashMap<>();
+    /** checkstyle comment */
+    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TRACKER_REMOVED
+            = new ConcurrentHashMap<>();
+
+    private Hazelcast() {
+    }
 
     public static void addAddressLookup(long prefix, long address, long seq) {
         Exception e = null;
@@ -91,20 +123,20 @@ public final class Hazelcast {
         }
     }
 
-    public static final class DasKey implements Comparable<DasKey> {
-        public final long prefix;
-        public final long address;
-        public final long seq;
-        public final Exception exception;
+    private static final class DasKey implements Comparable<DasKey> {
+        final long prefix;
+        final long address;
+        final long seq;
+        final Exception exception;
 
-        public DasKey(long prefix, long address, long seq) {
+        DasKey(long prefix, long address, long seq) {
             this.prefix = prefix;
             this.address = address;
             this.seq = seq;
             this.exception = null;
         }
 
-        public DasKey(long prefix, long address, long seq, Exception exception) {
+        DasKey(long prefix, long address, long seq, Exception exception) {
             this.prefix = prefix;
             this.address = address;
             this.seq = seq;
@@ -165,9 +197,6 @@ public final class Hazelcast {
         }
     }
 
-    public static final AtomicBoolean GC_FAILED = new AtomicBoolean();
-    public static final AtomicReference<DasKey> FAILED_KEY_HANDLE = new AtomicReference();
-
     public static void setDasKey(long prefix, long address, long rawSeqValue) {
         FAILED_KEY_HANDLE.compareAndSet(null, new Hazelcast.DasKey(prefix, address, rawSeqValue));
     }
@@ -177,12 +206,6 @@ public final class Hazelcast {
 //    public static void addKHOnReplace(long address, long rawSeqValue) {
 //        KEY_HANDLES_ON_REPLACE_ACTIVE_CHUNK.add(new DasKey(address, rawSeqValue));
 //    }
-
-    public static final ConcurrentSkipListSet<Long> REMOVED_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
-
-    // prefix -> key addresses that are put. Cleared by RecordStore#clear (<- reset() <- from MapReplStateHolder#applyState)
-    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PUT_KEY_ADDRESSES = new ConcurrentHashMap<>();
-    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> PUT_DASKEY_ADDRESSES = new ConcurrentHashMap<>();
 
     public static void addKeyPut(long prefix, long address, long seq) {
         PUT_KEY_ADDRESSES.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>()).add(address);
@@ -223,14 +246,6 @@ public final class Hazelcast {
         PUT_KEY_ADDRESSES.put(prefix, new ConcurrentSkipListSet<>());
         PUT_DASKEY_ADDRESSES.put(prefix, new ConcurrentSkipListSet<>());
     }
-
-
-    public static final ConcurrentSkipListSet<Long> MISSING_KEY_ADDRESSES = new ConcurrentSkipListSet<>();
-
-    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<Long>> PREFIX_TOMBSTONES_APPLIED = new ConcurrentHashMap<>();
-    // prefix -> <address -> message>
-    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TOMBSTONE_NOT_APPLIED = new ConcurrentHashMap<>();
-    public static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>> PREFIX_TRACKER_REMOVED = new ConcurrentHashMap<>();
 
     public static void addTrackerRemoved(long prefix, long address) {
         PREFIX_TRACKER_REMOVED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).put(address, "-");
@@ -276,9 +291,6 @@ public final class Hazelcast {
 
     public static String getTmbsPrefixNotAppliedFor(long prefix, long address) {
         return PREFIX_TOMBSTONE_NOT_APPLIED.computeIfAbsent(prefix, k -> new ConcurrentHashMap<>()).get(address);
-    }
-
-    private Hazelcast() {
     }
 
     /**
