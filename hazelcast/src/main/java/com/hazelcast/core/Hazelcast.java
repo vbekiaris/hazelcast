@@ -21,6 +21,8 @@ import com.hazelcast.instance.impl.HazelcastInstanceFactory;
 import com.hazelcast.instance.impl.OutOfMemoryErrorDispatcher;
 
 import javax.annotation.Nonnull;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,20 +35,93 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class Hazelcast {
 
+    // address -> lookups with prefix & seq
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> ADDRESS_LOOKUPS = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> ADDRESS_INSERTIONS = new ConcurrentHashMap<>();
+
+    public static void addAddressLookup(long prefix, long address, long seq) {
+        Exception e = null;
+        if (seq == 0) {
+            e = new HazelcastException("seq was 0");
+        }
+        ADDRESS_LOOKUPS.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>())
+                       .add(new DasKey(prefix, address, seq, e));
+    }
+
+    public static void addAddressInsertion(long prefix, long address, long seq) {
+        Exception e = null;
+        if (seq == 0) {
+            e = new HazelcastException("seq was 0");
+        }
+        ADDRESS_INSERTIONS.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>())
+                       .add(new DasKey(prefix, address, seq, e));
+    }
+
+    public static void dumpLookupsOf(long address) {
+        System.out.println("Lookups of " + address);
+        for (ConcurrentSkipListSet<DasKey> keys : ADDRESS_LOOKUPS.values()) {
+            for (DasKey key : keys) {
+                if (key.address == address) {
+                    System.out.println("\twas looked up in prefix " + key.prefix + " with seq " + key.seq);
+                    if (key.exception != null) {
+                        StringWriter sw = new StringWriter();
+                        key.exception.printStackTrace(new PrintWriter(sw));
+                        String exceptionAsString = sw.toString();
+                        System.out.println("\t>>> " + exceptionAsString);
+                    }
+                }
+            }
+        }
+    }
+
+    public static void dumpInsertionsOf(long address) {
+        System.out.println("Insertions of " + address);
+        for (ConcurrentSkipListSet<DasKey> keys : ADDRESS_INSERTIONS.values()) {
+            for (DasKey key : keys) {
+                if (key.address == address) {
+                    System.out.println("\twas inserted in prefix " + key.prefix + " with seq " + key.seq);
+                    if (key.exception != null) {
+                        StringWriter sw = new StringWriter();
+                        key.exception.printStackTrace(new PrintWriter(sw));
+                        String exceptionAsString = sw.toString();
+                        System.out.println("\t>>> " + exceptionAsString);
+                    }
+                }
+            }
+        }
+    }
+
     public static final class DasKey implements Comparable<DasKey> {
         public final long prefix;
         public final long address;
         public final long seq;
+        public final Exception exception;
 
         public DasKey(long prefix, long address, long seq) {
             this.prefix = prefix;
             this.address = address;
             this.seq = seq;
+            this.exception = null;
+        }
+
+        public DasKey(long prefix, long address, long seq, Exception exception) {
+            this.prefix = prefix;
+            this.address = address;
+            this.seq = seq;
+            this.exception = exception;
         }
 
         @Override
         public String toString() {
-            return "DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + '}';
+            if (exception != null) {
+                String s = "Exceptional DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + ", exception="
+                        + exception + '}';
+                System.out.println(">>> " + s);
+                exception.printStackTrace();
+                System.out.println(">>>");
+                return s;
+            }
+            return "DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + ", exception=" + exception + '}';
         }
 
         @Override
