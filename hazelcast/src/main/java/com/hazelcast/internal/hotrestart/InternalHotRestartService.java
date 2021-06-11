@@ -32,6 +32,11 @@ import java.util.concurrent.TimeUnit;
 public interface InternalHotRestartService {
 
     /**
+     * Name of the Hot Restart service.
+     */
+    String SERVICE_NAME = "hz:ee:internalHotRestartService";
+
+    /**
      * Returns whether hot-restart is enabled or not.
      */
     boolean isEnabled();
