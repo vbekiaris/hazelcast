@@ -19,7 +19,6 @@ package com.hazelcast.internal.cluster.impl.operations;
 import com.hazelcast.cluster.Address;
 import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.instance.impl.Node;
-import com.hazelcast.instance.impl.NodeExtension;
 import com.hazelcast.internal.cluster.impl.ClusterDataSerializerHook;
 import com.hazelcast.internal.cluster.impl.ClusterServiceImpl;
 import com.hazelcast.internal.cluster.impl.MembersView;
@@ -126,10 +125,8 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
     }
 
     private InternalHotRestartService getInternalHotRestartService() {
-        // todo maybe just use nodeEngine.getService(String) and move HotRestartIntegrationService name to interface?
-        NodeEngineImpl nodeEngineImpl = (NodeEngineImpl) getNodeEngine();
-        NodeExtension nodeExtension = nodeEngineImpl.getNode().getNodeExtension();
-        return nodeExtension.getInternalHotRestartService();
+        InternalHotRestartService hrService = getNodeEngine().getService(InternalHotRestartService.SERVICE_NAME);
+        return hrService;
     }
 
     private void checkDeserializationFailure(ClusterServiceImpl clusterService) {
