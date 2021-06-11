@@ -60,6 +60,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -108,11 +110,12 @@ public class ClusterJoinManager {
      * In order to support crashed members recovery with Hot Restart, partition
      * table validation does not expect an identical partition table.
      *
-     * Always accessed under cluster service lock.
+     * Accessed by operation threads (in GetClusterStateOperation, SendMemberClusterStartInfoOperation),
+     * cluster heartbeat thread etc.
      *
      * not a good name, it is not necessarily crashed
      */
-    private final Map<UUID, Long> recentlyCrashedMemberUuids = new HashMap<>();
+    private final ConcurrentMap<UUID, Long> recentlyCrashedMemberUuids = new ConcurrentHashMap<>();
     private final long maxWaitMillisBeforeJoin;
     private final long waitMillisBeforeJoin;
     private final long staleJoinPreventionDuration;
