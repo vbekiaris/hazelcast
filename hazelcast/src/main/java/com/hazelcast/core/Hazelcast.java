@@ -24,14 +24,109 @@ import com.hazelcast.instance.impl.OutOfMemoryErrorDispatcher;
 import com.hazelcast.jet.config.JobConfig;
 
 import javax.annotation.Nonnull;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Factory for {@link HazelcastInstance}'s, a node in a cluster.
  */
 public final class Hazelcast {
 
+    /** checkstyle comment */
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> REMOVED_KEYS_BY_PREFIX
+            = new ConcurrentHashMap<>();
+
     private Hazelcast() {
+    }
+
+    public static void addRemovedKey(long prefix, long address, long seq) {
+        Exception e = null;
+        if (seq == 0) {
+            e = new HazelcastException("seq was 0");
+        }
+        REMOVED_KEYS_BY_PREFIX.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>())
+                       .add(new DasKey(prefix, address, seq, e));
+    }
+
+    public static void clearRemovedKeys(long prefix) {
+        REMOVED_KEYS_BY_PREFIX.put(prefix, new ConcurrentSkipListSet<>());
+    }
+
+    public static void dumpRemovalsOf(long address) {
+        System.out.println("Lookups of " + address);
+        for (ConcurrentSkipListSet<DasKey> keys : REMOVED_KEYS_BY_PREFIX.values()) {
+            for (DasKey key : keys) {
+                if (key.address == address) {
+                    System.out.println("\twas removed from prefix " + key.prefix + " with seq " + key.seq);
+                    if (key.exception != null) {
+                        StringWriter sw = new StringWriter();
+                        key.exception.printStackTrace(new PrintWriter(sw));
+                        String exceptionAsString = sw.toString();
+                        System.out.println("\t>>> " + exceptionAsString);
+                    }
+                }
+            }
+        }
+    }
+
+    private static final class DasKey implements Comparable<DasKey> {
+        final long prefix;
+        final long address;
+        final long seq;
+        final Exception exception;
+
+        DasKey(long prefix, long address, long seq) {
+            this.prefix = prefix;
+            this.address = address;
+            this.seq = seq;
+            this.exception = null;
+        }
+
+        DasKey(long prefix, long address, long seq, Exception exception) {
+            this.prefix = prefix;
+            this.address = address;
+            this.seq = seq;
+            this.exception = exception;
+        }
+
+        @Override
+        public String toString() {
+            if (exception != null) {
+                String s = "Exceptional DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + ", exception="
+                        + exception + '}';
+                System.out.println(">>> " + s);
+                exception.printStackTrace();
+                System.out.println(">>>");
+                return s;
+            }
+            return "DasKey{" + "prefix=" + prefix + ", address=" + address + ", seq=" + seq + ", exception=" + exception + '}';
+        }
+
+        @Override
+        public int compareTo(@Nonnull DasKey o) {
+            if (prefix < o.prefix) {
+                return -1;
+            } else if (prefix > o.prefix) {
+                return 1;
+            } else {
+                if (address < o.address) {
+                    return -1;
+                } else if (address > o.address) {
+                    return 1;
+                } else {
+                    if (seq < o.seq) {
+                        return -1;
+                    } else if (seq > o.seq) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                }
+            }
+        }
     }
 
     /**
