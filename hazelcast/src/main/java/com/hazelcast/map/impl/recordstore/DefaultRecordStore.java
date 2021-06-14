@@ -29,6 +29,7 @@ import com.hazelcast.internal.services.ObjectNamespace;
 import com.hazelcast.internal.util.Clock;
 import com.hazelcast.internal.util.ExceptionUtil;
 import com.hazelcast.internal.util.FutureUtil;
+import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.EntryLoader.MetadataAwareValue;
 import com.hazelcast.map.impl.InterceptorRegistry;
@@ -205,6 +206,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
 
     @Override
     public void removeReplicatedRecord(Data dataKey) {
+        ThreadUtil.assertRunningOnPartitionThread();
         Record record = storage.get(dataKey);
         if (record != null) {
             mutationObserver.onRemoveRecord(dataKey, record);
