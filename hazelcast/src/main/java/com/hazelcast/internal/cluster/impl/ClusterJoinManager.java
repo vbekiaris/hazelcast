@@ -662,6 +662,7 @@ public class ClusterJoinManager {
         nodeEngine.getOperationService().send(op, target);
     }
 
+    @SuppressWarnings("checkstyle:cyclomaticcomplexity")
     private boolean checkIfJoinRequestFromAnExistingMember(JoinMessage joinMessage, ServerConnection connection) {
         Address target = joinMessage.getAddress();
         MemberImpl member = clusterService.getMember(target);
