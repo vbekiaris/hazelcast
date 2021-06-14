@@ -118,8 +118,12 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         } else {
             InternalHotRestartService hotRestartService = getInternalHotRestartService();
             if (hotRestartService.isEnabled()) {
+                getLogger().info("Deferring application of partition table due to hot restart being in progress");
                 partitionRuntimeState.setMaster(getCallerAddress());
                 hotRestartService.deferApplyPartitionState(partitionRuntimeState);
+            } else {
+                getLogger().info("Applying now new partition runtime state even though deferring it was requested, "
+                        + "due to hot restart not being enabled");
             }
         }
     }
@@ -143,11 +147,13 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         super.afterRun();
 
         if (!finalized) {
+            getLogger().info("Was not finalized");
             return;
         }
 
         final boolean shouldExecutePostJoinOp = preparePostOp(postJoinOp);
         if (deferApplyPartitionTable) {
+            getLogger().info("Deferring post join ops");
             getInternalHotRestartService().deferPostJoinOps(postJoinOp);
             return;
         }
@@ -218,6 +224,8 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         if (clusterVersion.isGreaterOrEqual(V5_0)) {
             deferApplyPartitionTable = in.readBoolean();
         }
+        getLogger().info("Deserializing FinalizeJoinOp: clusterVersion " + clusterVersion
+                + ", " + in.getVersion() + ", " + deferApplyPartitionTable);
     }
 
     private OnJoinOp readOnJoinOp(ObjectDataInput in) {
