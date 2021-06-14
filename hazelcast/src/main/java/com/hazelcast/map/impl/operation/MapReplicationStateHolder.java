@@ -383,8 +383,6 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
     protected void readDifferentialData(String mapName, ObjectDataInput in)
             throws IOException {
         int[] diffNodeOrder = in.readIntArray();
-        // todo check if length 0 indicates something special and we need that array
-        //  in merkleTreeDiffByMapName
         merkleTreeDiffByMapName.put(mapName, diffNodeOrder);
         readRecordStoreData(mapName, in);
     }

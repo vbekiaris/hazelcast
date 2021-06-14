@@ -71,19 +71,6 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
     @SuppressWarnings("checkstyle:parameternumber")
     public FinalizeJoinOp(UUID targetUuid, MembersView members, OnJoinOp preJoinOp, OnJoinOp postJoinOp,
                           long masterTime, UUID clusterId, long clusterStartTime, ClusterState clusterState,
-                          Version clusterVersion, PartitionRuntimeState partitionRuntimeState) {
-        super(targetUuid, members, masterTime, partitionRuntimeState, true);
-        this.preJoinOp = preJoinOp;
-        this.postJoinOp = postJoinOp;
-        this.clusterId = clusterId;
-        this.clusterStartTime = clusterStartTime;
-        this.clusterState = clusterState;
-        this.clusterVersion = clusterVersion;
-    }
-
-    @SuppressWarnings("checkstyle:parameternumber")
-    public FinalizeJoinOp(UUID targetUuid, MembersView members, OnJoinOp preJoinOp, OnJoinOp postJoinOp,
-                          long masterTime, UUID clusterId, long clusterStartTime, ClusterState clusterState,
                           Version clusterVersion, PartitionRuntimeState partitionRuntimeState,
                           boolean deferApplyPartitionTable) {
         super(targetUuid, members, masterTime, partitionRuntimeState, true);
