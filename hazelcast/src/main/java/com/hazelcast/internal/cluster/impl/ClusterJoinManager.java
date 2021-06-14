@@ -678,6 +678,12 @@ public class ClusterJoinManager {
                 }
 
                 // send members update back to node trying to join again...
+                boolean deferPartitionProcessing = false;
+                if (member.getAttributes().get("hot-restart") != null
+                        && member.getAttributes().get("hot-restart").equals("true")
+                        && isCrashedMember(member.getUuid())) {
+                    deferPartitionProcessing = true;
+                }
                 OnJoinOp preJoinOp = preparePreJoinOps();
                 OnJoinOp postJoinOp = preparePostJoinOp();
                 PartitionRuntimeState partitionRuntimeState = node.getPartitionService().createPartitionState();
@@ -686,7 +692,7 @@ public class ClusterJoinManager {
                         clusterService.getMembershipManager().getMembersView(), preJoinOp, postJoinOp,
                         clusterClock.getClusterTime(), clusterService.getClusterId(),
                         clusterClock.getClusterStartTime(), clusterStateManager.getState(),
-                        clusterService.getClusterVersion(), partitionRuntimeState);
+                        clusterService.getClusterVersion(), partitionRuntimeState, deferPartitionProcessing);
                 op.setCallerUuid(clusterService.getThisUuid());
                 invokeClusterOp(op, target);
             }
