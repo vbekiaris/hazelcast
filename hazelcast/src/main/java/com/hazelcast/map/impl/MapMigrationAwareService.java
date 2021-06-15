@@ -242,9 +242,9 @@ class MapMigrationAwareService implements FragmentedMigrationAwareService, Offlo
     }
 
     /**
-     * @param backupCount number of backups of a maps' partition
-     * @return predicate to find all map partitions which are expected to have
-     * lesser backups than given backupCount.
+     * @param   backupCount number of backups of a maps' partition
+     * @return  predicate to find all map partitions which are expected to have
+     *          fewer backups than given backupCount.
      */
     private static Predicate<RecordStore> lesserBackupMapsThen(final int backupCount) {
         return recordStore -> recordStore.getMapContainer().getTotalBackupCount() < backupCount;
