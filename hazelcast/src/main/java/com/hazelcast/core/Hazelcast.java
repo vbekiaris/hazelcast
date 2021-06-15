@@ -70,11 +70,14 @@ public final class Hazelcast {
     }
 
     public static void dumpRemovalsOf(long address) {
-        System.out.println(">> Removals of address " + address);
-
         ConcurrentSkipListSet<String> removalReasons = ADDRESS_HISTORY.get(address);
-        for (String reason : removalReasons) {
-            System.out.println("\t" + reason);
+        if (removalReasons != null) {
+            System.out.println(">> Removals of address " + address);
+            for (String reason : removalReasons) {
+                System.out.println("\t" + reason);
+            }
+        } else {
+            System.out.println(">> No removals of address " + address);
         }
     }
 
