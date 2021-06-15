@@ -58,6 +58,10 @@ public interface Storage<K, R> {
         removeRecord(dataKey, record);
     }
 
+    default void removeSpecial(String reason, Data dataKey, @Nonnull R record) {
+        removeRecord(dataKey, record);
+    }
+
     boolean containsKey(K key);
 
     /**

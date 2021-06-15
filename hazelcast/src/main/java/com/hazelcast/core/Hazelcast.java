@@ -24,8 +24,6 @@ import com.hazelcast.instance.impl.OutOfMemoryErrorDispatcher;
 import com.hazelcast.jet.config.JobConfig;
 
 import javax.annotation.Nonnull;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -39,6 +37,10 @@ public final class Hazelcast {
     public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<DasKey>> REMOVED_KEYS_BY_PREFIX
             = new ConcurrentHashMap<>();
 
+    /** checkstyle comment */
+    public static final ConcurrentHashMap<Long, ConcurrentSkipListSet<String>> ADDRESS_HISTORY
+            = new ConcurrentHashMap<>();
+
     private Hazelcast() {
     }
 
@@ -47,8 +49,20 @@ public final class Hazelcast {
         if (seq == 0) {
             e = new HazelcastException("seq was 0");
         }
+        DasKey key = new DasKey(prefix, address, seq, e);
         REMOVED_KEYS_BY_PREFIX.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>())
-                       .add(new DasKey(prefix, address, seq, e));
+                       .add(key);
+        ADDRESS_HISTORY.computeIfAbsent(prefix, k -> new ConcurrentSkipListSet<>())
+                       .add("Removed by removeSpecial: " + key);
+    }
+
+    public static void addRemovedKey(String reason, long prefix, long address, long seq) {
+        Exception e = null;
+        if (seq == 0) {
+            e = new HazelcastException("seq was 0");
+        }
+        ADDRESS_HISTORY.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>())
+                       .add(reason + ": " + new DasKey(prefix, address, seq, e));
     }
 
     public static void clearRemovedKeys(long prefix) {
@@ -56,19 +70,11 @@ public final class Hazelcast {
     }
 
     public static void dumpRemovalsOf(long address) {
-        System.out.println("Lookups of " + address);
-        for (ConcurrentSkipListSet<DasKey> keys : REMOVED_KEYS_BY_PREFIX.values()) {
-            for (DasKey key : keys) {
-                if (key.address == address) {
-                    System.out.println("\twas removed from prefix " + key.prefix + " with seq " + key.seq);
-                    if (key.exception != null) {
-                        StringWriter sw = new StringWriter();
-                        key.exception.printStackTrace(new PrintWriter(sw));
-                        String exceptionAsString = sw.toString();
-                        System.out.println("\t>>> " + exceptionAsString);
-                    }
-                }
-            }
+        System.out.println(">> Removals of address " + address);
+
+        ConcurrentSkipListSet<String> removalReasons = ADDRESS_HISTORY.get(address);
+        for (String reason : removalReasons) {
+            System.out.println("\t" + reason);
         }
     }
 

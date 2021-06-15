@@ -512,7 +512,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
             mutationObserver.onRemoveRecord(dataKey, record);
         }
         removeKeyFromExpirySystem(dataKey);
-        storage.removeRecord(dataKey, record);
+        storage.removeSpecial("removeOrEvict", dataKey, record);
     }
 
     @Override
@@ -524,7 +524,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
             mapDataStore.flush(key, value, backup);
             mutationObserver.onEvictRecord(key, record);
             removeKeyFromExpirySystem(key);
-            storage.removeRecord(key, record);
+            storage.removeSpecial("evict", key, record);
             if (!backup) {
                 mapServiceContext.interceptRemove(interceptorRegistry, value);
             }
@@ -555,7 +555,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
         }
         mutationObserver.onRemoveRecord(key, record);
         removeKeyFromExpirySystem(key);
-        storage.removeRecord(key, record);
+        storage.removeSpecial("removeBackup", key, record);
         if (persistenceEnabledFor(provenance)) {
             mapDataStore.removeBackup(key, now, transactionId);
         }
@@ -631,7 +631,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
                 onStore(record);
                 mutationObserver.onRemoveRecord(key, record);
                 removeKeyFromExpirySystem(key);
-                storage.removeRecord(key, record);
+                storage.removeSpecial("remove", key, record);
                 updateStatsOnRemove(now);
             }
             removed = true;
@@ -1014,7 +1014,7 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore {
                 onStore(record);
                 mutationObserver.onRemoveRecord(key, record);
                 removeKeyFromExpirySystem(key);
-                storage.removeRecord(key, record);
+                storage.removeSpecial("merge", key, record);
                 return true;
             }
 
