@@ -61,8 +61,8 @@ public final class Hazelcast {
         if (seq == 0) {
             e = new HazelcastException("seq was 0");
         }
-        ADDRESS_HISTORY.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>())
-                       .add(reason + ": " + new DasKey(prefix, address, seq, e));
+        ConcurrentSkipListSet set = ADDRESS_HISTORY.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>());
+        set.add(set.size() + " - " + reason + ": " + new DasKey(prefix, address, seq, e));
     }
 
     public static void clearRemovedKeys(long prefix) {
