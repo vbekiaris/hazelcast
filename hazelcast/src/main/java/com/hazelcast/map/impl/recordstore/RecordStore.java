@@ -295,6 +295,24 @@ public interface RecordStore<R extends Record> {
                           boolean indexesMustBePopulated, long now);
 
     /**
+     * Similar to {@link #putReplicatedRecord(Data, Record, ExpiryMetadata, boolean, long)}
+     * however if an existing record is located for the same key (as defined in
+     * {@link Storage#getIfSameKey(Object)}), then that record is updated instead of creating a
+     * new one.
+     *
+     * @param dataKey
+     * @param record
+     * @param expiryMetadata
+     * @param indexesMustBePopulated
+     * @param now
+     * @return
+     */
+    default R putOrUpdateReplicatedRecord(Data dataKey, R record, ExpiryMetadata expiryMetadata,
+                          boolean indexesMustBePopulated, long now) {
+        return putReplicatedRecord(dataKey, record, expiryMetadata, indexesMustBePopulated, now);
+    }
+
+    /**
      * Remove record for given key. Does not load from MapLoader,
      * does not perform expiry / eviction checks.
      * @param dataKey

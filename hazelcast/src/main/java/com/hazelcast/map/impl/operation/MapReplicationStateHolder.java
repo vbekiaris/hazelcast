@@ -171,6 +171,8 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         if (!isNullOrEmpty(data)) {
             for (Map.Entry<String, List> dataEntry : data.entrySet()) {
                 String mapName = dataEntry.getKey();
+                final boolean isDifferentialReplication = mapNamesWithDifferentialReplication.contains(mapName)
+                        && merkleTreeDiffByMapName.containsKey(mapName);
                 List keyRecordExpiry = dataEntry.getValue();
                 if (mapNamesWithDifferentialReplication.contains(mapName)
                     ^ merkleTreeDiffByMapName.containsKey(mapName)) {
@@ -205,21 +207,40 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 }
 
                 long nowInMillis = Clock.currentTimeMillis();
-                for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
-                    Data dataKey = (Data) keyRecordExpiry.get(i);
-                    Record record = (Record) keyRecordExpiry.get(i + 1);
-                    ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
+                if (isDifferentialReplication) {
+                    for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
+                        Data dataKey = (Data) keyRecordExpiry.get(i);
+                        Record record = (Record) keyRecordExpiry.get(i + 1);
+                        ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
 
-                    recordStore.putReplicatedRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
+                        recordStore.putOrUpdateReplicatedRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
 
-                    if (recordStore.shouldEvict()) {
-                        // No need to continue replicating records anymore.
-                        // We are already over eviction threshold, each put record will cause another eviction.
-                        recordStore.evictEntries(dataKey);
-                        break;
+                        if (recordStore.shouldEvict()) {
+                            // No need to continue replicating records anymore.
+                            // We are already over eviction threshold, each put record will cause another eviction.
+                            recordStore.evictEntries(dataKey);
+                            break;
+                        }
+                        recordStore.disposeDeferredBlocks();
                     }
-                    recordStore.disposeDeferredBlocks();
+                } else {
+                    for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
+                        Data dataKey = (Data) keyRecordExpiry.get(i);
+                        Record record = (Record) keyRecordExpiry.get(i + 1);
+                        ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
+
+                        recordStore.putReplicatedRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
+
+                        if (recordStore.shouldEvict()) {
+                            // No need to continue replicating records anymore.
+                            // We are already over eviction threshold, each put record will cause another eviction.
+                            recordStore.evictEntries(dataKey);
+                            break;
+                        }
+                        recordStore.disposeDeferredBlocks();
+                    }
                 }
+
 
                 if (populateIndexes) {
                     Indexes.markPartitionAsIndexed(partitionContainer.getPartitionId(), indexesSnapshot);
