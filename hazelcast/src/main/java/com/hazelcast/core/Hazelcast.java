@@ -57,12 +57,13 @@ public final class Hazelcast {
     }
 
     public static void addRemovedKey(String reason, long prefix, long address, long seq) {
-        Exception e = null;
-        if (seq == 0) {
-            e = new HazelcastException("seq was 0");
-        }
-        ConcurrentSkipListSet set = ADDRESS_HISTORY.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>());
-        set.add(set.size() + " - " + reason + ": " + new DasKey(prefix, address, seq, e));
+        // no op
+//        Exception e = null;
+//        if (seq == 0) {
+//            e = new HazelcastException("seq was 0");
+//        }
+//        ConcurrentSkipListSet set = ADDRESS_HISTORY.computeIfAbsent(address, k -> new ConcurrentSkipListSet<>());
+//        set.add(set.size() + " - " + reason + ": " + new DasKey(prefix, address, seq, e));
     }
 
     public static void clearRemovedKeys(long prefix) {
