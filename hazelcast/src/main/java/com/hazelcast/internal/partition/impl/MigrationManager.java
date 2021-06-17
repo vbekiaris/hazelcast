@@ -1635,27 +1635,21 @@ public class MigrationManager {
                 return;
             }
 
-            // todo: do not promote backups -- partial availability loss
-//            if (delayNextRepartitioningExecution) {
-//                System.out.println(">>> delayNextRepartitioningExecution was true");
-//                delayNextRepartitioningExecution = false;
-//                return;
-//            }
+            // when repartitioning delay is configured do not promote backups
+            // this means loss of availability for partitions whose owner is crashed
+            // but recovery will be faster as no partition migrations will occur
+            // when crashed member rejoins
+            if (delayNextRepartitioningExecution) {
+                logger.fine("Delaying next repartitioning execution");
+                delayNextRepartitioningExecution = false;
+                ExecutionService executionService = nodeEngine.getExecutionService();
+                scheduledControlTaskFuture = (ScheduledFuture<Void>) executionService.schedule(() -> triggerControlTask(),
+                        autoRebalanceDelaySeconds, TimeUnit.SECONDS);
+                return;
+            }
 
             Map<PartitionReplica, Collection<MigrationInfo>> promotions = removeUnknownMembersAndCollectPromotions();
             boolean success = promoteBackupsForMissingOwners(promotions);
-            if (delayNextRepartitioningExecution) {
-                System.out.println(">>> delayNextRepartitioningExecution was true");
-                ExecutionService executionService = nodeEngine.getExecutionService();
-                // schedule a complete execution of the control task, to ensure migration queue
-                // is cleared before triggering partition rebalancing
-                scheduledControlTaskFuture = (ScheduledFuture<Void>) executionService.schedule(() -> triggerControlTask(),
-                        autoRebalanceDelaySeconds, TimeUnit.SECONDS);
-                delayNextRepartitioningExecution = false;
-                return;
-            } else {
-                System.out.println(">>> delayNextRepartitioningExecution was false");
-            }
             partitionServiceLock.lock();
             try {
                 if (success) {
