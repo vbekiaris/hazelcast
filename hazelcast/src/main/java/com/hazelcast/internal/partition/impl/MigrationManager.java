@@ -88,7 +88,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -149,6 +148,7 @@ public class MigrationManager {
     private final int maxParallelMigrations;
     private final AtomicInteger migrationCount = new AtomicInteger();
     private final Set<MigrationInfo> finalizingMigrationsRegistry = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Executor asyncExecutor;
 
     /**
      * the positive number of seconds to delay triggering rebalancing
@@ -184,6 +184,7 @@ public class MigrationManager {
         this.autoRebalanceDelaySeconds = properties.getInteger(PARTITION_REBALANCE_DELAY_SECONDS);
         checkNotNegative(autoRebalanceDelaySeconds,
                 PARTITION_REBALANCE_DELAY_SECONDS.getName() + " must be not negative");
+        this.asyncExecutor = node.getNodeEngine().getExecutionService().getExecutor(ASYNC_EXECUTOR);
     }
 
     @Probe(name = MIGRATION_METRIC_MIGRATION_MANAGER_MIGRATION_ACTIVE, unit = BOOLEAN)
@@ -466,7 +467,7 @@ public class MigrationManager {
      * was applied on the destination.
      */
     @SuppressWarnings({"checkstyle:npathcomplexity", "checkstyle:cyclomaticcomplexity", "checkstyle:methodlength"})
-    private CompletionStage<Boolean> commitMigrationToDestinationAsync(MigrationInfo migration) {
+    private CompletionStage<Boolean> commitMigrationToDestinationAsync(final MigrationInfo migration) {
         PartitionReplica destination = migration.getDestination();
 
         if (destination.isIdentical(node.getLocalMember())) {
@@ -495,7 +496,7 @@ public class MigrationManager {
                     .setTryCount(Integer.MAX_VALUE)
                     .setCallTimeout(memberHeartbeatTimeoutMillis).invoke();
 
-            return future.handle((done, t) -> {
+            return future.handleAsync((done, t) -> {
                 // Inspect commit result;
                 // - if there's an exception, either retry or fail
                 // - if result is true then success, otherwise failure
@@ -508,7 +509,7 @@ public class MigrationManager {
                     return COMMIT_FAILURE;
                 }
                 return done ? COMMIT_SUCCESS : COMMIT_FAILURE;
-            }).thenComposeAsync(result -> {
+            }, asyncExecutor).thenComposeAsync(result -> {
                 switch (result) {
                     case COMMIT_SUCCESS:
                         return CompletableFuture.completedFuture(true);
@@ -520,7 +521,7 @@ public class MigrationManager {
                     default:
                         throw new IllegalArgumentException("Unknown migration commit result: " + result);
                 }
-            }).handle((result, t) -> {
+            }, asyncExecutor).handleAsync((result, t) -> {
                 if (t != null) {
                     logMigrationCommitFailure(migration, t);
                     return false;
@@ -529,7 +530,7 @@ public class MigrationManager {
                     logger.fine("Migration commit result " + result + " from " + destination + " for " + migration);
                 }
                 return result;
-            });
+            }, asyncExecutor);
 
         } catch (Throwable t) {
             logMigrationCommitFailure(migration, t);
@@ -824,7 +825,7 @@ public class MigrationManager {
                     logger.fine("Failure while publishing completed migrations to " + member, t);
                     partitionService.sendPartitionRuntimeState(member.getAddress());
                 }
-            });
+            }, asyncExecutor);
         }
     }
 
@@ -1424,8 +1425,6 @@ public class MigrationManager {
                 future = InternalCompletableFuture.completedExceptionally(t);
             }
 
-            ExecutorService asyncExecutor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
-
             return future.handleAsync((done, t) -> {
                 stats.recordMigrationOperationTime(Timer.nanosElapsed(start));
                 logger.fine("Migration operation response received -> " + migration + ", success: " + done + ", failure: " + t);
@@ -1551,7 +1550,6 @@ public class MigrationManager {
             migrationInterceptor.onMigrationComplete(MigrationParticipant.MASTER, migration, true);
             long start = System.nanoTime();
 
-            Executor executor = nodeEngine.getExecutionService().getExecutor(ASYNC_EXECUTOR);
             CompletionStage<Boolean> f = commitMigrationToDestinationAsync(migration);
             f = f.thenApplyAsync(commitSuccessful -> {
                 stats.recordDestinationCommitTime(System.nanoTime() - start);
@@ -1603,7 +1601,7 @@ public class MigrationManager {
                     partitionServiceLock.unlock();
                 }
                 return commitSuccessful;
-            }, executor);
+            }, asyncExecutor);
             return f;
         }
     }
