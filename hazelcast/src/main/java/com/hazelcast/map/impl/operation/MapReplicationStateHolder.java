@@ -260,11 +260,11 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
 
     protected void initializeRecordStore(String mapName, RecordStore recordStore) {
         if (!mapNamesWithDifferentialReplication.contains(mapName)) {
-            Logger.getLogger(MapReplicationStateHolder.class).info("Reset partition recordstore "
+            Logger.getLogger(MapReplicationStateHolder.class).finest("Reset partition recordstore "
                     + "for " + mapName + " / " + recordStore.getPartitionId());
             recordStore.reset();
         } else {
-            Logger.getLogger(MapReplicationStateHolder.class).info("Map  "
+            Logger.getLogger(MapReplicationStateHolder.class).finest("Map  "
                     + mapName + " was found in differential sync map names");
         }
     }
