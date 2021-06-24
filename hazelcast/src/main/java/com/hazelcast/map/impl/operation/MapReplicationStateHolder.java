@@ -174,12 +174,7 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 final boolean isDifferentialReplication = mapNamesWithDifferentialReplication.contains(mapName)
                         && merkleTreeDiffByMapName.containsKey(mapName);
                 List keyRecordExpiry = dataEntry.getValue();
-                if (mapNamesWithDifferentialReplication.contains(mapName)
-                    ^ merkleTreeDiffByMapName.containsKey(mapName)) {
-                    throw new IllegalStateException("MapName issue " + mapName
-                            + " maps " + mapNamesWithDifferentialReplication + ", "
-                            + " merkle diffs " + merkleTreeDiffByMapName.keySet());
-                }
+                assertDiffMaps(mapName);
                 RecordStore recordStore = operation.getRecordStore(mapName);
                 initializeRecordStore(mapName, recordStore);
                 recordStore.setPreMigrationLoadedStatus(loaded.get(mapName));
@@ -200,45 +195,17 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
                 if (populateIndexes) {
                     // defensively clear possible stale leftovers in non-global indexes from the previous failed promotion attempt
                     indexesSnapshot = indexes.getIndexes();
-
                     Indexes.beginPartitionUpdate(indexesSnapshot);
-
                     indexes.clearAll();
                 }
 
                 long nowInMillis = Clock.currentTimeMillis();
                 if (isDifferentialReplication) {
-                    for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
-                        Data dataKey = (Data) keyRecordExpiry.get(i);
-                        Record record = (Record) keyRecordExpiry.get(i + 1);
-                        ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
-
-                        recordStore.putOrUpdateReplicatedRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
-
-                        if (recordStore.shouldEvict()) {
-                            // No need to continue replicating records anymore.
-                            // We are already over eviction threshold, each put record will cause another eviction.
-                            recordStore.evictEntries(dataKey);
-                            break;
-                        }
-                        recordStore.disposeDeferredBlocks();
-                    }
+                    forEachReplicatedRecord(keyRecordExpiry, recordStore, populateIndexes, nowInMillis,
+                            recordStore::putOrUpdateReplicatedRecord);
                 } else {
-                    for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
-                        Data dataKey = (Data) keyRecordExpiry.get(i);
-                        Record record = (Record) keyRecordExpiry.get(i + 1);
-                        ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
-
-                        recordStore.putReplicatedRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
-
-                        if (recordStore.shouldEvict()) {
-                            // No need to continue replicating records anymore.
-                            // We are already over eviction threshold, each put record will cause another eviction.
-                            recordStore.evictEntries(dataKey);
-                            break;
-                        }
-                        recordStore.disposeDeferredBlocks();
-                    }
+                    forEachReplicatedRecord(keyRecordExpiry, recordStore, populateIndexes, nowInMillis,
+                            recordStore::putReplicatedRecord);
                 }
 
 
@@ -255,6 +222,26 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
             RecordStore recordStore = operation.getRecordStore(mapName);
             recordStore.setStats(stats);
 
+        }
+    }
+
+    private void forEachReplicatedRecord(List keyRecordExpiry, RecordStore recordStore,
+                                         boolean populateIndexes, long nowInMillis,
+                                         ReplicatedRecordProcessor replicatedRecordProcessor) {
+        for (int i = 0; i < keyRecordExpiry.size(); i += 3) {
+            Data dataKey = (Data) keyRecordExpiry.get(i);
+            Record record = (Record) keyRecordExpiry.get(i + 1);
+            ExpiryMetadata expiryMetadata = (ExpiryMetadata) keyRecordExpiry.get(i + 2);
+
+            replicatedRecordProcessor.processRecord(dataKey, record, expiryMetadata, populateIndexes, nowInMillis);
+
+            if (recordStore.shouldEvict()) {
+                // No need to continue replicating records anymore.
+                // We are already over eviction threshold, each put record will cause another eviction.
+                recordStore.evictEntries(dataKey);
+                break;
+            }
+            recordStore.disposeDeferredBlocks();
         }
     }
 
@@ -439,6 +426,15 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         return MapDataSerializerHook.MAP_REPLICATION_STATE_HOLDER;
     }
 
+    private void assertDiffMaps(String mapName) {
+        if (mapNamesWithDifferentialReplication.contains(mapName)
+                ^ merkleTreeDiffByMapName.containsKey(mapName)) {
+            throw new IllegalStateException("MapName issue " + mapName
+                    + " maps " + mapNamesWithDifferentialReplication + ", "
+                    + " merkle diffs " + merkleTreeDiffByMapName.keySet());
+        }
+    }
+
     private static boolean indexesMustBePopulated(Indexes indexes, MapReplicationOperation operation) {
         if (!indexes.haveAtLeastOneIndex()) {
             // no indexes to populate
@@ -456,5 +452,10 @@ public class MapReplicationStateHolder implements IdentifiedDataSerializable, Ve
         }
 
         return true;
+    }
+
+    private interface ReplicatedRecordProcessor {
+        void processRecord(Data dataKey, Record record, ExpiryMetadata expiryMetadata,
+              boolean indexesMustBePopulated, long now);
     }
 }

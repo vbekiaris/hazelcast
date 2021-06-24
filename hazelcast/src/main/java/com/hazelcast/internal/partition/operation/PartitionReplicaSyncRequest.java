@@ -326,7 +326,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
         final CountDownLatch done = new CountDownLatch(1);
         private final Runnable runnable;
 
-        public PartitionRunnable(Runnable runnable) {
+        PartitionRunnable(Runnable runnable) {
             this.runnable = runnable;
         }
 
