@@ -17,6 +17,7 @@
 package com.hazelcast.internal.partition.operation;
 
 import com.hazelcast.cluster.Address;
+import com.hazelcast.internal.cluster.Versions;
 import com.hazelcast.internal.partition.InternalPartition;
 import com.hazelcast.internal.partition.InternalPartitionService;
 import com.hazelcast.internal.partition.MigrationCycleOperation;
@@ -33,19 +34,26 @@ import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.spi.exception.RetryableHazelcastException;
 import com.hazelcast.spi.impl.NodeEngine;
+import com.hazelcast.spi.impl.PartitionSpecificRunnable;
+import com.hazelcast.spi.impl.executionservice.ExecutionService;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.operationservice.OperationService;
 import com.hazelcast.spi.impl.operationservice.PartitionAwareOperation;
+import com.hazelcast.spi.impl.operationservice.UrgentSystemOperation;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.readList;
 import static com.hazelcast.internal.serialization.impl.SerializationUtil.writeList;
+import static com.hazelcast.internal.util.ThreadUtil.isRunningOnPartitionThread;
+import static java.lang.Thread.currentThread;
 
 /**
  * The request sent from a replica to the partition owner to synchronize the replica data. The partition owner can send a
@@ -106,32 +114,38 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
             return;
         }
 
-        sendOperationsForNamespaces(permits);
-        // send retry response for remaining namespaces
-        if (!namespaces.isEmpty()) {
-            logNotEnoughPermits();
-            sendRetryResponse();
+        // RU_COMPAT_4_2
+        if (getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0)) {
+            if (getLogger().isFinestEnabled()) {
+                getLogger().finest("Offloading replication operation preparation");
+            }
+            int partitionId = getPartitionId();
+            PartitionStateManager partitionStateManager = partitionService.getPartitionStateManager();
+            // set partition as migrating to disable mutating operations
+            // while preparing replication operations
+            if (!partitionStateManager.trySetMigratingFlag(partitionId)) {
+                throw new RetryableHazelcastException("Cannot set migrating flag, "
+                        + "probably previous migration's finalization is not completed yet.");
+            }
+            getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR, () -> {
+                try {
+                    sendOperationsForNamespaces(permits);
+                } finally {
+                    partitionStateManager.clearMigratingFlag(partitionId);
+                }
+                if (!namespaces.isEmpty()) {
+                    logNotEnoughPermits();
+                    sendRetryResponse();
+                }
+            });
+        } else {
+            sendOperationsForNamespaces(permits);
+            // send retry response for remaining namespaces
+            if (!namespaces.isEmpty()) {
+                logNotEnoughPermits();
+                sendRetryResponse();
+            }
         }
-
-//        int partitionId = getPartitionId();
-//        PartitionStateManager partitionStateManager = partitionService.getPartitionStateManager();
-//        if (!partitionStateManager.trySetMigratingFlag(partitionId)) {
-//            throw new RetryableHazelcastException("Cannot set migrating flag, "
-//                    + "probably previous migration's finalization is not completed yet.");
-//        }
-//        getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR, () -> {
-//            try {
-//                sendOperationsForNamespaces(permits);
-//            } finally {
-//                partitionStateManager.clearMigratingFlag(partitionId);
-//            }
-//            // send retry response for remaining namespaces
-//            if (!namespaces.isEmpty()) {
-//                logNotEnoughPermits();
-//                sendRetryResponse();
-//            }
-//
-//        });
     }
 
     private void logNotEnoughPermits() {
@@ -157,14 +171,32 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
                 if (NonFragmentedServiceNamespace.INSTANCE.equals(namespace)) {
                     operations = createNonFragmentedReplicationOperations(event);
                 } else {
-                    // todo may decide to use offloaded version
-                    operations = createFragmentReplicationOperations(event, namespace);
+                    // RU_COMPAT_4_2
+                    if (getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0)) {
+                        operations = createFragmentReplicationOperationsOffload(event, namespace);
+                    } else {
+                        operations = createFragmentReplicationOperations(event, namespace);
+                    }
                 }
-                sendOperations(operations, namespace);
+                sendOperationOnPartitionThread(operations, namespace);
                 iterator.remove();
             }
         } finally {
             partitionService.getReplicaManager().releaseReplicaSyncPermits(permits);
+        }
+    }
+
+    private void sendOperationOnPartitionThread(Collection<Operation> operations, ServiceNamespace ns) {
+        if (isRunningOnPartitionThread()) {
+            sendOperations(operations, ns);
+        } else {
+            PartitionRunnable partitionRunnable = new PartitionRunnable(() -> sendOperations(operations, ns));
+            getNodeEngine().getOperationService().execute(partitionRunnable);
+            try {
+                partitionRunnable.done.await();
+            } catch (InterruptedException e) {
+                currentThread().interrupt();
+            }
         }
     }
 
@@ -286,5 +318,30 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
     @Override
     public int getClassId() {
         return PartitionDataSerializerHook.REPLICA_SYNC_REQUEST;
+    }
+
+    final class PartitionRunnable
+            implements PartitionSpecificRunnable, UrgentSystemOperation {
+
+        final CountDownLatch done = new CountDownLatch(1);
+        private final Runnable runnable;
+
+        public PartitionRunnable(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public int getPartitionId() {
+            return PartitionReplicaSyncRequest.this.getPartitionId();
+        }
+
+        @Override
+        public void run() {
+            try {
+                runnable.run();
+            } finally {
+                done.countDown();
+            }
+        }
     }
 }

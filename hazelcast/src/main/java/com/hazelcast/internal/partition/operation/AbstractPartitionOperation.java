@@ -42,6 +42,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import static com.hazelcast.internal.util.ThreadUtil.isRunningOnPartitionThread;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 
@@ -122,7 +123,6 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
     final Collection<Operation> createFragmentReplicationOperationsOffload(PartitionReplicationEvent event, ServiceNamespace ns) {
         assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
 
-        final boolean runsOnPartitionThread = Thread.currentThread() instanceof PartitionOperationThread;
         Collection<Operation> operations = emptySet();
         NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
         Collection<ServiceInfo> services = nodeEngine.getServiceInfos(FragmentedMigrationAwareService.class);
@@ -132,7 +132,7 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
             if (!service.isKnownServiceNamespace(ns)) {
                 continue;
             }
-            operations = collectReplicationOperations(event, ns, runsOnPartitionThread, operations,
+            operations = collectReplicationOperations(event, ns, isRunningOnPartitionThread(), operations,
                     serviceInfo.getName(), service);
         }
         return operations;
