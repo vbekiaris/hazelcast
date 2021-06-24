@@ -68,6 +68,9 @@ import static java.lang.Thread.currentThread;
 public final class PartitionReplicaSyncRequest extends AbstractPartitionOperation
         implements PartitionAwareOperation, MigrationCycleOperation {
 
+    private static final String PARTITION_REPLICA_ALLOW_OFFLOAD = "hazelcast.partition.replica.offload";
+    private static final boolean allowOffload = Boolean.getBoolean(PARTITION_REPLICA_ALLOW_OFFLOAD);
+
     private List<ServiceNamespace> namespaces;
 
     public PartitionReplicaSyncRequest() {
@@ -115,7 +118,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
         }
 
         // RU_COMPAT_4_2
-        if (getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0)) {
+        if (shouldOffload()) {
             if (getLogger().isFinestEnabled()) {
                 getLogger().finest("Offloading replication operation preparation");
             }
@@ -172,7 +175,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
                     operations = createNonFragmentedReplicationOperations(event);
                 } else {
                     // RU_COMPAT_4_2
-                    if (getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0)) {
+                    if (shouldOffload()) {
                         operations = createFragmentReplicationOperationsOffload(event, namespace);
                     } else {
                         operations = createFragmentReplicationOperations(event, namespace);
@@ -318,6 +321,10 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
     @Override
     public int getClassId() {
         return PartitionDataSerializerHook.REPLICA_SYNC_REQUEST;
+    }
+
+    private boolean shouldOffload() {
+        return allowOffload && getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0);
     }
 
     final class PartitionRunnable
