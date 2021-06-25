@@ -69,7 +69,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
         implements PartitionAwareOperation, MigrationCycleOperation {
 
     private static final String PARTITION_REPLICA_ALLOW_OFFLOAD = "hazelcast.partition.replica.offload";
-    private static final boolean allowOffload = Boolean.getBoolean(PARTITION_REPLICA_ALLOW_OFFLOAD);
+    private static final boolean ALLOW_OFFLOAD = Boolean.getBoolean(PARTITION_REPLICA_ALLOW_OFFLOAD);
 
     private List<ServiceNamespace> namespaces;
 
@@ -324,7 +324,7 @@ public final class PartitionReplicaSyncRequest extends AbstractPartitionOperatio
     }
 
     private boolean shouldOffload() {
-        return allowOffload && getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0);
+        return ALLOW_OFFLOAD && getNodeEngine().getClusterService().getClusterVersion().isGreaterOrEqual(Versions.V5_0);
     }
 
     final class PartitionRunnable

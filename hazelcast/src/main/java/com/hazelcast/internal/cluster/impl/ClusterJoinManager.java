@@ -724,7 +724,7 @@ public class ClusterJoinManager {
                 // may be already detected as crashed member or probably it is still in member list because
                 // connection timeout hasn't been reached yet
                 && (isCrashedMember(member.getUuid())
-                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null );
+                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null);
     }
 
     private boolean isMemberRestartingWithPersistence(MemberInfo member) {
@@ -733,7 +733,7 @@ public class ClusterJoinManager {
                 // may be already detected as crashed member or probably it is still in member list because
                 // connection timeout hasn't been reached yet
                 && (isCrashedMember(member.getUuid())
-                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null );
+                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null);
     }
 
     private boolean checkIfUsingAnExistingMemberUuid(JoinMessage joinMessage) {
