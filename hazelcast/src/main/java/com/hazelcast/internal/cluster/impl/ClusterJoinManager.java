@@ -680,9 +680,7 @@ public class ClusterJoinManager {
 
                 // send members update back to node trying to join again...
                 boolean deferPartitionProcessing = false;
-                if (member.getAttributes().get("hot-restart") != null
-                        && member.getAttributes().get("hot-restart").equals("true")
-                        && isCrashedMember(member.getUuid())) {
+                if (isMemberRestartingWithPersistence(member)) {
                     deferPartitionProcessing = true;
                 }
                 OnJoinOp preJoinOp = preparePreJoinOps();
@@ -718,6 +716,24 @@ public class ClusterJoinManager {
             }
         }
         return true;
+    }
+
+    private boolean isMemberRestartingWithPersistence(Member member) {
+        return member.getAttributes().get("hot-restart") != null
+                && member.getAttributes().get("hot-restart").equals("true")
+                // may be already detected as crashed member or probably it is still in member list because
+                // connection timeout hasn't been reached yet
+                && (isCrashedMember(member.getUuid())
+                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null );
+    }
+
+    private boolean isMemberRestartingWithPersistence(MemberInfo member) {
+        return member.getAttributes().get("hot-restart") != null
+                && member.getAttributes().get("hot-restart").equals("true")
+                // may be already detected as crashed member or probably it is still in member list because
+                // connection timeout hasn't been reached yet
+                && (isCrashedMember(member.getUuid())
+                    || clusterService.getMembershipManager().getMember(member.getUuid()) != null );
     }
 
     private boolean checkIfUsingAnExistingMemberUuid(JoinMessage joinMessage) {
@@ -785,7 +801,7 @@ public class ClusterJoinManager {
                     boolean shouldForceStart = false;
                     if (member.getAttributes().get("hot-restart") != null
                             && member.getAttributes().get("hot-restart").equals("true")) {
-                        if (isCrashedMember(member.getUuid())) {
+                        if (isMemberRestartingWithPersistence(member)) {
                             logger.warning("Recently crashed member " + member + " is rejoining the cluster");
                             // do not trigger repartition immediately, wait for joining member to load hot-restart data
                             logger.warning("Recently crashed member " + member + " -- deferring repartitioning until"

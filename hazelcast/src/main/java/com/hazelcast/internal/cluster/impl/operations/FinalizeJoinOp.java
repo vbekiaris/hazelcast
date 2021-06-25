@@ -106,11 +106,14 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
             InternalHotRestartService hotRestartService = getInternalHotRestartService();
             if (hotRestartService.isEnabled()) {
                 getLogger().info("Deferring application of partition table due to hot restart being in progress");
-                partitionRuntimeState.setMaster(getCallerAddress());
-                hotRestartService.deferApplyPartitionState(partitionRuntimeState);
+                if (partitionRuntimeState != null) {
+                    partitionRuntimeState.setMaster(getCallerAddress());
+                    hotRestartService.deferApplyPartitionState(partitionRuntimeState);
+                }
             } else {
                 getLogger().info("Applying now new partition runtime state even though deferring it was requested, "
                         + "due to hot restart not being enabled");
+                processPartitionState();
             }
         }
     }
