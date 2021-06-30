@@ -211,6 +211,7 @@ public interface Cluster {
      * @return the version at which this cluster operates.
      * @since 3.8
      */
+    @Nonnull
     Version getClusterVersion();
 
     /**

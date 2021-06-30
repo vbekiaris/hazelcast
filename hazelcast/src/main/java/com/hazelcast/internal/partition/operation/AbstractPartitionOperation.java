@@ -25,25 +25,25 @@ import com.hazelcast.internal.partition.PartitionReplicationEvent;
 import com.hazelcast.internal.partition.impl.PartitionDataSerializerHook;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.util.ExceptionUtil;
+import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.impl.NodeEngineImpl;
-import com.hazelcast.spi.impl.PartitionSpecificRunnable;
 import com.hazelcast.spi.impl.executionservice.ExecutionService;
-import com.hazelcast.spi.impl.operationexecutor.impl.PartitionOperationThread;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.spi.impl.servicemanager.ServiceInfo;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static com.hazelcast.internal.util.ThreadUtil.isRunningOnPartitionThread;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.newSetFromMap;
 import static java.util.Collections.singleton;
 
 abstract class AbstractPartitionOperation extends Operation implements IdentifiedDataSerializable {
@@ -57,8 +57,16 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return createReplicationOperations(event, false);
     }
 
+    /** always executed on partition operation thread */
     final Collection<Operation> createNonFragmentedReplicationOperations(PartitionReplicationEvent event) {
-        return createReplicationOperations(event, true);
+        if (ThreadUtil.isRunningOnPartitionThread()) {
+            return createReplicationOperations(event, true);
+        }  else {
+            PartitionRunnable<Collection<Operation>> runnable = new PartitionRunnable<>(
+                    event.getPartitionId(), () -> createReplicationOperations(event, true));
+            getNodeEngine().getOperationService().execute(runnable);
+            return runnable.future.joinInternal();
+        }
     }
 
     private Collection<Operation> createReplicationOperations(PartitionReplicationEvent event, boolean nonFragmentedOnly) {
@@ -82,10 +90,10 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return operations;
     }
 
-    // for invocation within partition thread; prepares replication operations within partition thread
+    // must be invoked on partition thread; prepares replication operations within partition thread
     // does not support differential sync
     final Collection<Operation> createFragmentReplicationOperations(PartitionReplicationEvent event, ServiceNamespace ns) {
-        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
+        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for fragmented services!";
 
         Collection<Operation> operations = emptySet();
         NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
@@ -102,26 +110,26 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return operations;
     }
 
+    /** used for offloaded replication op preparation while executing a migration request */
     final Collection<Operation> createFragmentReplicationOperationsOffload(PartitionReplicationEvent event, ServiceNamespace ns,
                                                                            Collection<String> serviceNames) {
-        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
+        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for fragmented services!";
 
-        final boolean runsOnPartitionThread = Thread.currentThread() instanceof PartitionOperationThread;
         Collection<Operation> operations = emptySet();
         NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
         for (String serviceName : serviceNames) {
             FragmentedMigrationAwareService service = nodeEngine.getService(serviceName);
             assert service.isKnownServiceNamespace(ns) : ns + " should be known by " + service;
 
-            operations = collectReplicationOperations(event, ns, runsOnPartitionThread, operations, serviceName, service);
+            operations = collectReplicationOperations(event, ns, isRunningOnPartitionThread(), operations, serviceName, service);
         }
 
         return operations;
     }
 
-    // todo RU_COMPAT_4_2 -- to be used by PartitionReplicaSyncRequest for offloaded replication op preparation
+    /** used for partition replica sync, supporting offloaded replication op preparation */
     final Collection<Operation> createFragmentReplicationOperationsOffload(PartitionReplicationEvent event, ServiceNamespace ns) {
-        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for non-fragmented services!";
+        assert !(ns instanceof NonFragmentedServiceNamespace) : ns + " should be used only for fragmented services!";
 
         Collection<Operation> operations = emptySet();
         NodeEngineImpl nodeEngine = (NodeEngineImpl) getNodeEngine();
@@ -149,79 +157,66 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
     private Collection<Operation> collectReplicationOperations(PartitionReplicationEvent event, ServiceNamespace ns,
                                          boolean runsOnPartitionThread, Collection<Operation> operations,
                                          String serviceName, FragmentedMigrationAwareService service) {
-        // execute on current thread iff (OffloadedReplicationPreparation && !runsOnPartitionThread)
-        // or (!OffloadedReplicationPreparation && runsOnPartitionThread), otherwise explicitly
-        // request execution on partition thread.
-        if (service instanceof OffloadedReplicationPreparation
-                && ((OffloadedReplicationPreparation) service).shouldOffload()) {
-            if (!runsOnPartitionThread) {
-                // execute outside partition thread
-                assert (!(Thread.currentThread() instanceof PartitionOperationThread)) : "Offloadable replication op"
-                        + " preparation must be executed on non-partition thread";
-                operations = prepareAndAppendReplicationOperation(event, ns, service,
-                        serviceName, operations);
-            } else {
-                // execute on async executor
-                Collection<Operation> mutableOps = new ArrayList<>();
-                Future<?> future =
-                        getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR,
-                        () -> prepareAndAppendReplicationOperationMutable(event, ns, service, serviceName, mutableOps));
-                try {
-                    future.get();
-                    operations = postProcessOperations(operations, mutableOps);
-                } catch (ExecutionException | CancellationException e) {
-                    ExceptionUtil.rethrow(e.getCause());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    ExceptionUtil.rethrow(e);
-                }
+        // execute on current thread if (shouldOffload() ^ runsOnPartitionThread)
+        // otherwise explicitly request execution on partition or async executor thread.
+        if (runsOnPartitionThread
+            ^ (service instanceof OffloadedReplicationPreparation
+               && ((OffloadedReplicationPreparation) service).shouldOffload())) {
+            operations = prepareAndAppendReplicationOperation(event, ns, service, serviceName, operations);
+        } else if (runsOnPartitionThread) {
+            // migration aware service requested offload but we are on partition thread
+            // execute on async executor
+            Future<Operation> future =
+                    getNodeEngine().getExecutionService().submit(ExecutionService.ASYNC_EXECUTOR,
+                            () -> prepareReplicationOperation(event, ns, service, serviceName));
+            try {
+                Operation op = future.get();
+                operations = appendOperation(operations, op);
+            } catch (ExecutionException | CancellationException e) {
+                ExceptionUtil.rethrow(e.getCause());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                ExceptionUtil.rethrow(e);
             }
         } else {
-            // always execute in partition thread
-            if (runsOnPartitionThread) {
-                assert (Thread.currentThread() instanceof PartitionOperationThread) : "Replication op"
-                        + " preparation must be executed on partition thread";
-                operations = prepareAndAppendReplicationOperation(event, ns, service, serviceName, operations);
-            } else {
-                Collection<Operation> mutableOps = new ArrayList<>();
-                RunOnPartitionThread partitionThreadRunnable = new RunOnPartitionThread(
-                        () -> prepareAndAppendReplicationOperationMutable(event, ns, service, serviceName, mutableOps));
-                getNodeEngine().getOperationService().execute(partitionThreadRunnable);
-                try {
-                    partitionThreadRunnable.future.join();
-                    operations = postProcessOperations(operations, mutableOps);
-                } catch (CompletionException e) {
-                    ExceptionUtil.rethrow(e.getCause());
-                }
-            }
+            // migration aware service did not request offload but execution is not on partition thread
+            // must execute replication operation preparation on partition thread
+            PartitionRunnable<Operation> partitionThreadRunnable = new PartitionRunnable<>(
+                    event.getPartitionId(),
+                    () -> prepareReplicationOperation(event, ns, service, serviceName));
+            getNodeEngine().getOperationService().execute(partitionThreadRunnable);
+            Operation op = partitionThreadRunnable.future.joinInternal();
+            operations = appendOperation(operations, op);
         }
         return operations;
     }
 
-    private Collection<Operation> postProcessOperations(Collection<Operation> previous, Collection<Operation> additional) {
+    private Collection<Operation> appendOperation(Collection<Operation> previous, Operation additional) {
+        if (additional == null) {
+            return previous;
+        }
         if (previous.isEmpty()) {
-            previous = additional;
+            previous = singleton(additional);
         } else if (previous.size() == 1) {
-            // immutable singleton list
-            previous = new ArrayList<>(previous);
-            previous.addAll(additional);
+            // previous is an immutable singleton list
+            previous = newOperationSet(previous);
+            previous.add(additional);
         } else {
-            previous.addAll(additional);
+            previous.add(additional);
         }
         return previous;
     }
 
-    // todo this is ugly
-    private void prepareAndAppendReplicationOperationMutable(PartitionReplicationEvent event, ServiceNamespace ns,
-                    FragmentedMigrationAwareService service, String serviceName, Collection<Operation> mutableOperations) {
+    private Operation prepareReplicationOperation(PartitionReplicationEvent event, ServiceNamespace ns,
+                    FragmentedMigrationAwareService service, String serviceName) {
 
         Operation op = service.prepareReplicationOperation(event, singleton(ns));
         if (op == null) {
-            return;
+            return null;
         }
 
         op.setServiceName(serviceName);
-        mutableOperations.add(op);
+        return op;
     }
 
     private Collection<Operation> prepareAndAppendReplicationOperation(PartitionReplicationEvent event, ServiceNamespace ns,
@@ -238,7 +233,7 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
             // generally a namespace belongs to a single service only
             operations = singleton(op);
         } else if (operations.size() == 1) {
-            operations = new ArrayList<>(operations);
+            operations = newOperationSet(operations);
             operations.add(op);
         } else {
             operations.add(op);
@@ -251,27 +246,10 @@ abstract class AbstractPartitionOperation extends Operation implements Identifie
         return PartitionDataSerializerHook.F_ID;
     }
 
-    private final class RunOnPartitionThread implements PartitionSpecificRunnable {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        private final Runnable runnable;
-
-        RunOnPartitionThread(Runnable runnable) {
-            this.runnable = runnable;
-        }
-
-        @Override
-        public int getPartitionId() {
-            return AbstractPartitionOperation.this.getPartitionId();
-        }
-
-        @Override
-        public void run() {
-            try {
-                runnable.run();
-                future.complete(null);
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        }
+    // return a new thread-safe Set populated with all elements from previouis
+    Set<Operation> newOperationSet(Collection<Operation> previous) {
+        Set<Operation> newSet = newSetFromMap(new ConcurrentHashMap<>());
+        newSet.addAll(previous);
+        return newSet;
     }
 }

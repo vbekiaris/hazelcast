@@ -205,7 +205,7 @@ public final class TestPartitionUtils {
                     (PartitionReplicaManager) partitionService.getPartitionReplicaVersionManager();
 
             Collection<ServiceNamespace> namespaces = replicaManager.getNamespaces(partitionId);
-            Map<ServiceNamespace, long[]> versionMap = new HashMap<ServiceNamespace, long[]>(namespaces.size());
+            Map<ServiceNamespace, long[]> versionMap = new HashMap<>(namespaces.size());
             Set<ServiceNamespace> dirty = new HashSet<ServiceNamespace>();
             for (ServiceNamespace ns : namespaces) {
                 long[] originalVersions = replicaManager.getPartitionReplicaVersions(partitionId, ns);

@@ -195,7 +195,7 @@ public class MigrationRequestOperation extends BaseMigrationOperation {
                         + " is different than expected: " + migrationInfo);
             }
 
-            // replication operation preparation may to happen on partition thread or not
+            // replication operation preparation may have to happen on partition thread or not
             ReplicaFragmentMigrationState migrationState = createNextReplicaFragmentMigrationState();
 
             // migration invocation must always happen on partition thread

@@ -21,6 +21,7 @@ import com.hazelcast.internal.partition.service.TestAbstractMigrationAwareServic
 import com.hazelcast.internal.partition.FragmentedMigrationAwareService;
 import com.hazelcast.internal.partition.PartitionMigrationEvent;
 import com.hazelcast.internal.partition.PartitionReplicationEvent;
+import com.hazelcast.internal.util.ThreadUtil;
 import com.hazelcast.spi.impl.operationservice.Operation;
 import com.hazelcast.internal.services.ServiceNamespace;
 import com.hazelcast.internal.partition.MigrationEndpoint;
@@ -89,6 +90,7 @@ public class TestFragmentedMigrationAwareService extends TestAbstractMigrationAw
 
     @Override
     public Operation prepareReplicationOperation(PartitionReplicationEvent event, Collection<ServiceNamespace> namespaces) {
+        assert ThreadUtil.isRunningOnPartitionThread();
         if (event.getReplicaIndex() > backupCount || namespaces.isEmpty()) {
             return null;
         }
