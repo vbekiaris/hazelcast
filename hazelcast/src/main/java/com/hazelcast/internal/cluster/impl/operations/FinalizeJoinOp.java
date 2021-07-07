@@ -93,6 +93,9 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         checkDeserializationFailure(clusterService);
 
         preparePostOp(preJoinOp);
+        if (getInternalHotRestartService().isEnabled()) {
+            getInternalHotRestartService().setRejoiningActiveCluster(deferPartitionProcessing);
+        }
         finalized = clusterService.finalizeJoin(getMembersView(), callerAddress, callerUuid, targetUuid, clusterId, clusterState,
                 clusterVersion, clusterStartTime, masterTime, preJoinOp);
 
