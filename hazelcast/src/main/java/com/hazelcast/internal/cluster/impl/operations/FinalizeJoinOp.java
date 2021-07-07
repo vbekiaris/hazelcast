@@ -93,8 +93,10 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         checkDeserializationFailure(clusterService);
 
         preparePostOp(preJoinOp);
-        if (getInternalHotRestartService().isEnabled()) {
-            getInternalHotRestartService().setRejoiningActiveCluster(deferPartitionProcessing);
+        InternalHotRestartService hrService = getInternalHotRestartService();
+        boolean hrServiceEnabled = hrService != null && hrService.isEnabled();
+        if (hrServiceEnabled) {
+            hrService.setRejoiningActiveCluster(deferPartitionProcessing);
         }
         finalized = clusterService.finalizeJoin(getMembersView(), callerAddress, callerUuid, targetUuid, clusterId, clusterState,
                 clusterVersion, clusterStartTime, masterTime, preJoinOp);
@@ -103,16 +105,16 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
             return;
         }
 
-        if (deferPartitionProcessing && getInternalHotRestartService().isEnabled() && partitionRuntimeState != null) {
+        if (deferPartitionProcessing && hrServiceEnabled && partitionRuntimeState != null) {
             partitionRuntimeState.setMaster(getCallerAddress());
-            getInternalHotRestartService().deferApplyPartitionState(partitionRuntimeState);
+            hrService.deferApplyPartitionState(partitionRuntimeState);
         } else {
             processPartitionState();
         }
     }
 
     private InternalHotRestartService getInternalHotRestartService() {
-        return getNodeEngine().getService(InternalHotRestartService.SERVICE_NAME);
+        return getNodeEngine().getServiceOrNull(InternalHotRestartService.SERVICE_NAME);
     }
 
     private void checkDeserializationFailure(ClusterServiceImpl clusterService) {
@@ -133,7 +135,7 @@ public class FinalizeJoinOp extends MembersUpdateOp implements TargetAware, Vers
         }
 
         final boolean shouldExecutePostJoinOp = preparePostOp(postJoinOp);
-        if (deferPartitionProcessing) {
+        if (deferPartitionProcessing && getInternalHotRestartService() != null && getInternalHotRestartService().isEnabled()) {
             getInternalHotRestartService().deferPostJoinOps(postJoinOp);
             return;
         }
