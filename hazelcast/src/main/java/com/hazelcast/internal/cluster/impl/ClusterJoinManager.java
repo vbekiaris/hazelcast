@@ -722,7 +722,8 @@ public class ClusterJoinManager {
                 // may be already detected as crashed member or probably it is still in member list because
                 // connection timeout hasn't been reached yet
                 && (hasMemberLeft(member.getUuid())
-                    || previousMembersMap.contains(member.getUuid()));
+                    || previousMembersMap.contains(member.getUuid())
+                    || clusterService.getMembershipManager().isMissingMember(member.getAddress(), member.getUuid()));
     }
 
     private boolean checkIfUsingAnExistingMemberUuid(JoinMessage joinMessage) {
